@@ -56,6 +56,9 @@ namespace GameCore
 
     bool UpdateApplication( IGameApp& game )
     {
+
+        //TODO INSPECT UPDATE CORE LOOP
+
         EngineProfiling::Update();
 
         float DeltaTime = Graphics::GetFrameTime();
@@ -66,7 +69,9 @@ namespace GameCore
         game.Update(DeltaTime);
         game.RenderScene();
 
+
         PostEffects::Render();
+        // ----- UI RELATED -----
 
         GraphicsContext& UiContext = GraphicsContext::Begin(L"Render UI");
         UiContext.TransitionResource(g_OverlayBuffer, D3D12_RESOURCE_STATE_RENDER_TARGET, true);

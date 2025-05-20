@@ -33,6 +33,7 @@
 #include "ModelLoader.h"
 #include "ShadowCamera.h"
 #include "Display.h"
+#include "TestRenderer.h"
 
 #define LEGACY_RENDERER
 
@@ -167,7 +168,8 @@ void ModelViewer::Startup( void )
     if (CommandLineArgs::GetString(L"model", gltfFileName) == false)
     {
 #ifdef LEGACY_RENDERER
-        Sponza::Startup(m_Camera);
+        TestRenderer::Startup(m_Camera);
+        //Sponza::Startup(m_Camera);
 #else
         m_ModelInst = Renderer::LoadModel(L"Sponza/PBR/sponza2.gltf", forceRebuild);
         m_ModelInst.Resize(100.0f * m_ModelInst.GetRadius());
@@ -200,7 +202,8 @@ void ModelViewer::Cleanup( void )
     g_IBLTextures.clear();
 
 #ifdef LEGACY_RENDERER
-    Sponza::Cleanup();
+    TestRenderer::Cleanup();
+    //Sponza::Cleanup();
 #endif
 
     Renderer::Shutdown();
@@ -262,7 +265,8 @@ void ModelViewer::RenderScene( void )
     if (m_ModelInst.IsNull())
     {
 #ifdef LEGACY_RENDERER
-        Sponza::RenderScene(gfxContext, m_Camera, viewport, scissor);
+        //Sponza::RenderScene(gfxContext, m_Camera, viewport, scissor);
+        TestRenderer::RenderScene(gfxContext, m_Camera, viewport, scissor,false,false);
 #endif
     }
     else

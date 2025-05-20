@@ -57,6 +57,8 @@ void FlyingFPSCamera::Update( float deltaTime )
 {
     (deltaTime);
 
+
+
     float timeScale = Graphics::DebugZoom == 0 ? 1.0f : Graphics::DebugZoom == 1 ? 0.5f : 0.25f;
 
     if (GameInput::IsFirstPressed(GameInput::kLThumbClick) || GameInput::IsFirstPressed(GameInput::kKey_lshift))
@@ -67,6 +69,8 @@ void FlyingFPSCamera::Update( float deltaTime )
 
     float speedScale = (m_FineMovement ? 0.1f : 1.0f) * timeScale;
     float panScale = (m_FineRotation ? 0.5f : 1.0f) * timeScale;
+
+    //TODO INSPECT INPUT HANDLING 
 
     float yaw = GameInput::GetTimeCorrectedAnalogInput( GameInput::kAnalogRightStickX ) * m_HorizontalLookSensitivity * panScale;
     float pitch = GameInput::GetTimeCorrectedAnalogInput( GameInput::kAnalogRightStickY ) * m_VerticalLookSensitivity * panScale;

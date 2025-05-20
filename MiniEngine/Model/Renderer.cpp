@@ -83,6 +83,7 @@ void Renderer::Initialize(void)
     SamplerDesc CubeMapSamplerDesc = DefaultSamplerDesc;
     //CubeMapSamplerDesc.MaxLOD = 6.0f;
 
+    //TODO INSPECT SETUP OF ROOT SIGNATURES 
     m_RootSig.Reset(kNumRootBindings, 3);
     m_RootSig.InitStaticSampler(10, DefaultSamplerDesc, D3D12_SHADER_VISIBILITY_PIXEL);
     m_RootSig.InitStaticSampler(11, SamplerShadowDesc, D3D12_SHADER_VISIBILITY_PIXEL);
@@ -128,6 +129,8 @@ void Renderer::Initialize(void)
     ASSERT(sm_PSOs.size() == 0);
 
     // Depth Only PSOs
+
+    //TODO INSPECT SETUP OF PIPELINE STATE OBJECTS (PSOs)
 
     GraphicsPSO DepthOnlyPSO(L"Renderer: Depth Only PSO");
     DepthOnlyPSO.SetRootSignature(m_RootSig);

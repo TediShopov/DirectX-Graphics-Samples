@@ -72,6 +72,7 @@
     <ClInclude Include="ParticleEffects.h" />
     <ClInclude Include="Renderer.h" />
     <ClInclude Include="SponzaRenderer.h" />
+    <ClInclude Include="TestRenderer.h" />
     <ClInclude Include="TextureConvert.h" />
   </ItemGroup>
   <ItemGroup>
@@ -88,6 +89,7 @@
     <ClCompile Include="ParticleEffects.cpp" />
     <ClCompile Include="Renderer.cpp" />
     <ClCompile Include="SponzaRenderer.cpp" />
+    <ClCompile Include="TestRenderer.cpp" />
     <ClCompile Include="TextureConvert.cpp" />
   </ItemGroup>
   <ItemGroup>
@@ -170,6 +172,9 @@
     </FxCompile>
     <FxCompile Include="Shaders\SkyboxVS.hlsl">
       <ShaderType>Vertex</ShaderType>
+    </FxCompile>
+    <FxCompile Include="Shaders\TestRendererPS.hlsl">
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Pixel</ShaderType>
     </FxCompile>
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
