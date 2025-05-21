@@ -26,6 +26,7 @@ namespace TestRenderer
 		bool skipShadowMap = false );
 
 	const ModelH3D& GetModel();
+	void InitTriangleModel();
 
     extern Math::Vector3 m_SunDirection;
     extern ShadowCamera m_SunShadow;

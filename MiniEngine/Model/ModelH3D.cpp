@@ -206,8 +206,7 @@ bool ModelH3D::LoadH3D(const wstring& filename)
 
     m_GeometryBuffer.Create(L"Geometry Buffer", totalBinarySize, 1, geomBuffer);
 
-    m_VertexBuffer = m_GeometryBuffer.VertexBufferView(0, m_Header.vertexDataByteSize, m_VertexStride);
-    m_IndexBuffer = m_GeometryBuffer.IndexBufferView(m_pIndexData - m_pVertexData, m_Header.indexDataByteSize, false);
+    m_VertexBuffer = m_GeometryBuffer.VertexBufferView(0, m_Header.vertexDataByteSize, m_VertexStride); m_IndexBuffer = m_GeometryBuffer.IndexBufferView(m_pIndexData - m_pVertexData, m_Header.indexDataByteSize, false);
     m_VertexBufferDepth = m_GeometryBuffer.VertexBufferView(m_pVertexDataDepth - m_pVertexData, m_Header.vertexDataByteSizeDepth, m_VertexStride);
     m_IndexBufferDepth = m_GeometryBuffer.IndexBufferView(m_pIndexDataDepth - m_pVertexData, m_Header.indexDataByteSize, false);
 

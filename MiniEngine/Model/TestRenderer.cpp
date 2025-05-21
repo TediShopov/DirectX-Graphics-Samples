@@ -21,6 +21,8 @@
 #include "CompiledShaders/ModelViewerVS.h"
 #include "CompiledShaders/ModelViewerPS.h"
 #include "CompiledShaders/TestRendererPS.h"
+#include "CompiledShaders/SimpleColorPS.h"
+#include "CompiledShaders/SimpleColorVS.h"
 
 using namespace Math;
 using namespace Graphics;
@@ -30,10 +32,12 @@ namespace TestRenderer
     void RenderLightShadows(GraphicsContext& gfxContext, const Camera& camera);
 
     enum eObjectFilter { kOpaque = 0x1, kCutout = 0x2, kTransparent = 0x4, kAll = 0xF, kNone = 0x0 };
+    void RenderTriangleObject( GraphicsContext& Context, const Matrix4& ViewProjMat, const Vector3& viewerPos, eObjectFilter Filter = kAll );
     void RenderObjects( GraphicsContext& Context, const Matrix4& ViewProjMat, const Vector3& viewerPos, eObjectFilter Filter = kAll );
 
     GraphicsPSO m_DepthPSO = { (L"Sponza: Depth PSO") };
     GraphicsPSO m_ModelPSO = { (L"Sponza: Color PSO") };
+    GraphicsPSO m_TestPSO = { (L"Sponza: Triangel Test PSO") };
     GraphicsPSO m_CutoutDepthPSO = { (L"Sponza: Cutout Depth PSO") };
     GraphicsPSO m_CutoutModelPSO = { (L"Sponza: Cutout Color PSO") };
     GraphicsPSO m_ShadowPSO(L"Sponza: Shadow PSO");
@@ -52,6 +56,23 @@ namespace TestRenderer
     NumVar ShadowDimX("Sponza/Lighting/Shadow Dim X", 5000, 1000, 10000, 100 );
     NumVar ShadowDimY("Sponza/Lighting/Shadow Dim Y", 3000, 1000, 10000, 100 );
     NumVar ShadowDimZ("Sponza/Lighting/Shadow Dim Z", 3000, 1000, 10000, 100 );
+
+    struct ColorVertex { Vector3 position;  Vector4 color; };
+
+    float m_aspectRatio = 16.0f / 9.0f;
+	// Define the geometry for a triangle.
+	ColorVertex triangleVertices[3] =
+	{
+		{ { 0.0f, 0.25f * m_aspectRatio, 0.0f }, { 1.0f, 0.0f, 0.0f, 1.0f } },
+		{ { 0.25f, -0.25f * m_aspectRatio, 0.0f }, { 0.0f, 1.0f, 0.0f, 1.0f } },
+		{ { -0.25f, -0.25f * m_aspectRatio, 0.0f }, { 0.0f, 0.0f, 1.0f, 1.0f } }
+	};
+
+    //The triangle geomtry buffer 
+    ByteAddressBuffer m_GeometryBuffer;
+    //The vertex and index resource views
+    D3D12_VERTEX_BUFFER_VIEW    m_VertexBuffer;
+    D3D12_INDEX_BUFFER_VIEW    m_IndexBuffer;
 }
 
 void TestRenderer::Startup( Camera& Camera )
@@ -69,6 +90,11 @@ void TestRenderer::Startup( Camera& Camera )
         { "TANGENT", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
         { "BITANGENT", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 }
     };
+	D3D12_INPUT_ELEMENT_DESC colorElem[] =
+	{
+		{ "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+		{ "COLOR", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 12, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 }
+	};
 
     // Depth-only (2x rate)
     m_DepthPSO.SetRootSignature(Renderer::m_RootSig);
@@ -118,9 +144,33 @@ void TestRenderer::Startup( Camera& Camera )
 //    m_CutoutModelPSO.SetRasterizerState(RasterizerTwoSided);
 //    m_CutoutModelPSO.Finalize();
 
+
+
+    //--- DEMO PASS FOR RENDERING TRIANGLE ---
+    // Full color pass
+    m_TestPSO = m_DepthPSO;
+    m_TestPSO.SetBlendState(BlendDisable);
+    m_TestPSO.SetDepthStencilState(DepthStateTestEqual);
+    m_TestPSO.SetRenderTargetFormats(2, formats, DepthFormat);
+
+    m_TestPSO.SetInputLayout(_countof(colorElem), colorElem);
+    //--- CHANGE THE DEPTH STATE ALWAYS TO DRAW ON TOP OF GEOMETRY
+    m_TestPSO.SetDepthStencilState(DepthStateDisabled);
+    //--- THIS HAS TO BE SET TO UNKNOWN FORMAT TO CONFORM TO FRAMEWORK
+    m_TestPSO.SetDepthTargetFormat(DXGI_FORMAT_UNKNOWN);
+    //--- MAKE SURE THAT CULLING IS OFF AND BOTH SIDES ARE DRAWN
+    m_TestPSO.SetRasterizerState(RasterizerTwoSided);
+
+    //-- CHANGE TO THE NEW SHADER FOR THE TRIANGLE
+    m_TestPSO.SetVertexShader( g_pSimpleColorVS, sizeof(g_pSimpleColorVS) );
+    m_TestPSO.SetPixelShader( g_pSimpleColorPS, sizeof(g_pSimpleColorPS) );
+
+    m_TestPSO.Finalize();
+
     // LOADING SPONZA AS WELL
     ASSERT(m_Model.Load(L"Sponza/sponza.h3d"), "Failed to load model");
     ASSERT(m_Model.GetMeshCount() > 0, "Model contains no meshes");
+    InitTriangleModel();
 
     // The caller of this function can override which materials are considered cutouts
     m_pMaterialIsCutout.resize(m_Model.GetMaterialCount());
@@ -154,11 +204,73 @@ const ModelH3D& TestRenderer::GetModel()
     return TestRenderer::m_Model;
 }
 
+void TestRenderer::InitTriangleModel()
+{
+	uint32_t indices[3] = { 0, 1, 2 };
+
+    size_t vertexStride = sizeof(ColorVertex);
+    size_t vertexDataSize = sizeof(triangleVertices);
+    size_t indexDataSize = sizeof(indices);
+
+    // 2. Allocate upload buffer (vertex + index)
+    size_t totalSize = vertexDataSize + indexDataSize;
+    void* uploadMem = _aligned_malloc(totalSize, 16);
+    assert(uploadMem);
+
+    void* vertexData = uploadMem;
+    void* indexData = static_cast<uint8_t*>(uploadMem) + vertexDataSize;
+
+    memcpy(vertexData, triangleVertices, vertexDataSize);
+    memcpy(indexData, indices, indexDataSize);
+
+    
+    ColorVertex tempColorVerts[3];
+    memcpy(tempColorVerts, vertexData, vertexDataSize);
+
+    //--- Upload buffer to GPU
+    m_GeometryBuffer.Create(L"Colored Triangle", totalSize, 1, uploadMem);
+    //--- Create buffer views
+//   m_VertexBuffer 
+//        = m_GeometryBuffer.VertexBufferView(0,  (uint32_t)vertexDataSize,vertexStride);
+   m_VertexBuffer 
+        = m_GeometryBuffer.VertexBufferView(0,vertexDataSize,vertexStride);
+//    m_IndexBuffer  
+//        = m_GeometryBuffer.IndexBufferView((uint32_t)vertexDataSize, DXGI_FORMAT_R16_UINT, (uint32_t)indexDataSize);
+
+    m_IndexBuffer  
+        = m_GeometryBuffer.IndexBufferView(vertexDataSize,indexDataSize,true);
+
+    // Optional: store CPU copy (not required if you don't need access)
+//    m_pVertexData = reinterpret_cast<uint8_t*>(_aligned_malloc(vertexDataSize, 16));
+//    m_pIndexData  = reinterpret_cast<uint8_t*>(_aligned_malloc(indexDataSize, 16));
+//    memcpy(m_pVertexData, triangleVerts, vertexDataSize);
+//    memcpy(m_pIndexData, indices, indexDataSize);
+
+    // Done!
+}
+
 void TestRenderer::Cleanup( void )
 {
     m_Model.Clear();
     Lighting::Shutdown();
     TextureManager::Shutdown();
+}
+
+void TestRenderer::RenderTriangleObject(GraphicsContext& gfxContext, const Matrix4& ViewProjMat, const Vector3& viewerPos, eObjectFilter Filter)
+{
+    //uint32_t VertexStride = m_Model.GetVertexStride();
+	const UINT vertexBufferSize = sizeof(triangleVertices);
+    //---TEMPORARILY switch index and vertex buffers
+	gfxContext.SetIndexBuffer(m_IndexBuffer);
+	gfxContext.SetVertexBuffer(0, m_VertexBuffer);
+
+    //--- Draw three indices of the triangle
+	gfxContext.DrawIndexed(3, 0, 0);
+    
+    //--- Switch Back To Sponza model
+	gfxContext.SetIndexBuffer(m_Model.GetIndexBuffer());
+	gfxContext.SetVertexBuffer(0, m_Model.GetVertexBuffer());
+
 }
 
 void TestRenderer::RenderObjects( GraphicsContext& gfxContext, const Matrix4& ViewProjMat, const Vector3& viewerPos, eObjectFilter Filter )
@@ -385,6 +497,15 @@ void TestRenderer::RenderScene(
                     gfxContext.SetViewportAndScissor(viewport, scissor);
                 }
                 RenderObjects( gfxContext, camera.GetViewProjMatrix(), camera.GetPosition(), TestRenderer::kOpaque );
+                {
+                    ScopedTimer _prof3(L"Render Triangle", gfxContext);
+                    gfxContext.SetPipelineState(m_TestPSO);
+                    gfxContext.TransitionResource(g_SceneDepthBuffer, D3D12_RESOURCE_STATE_DEPTH_READ);
+                    D3D12_CPU_DESCRIPTOR_HANDLE rtvs[]{ g_SceneColorBuffer.GetRTV(), g_SceneNormalBuffer.GetRTV() };
+                    gfxContext.SetRenderTargets(ARRAYSIZE(rtvs), rtvs, g_SceneDepthBuffer.GetDSV_DepthReadOnly());
+                    gfxContext.SetViewportAndScissor(viewport, scissor);
+					RenderTriangleObject(gfxContext, camera.GetViewProjMatrix(), camera.GetPosition(), TestRenderer::kOpaque);
+                }
 
 //                --- SKIP NORMAL CUTOUTS---
 //                gfxContext.SetPipelineState(m_CutoutModelPSO);
