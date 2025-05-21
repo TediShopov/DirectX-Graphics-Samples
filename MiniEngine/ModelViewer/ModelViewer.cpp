@@ -56,6 +56,12 @@ public:
     virtual void Update( float deltaT ) override;
     virtual void RenderScene( void ) override;
 
+    //Require hardware ray-tracing support
+    bool RequiresRaytracingSupport() const override 
+    { 
+        return true; 
+    }
+
 private:
 
     Camera m_Camera;

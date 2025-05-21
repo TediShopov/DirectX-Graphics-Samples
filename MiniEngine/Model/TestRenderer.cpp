@@ -204,50 +204,60 @@ const ModelH3D& TestRenderer::GetModel()
     return TestRenderer::m_Model;
 }
 
+
 void TestRenderer::InitTriangleModel()
 {
 	uint32_t indices[3] = { 0, 1, 2 };
 
-    size_t vertexStride = sizeof(ColorVertex);
-    size_t vertexDataSize = sizeof(triangleVertices);
-    size_t indexDataSize = sizeof(indices);
+	size_t vertexStride = sizeof(ColorVertex);
+	size_t vertexDataSize = sizeof(triangleVertices);
+	size_t indexDataSize = sizeof(indices);
 
-    // 2. Allocate upload buffer (vertex + index)
-    size_t totalSize = vertexDataSize + indexDataSize;
-    void* uploadMem = _aligned_malloc(totalSize, 16);
-    assert(uploadMem);
+	// 2. Allocate upload buffer (vertex + index)
+	size_t totalSize = vertexDataSize + indexDataSize;
+	void* uploadMem = _aligned_malloc(totalSize, 16);
+	assert(uploadMem);
 
-    void* vertexData = uploadMem;
-    void* indexData = static_cast<uint8_t*>(uploadMem) + vertexDataSize;
+	void* vertexData = uploadMem;
+	void* indexData = static_cast<uint8_t*>(uploadMem) + vertexDataSize;
 
-    memcpy(vertexData, triangleVertices, vertexDataSize);
-    memcpy(indexData, indices, indexDataSize);
+	memcpy(vertexData, triangleVertices, vertexDataSize);
+	memcpy(indexData, indices, indexDataSize);
 
-    
-    ColorVertex tempColorVerts[3];
-    memcpy(tempColorVerts, vertexData, vertexDataSize);
 
-    //--- Upload buffer to GPU
-    m_GeometryBuffer.Create(L"Colored Triangle", totalSize, 1, uploadMem);
-    //--- Create buffer views
+	ColorVertex tempColorVerts[3];
+	memcpy(tempColorVerts, vertexData, vertexDataSize);
+
+	//--- Upload buffer to GPU
+	m_GeometryBuffer.Create(L"Colored Triangle", totalSize, 1, uploadMem);
+	//--- Create buffer views
 //   m_VertexBuffer 
 //        = m_GeometryBuffer.VertexBufferView(0,  (uint32_t)vertexDataSize,vertexStride);
-   m_VertexBuffer 
-        = m_GeometryBuffer.VertexBufferView(0,vertexDataSize,vertexStride);
-//    m_IndexBuffer  
-//        = m_GeometryBuffer.IndexBufferView((uint32_t)vertexDataSize, DXGI_FORMAT_R16_UINT, (uint32_t)indexDataSize);
+	m_VertexBuffer
+		= m_GeometryBuffer.VertexBufferView(0, vertexDataSize, vertexStride);
+	//    m_IndexBuffer  
+	//        = m_GeometryBuffer.IndexBufferView((uint32_t)vertexDataSize, DXGI_FORMAT_R16_UINT, (uint32_t)indexDataSize);
 
-    m_IndexBuffer  
-        = m_GeometryBuffer.IndexBufferView(vertexDataSize,indexDataSize,true);
+	m_IndexBuffer
+		= m_GeometryBuffer.IndexBufferView(vertexDataSize, indexDataSize, true);
 
-    // Optional: store CPU copy (not required if you don't need access)
+	// Optional: store CPU copy (not required if you don't need access)
 //    m_pVertexData = reinterpret_cast<uint8_t*>(_aligned_malloc(vertexDataSize, 16));
 //    m_pIndexData  = reinterpret_cast<uint8_t*>(_aligned_malloc(indexDataSize, 16));
 //    memcpy(m_pVertexData, triangleVerts, vertexDataSize);
 //    memcpy(m_pIndexData, indices, indexDataSize);
 
-    // Done!
+	// Done!
 }
+//void TestRenderer::CheckRaytracingSupport(GraphicsContext gfx) {
+////	D3D12_FEATURE_DATA_D3D12_OPTIONS5 options5 = {};
+////    ID3D12Device device;
+//////    D3D12_DEVIce
+//////	m_device->CheckFeatureSupport(D3D12_FEATURE_D3D12_OPTIONS5,
+//////		&options5, sizeof(options5));
+//////	if (options5.RaytracingTier < D3D12_RAYTRACING_TIER_1_0)
+//////		throw std::runtime_error("Raytracing not supported on device");
+//	}
 
 void TestRenderer::Cleanup( void )
 {

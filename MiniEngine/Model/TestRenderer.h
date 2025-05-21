@@ -27,6 +27,7 @@ namespace TestRenderer
 
 	const ModelH3D& GetModel();
 	void InitTriangleModel();
+	//void CheckRaytracingSupport(GraphicsContext gfx);
 
     extern Math::Vector3 m_SunDirection;
     extern ShadowCamera m_SunShadow;
