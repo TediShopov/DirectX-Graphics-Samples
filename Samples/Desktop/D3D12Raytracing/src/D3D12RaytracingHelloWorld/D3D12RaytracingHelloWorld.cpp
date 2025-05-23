@@ -379,8 +379,7 @@ void D3D12RaytracingHelloWorld::BuildAccelerationStructures()
         topLevelBuildDesc.ScratchAccelerationStructureData = scratchResource->GetGPUVirtualAddress();
     }
 
-    auto BuildAccelerationStructure = [&](auto* raytracingCommandList)
-    {
+    auto BuildAccelerationStructure = [&](auto* raytracingCommandList) {
         raytracingCommandList->BuildRaytracingAccelerationStructure(&bottomLevelBuildDesc, 0, nullptr);
         commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::UAV(m_bottomLevelAccelerationStructure.Get()));
         raytracingCommandList->BuildRaytracingAccelerationStructure(&topLevelBuildDesc, 0, nullptr);

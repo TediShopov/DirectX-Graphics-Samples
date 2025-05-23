@@ -21,6 +21,10 @@ struct AccelerationStructureBuffers
     UINT64                 ResultDataMaxSizeInBytes;
 };
 
+#include "unordered_map"
+#include "sstream"
+#include "iomanip"
+#include "format"
 // Shader record = {{Shader ID}, {RootArguments}}
 class ShaderRecord
 {
