@@ -24,42 +24,56 @@
 #include "CompiledShaders/SimpleColorPS.h"
 #include "CompiledShaders/SimpleColorVS.h"
 
+
+#include <dxcapi.h>
+#include <vector>
+//#include "TopLevelASGenerator.h"
+//#include "DXRHelper.h"
+//#include "BottomLevelASGenerator.h"
+#include "DXSample.h"
+#include "StepTimer.h"
+#include "RaytracingHlslCompat.h"
+
+
+
 using namespace Math;
 using namespace Graphics;
+using namespace std;
+//using namespace DX;
 
 namespace TestRenderer
 {
-    void RenderLightShadows(GraphicsContext& gfxContext, const Camera& camera);
+	void RenderLightShadows(GraphicsContext& gfxContext, const Camera& camera);
 
-    enum eObjectFilter { kOpaque = 0x1, kCutout = 0x2, kTransparent = 0x4, kAll = 0xF, kNone = 0x0 };
-    void RenderTriangleObject( GraphicsContext& Context, const Matrix4& ViewProjMat, const Vector3& viewerPos, eObjectFilter Filter = kAll );
-    void RenderObjects( GraphicsContext& Context, const Matrix4& ViewProjMat, const Vector3& viewerPos, eObjectFilter Filter = kAll );
+	enum eObjectFilter { kOpaque = 0x1, kCutout = 0x2, kTransparent = 0x4, kAll = 0xF, kNone = 0x0 };
+	void RenderTriangleObject(GraphicsContext& Context, const Matrix4& ViewProjMat, const Vector3& viewerPos, eObjectFilter Filter = kAll);
+	void RenderObjects(GraphicsContext& Context, const Matrix4& ViewProjMat, const Vector3& viewerPos, eObjectFilter Filter = kAll);
 
-    GraphicsPSO m_DepthPSO = { (L"Sponza: Depth PSO") };
-    GraphicsPSO m_ModelPSO = { (L"Sponza: Color PSO") };
-    GraphicsPSO m_TestPSO = { (L"Sponza: Triangel Test PSO") };
-    GraphicsPSO m_CutoutDepthPSO = { (L"Sponza: Cutout Depth PSO") };
-    GraphicsPSO m_CutoutModelPSO = { (L"Sponza: Cutout Color PSO") };
-    GraphicsPSO m_ShadowPSO(L"Sponza: Shadow PSO");
-    GraphicsPSO m_CutoutShadowPSO(L"Sponza: Cutout Shadow PSO");
+	GraphicsPSO m_DepthPSO = { (L"Sponza: Depth PSO") };
+	GraphicsPSO m_ModelPSO = { (L"Sponza: Color PSO") };
+	GraphicsPSO m_TestPSO = { (L"Sponza: Triangel Test PSO") };
+	GraphicsPSO m_CutoutDepthPSO = { (L"Sponza: Cutout Depth PSO") };
+	GraphicsPSO m_CutoutModelPSO = { (L"Sponza: Cutout Color PSO") };
+	GraphicsPSO m_ShadowPSO(L"Sponza: Shadow PSO");
+	GraphicsPSO m_CutoutShadowPSO(L"Sponza: Cutout Shadow PSO");
 
-    ModelH3D m_Model;
-    std::vector<bool> m_pMaterialIsCutout;
+	ModelH3D m_Model;
+	std::vector<bool> m_pMaterialIsCutout;
 
-    Vector3 m_SunDirection;
-    ShadowCamera m_SunShadow;
+	Vector3 m_SunDirection;
+	ShadowCamera m_SunShadow;
 
-    ExpVar m_AmbientIntensity("Sponza/Lighting/Ambient Intensity", 0.1f, -16.0f, 16.0f, 0.1f);
-    ExpVar m_SunLightIntensity("Sponza/Lighting/Sun Light Intensity", 4.0f, 0.0f, 16.0f, 0.1f);
-    NumVar m_SunOrientation("Sponza/Lighting/Sun Orientation", -0.5f, -100.0f, 100.0f, 0.1f );
-    NumVar m_SunInclination("Sponza/Lighting/Sun Inclination", 0.75f, 0.0f, 1.0f, 0.01f );
-    NumVar ShadowDimX("Sponza/Lighting/Shadow Dim X", 5000, 1000, 10000, 100 );
-    NumVar ShadowDimY("Sponza/Lighting/Shadow Dim Y", 3000, 1000, 10000, 100 );
-    NumVar ShadowDimZ("Sponza/Lighting/Shadow Dim Z", 3000, 1000, 10000, 100 );
+	ExpVar m_AmbientIntensity("Sponza/Lighting/Ambient Intensity", 0.1f, -16.0f, 16.0f, 0.1f);
+	ExpVar m_SunLightIntensity("Sponza/Lighting/Sun Light Intensity", 4.0f, 0.0f, 16.0f, 0.1f);
+	NumVar m_SunOrientation("Sponza/Lighting/Sun Orientation", -0.5f, -100.0f, 100.0f, 0.1f);
+	NumVar m_SunInclination("Sponza/Lighting/Sun Inclination", 0.75f, 0.0f, 1.0f, 0.01f);
+	NumVar ShadowDimX("Sponza/Lighting/Shadow Dim X", 5000, 1000, 10000, 100);
+	NumVar ShadowDimY("Sponza/Lighting/Shadow Dim Y", 3000, 1000, 10000, 100);
+	NumVar ShadowDimZ("Sponza/Lighting/Shadow Dim Z", 3000, 1000, 10000, 100);
 
-    struct ColorVertex { Vector3 position;  Vector4 color; };
+	struct ColorVertex { Vector3 position;  Vector4 color; };
 
-    float m_aspectRatio = 16.0f / 9.0f;
+	float m_aspectRatio = 16.0f / 9.0f;
 	// Define the geometry for a triangle.
 	ColorVertex triangleVertices[3] =
 	{
@@ -68,11 +82,120 @@ namespace TestRenderer
 		{ { -0.25f, -0.25f * m_aspectRatio, 0.0f }, { 0.0f, 0.0f, 1.0f, 1.0f } }
 	};
 
-    //The triangle geomtry buffer 
-    ByteAddressBuffer m_GeometryBuffer;
-    //The vertex and index resource views
-    D3D12_VERTEX_BUFFER_VIEW    m_VertexBuffer;
-    D3D12_INDEX_BUFFER_VIEW    m_IndexBuffer;
+	//The triangle geomtry buffer 
+	ByteAddressBuffer m_GeometryBuffer;
+	//The vertex and index resource views
+	D3D12_VERTEX_BUFFER_VIEW    m_VertexBuffer;
+	D3D12_INDEX_BUFFER_VIEW    m_IndexBuffer;
+
+
+
+	//---   RAY-TRACING RELATED
+#pragma region RAY-TRACING DEMO
+
+	// The names of the shaders. The actual shader code is found in the Raytracing.hlsl
+//	const wchar_t* c_hitGroupName = L"MyHitGroup";
+//	const wchar_t* c_closestHitShaderName = L"MyClosestHitShader";
+//	const wchar_t* c_missShaderName = L"MyMissShader";
+
+//	void CreateRaytracingInterfaces()
+//	{
+//		auto device = Graphics::g_Device;
+//
+//		//Start a command context
+//		GraphicsContext& gfxContext = GraphicsContext::Begin();
+//		ID3D12GraphicsCommandList* pCmdList = gfxContext.GetCommandList();
+//		auto commandList = pCmdList;
+//
+//
+//		if (device->QueryInterface(IID_PPV_ARGS(&device)))
+//			wstring a = L"Couldn't get DirectX Raytracing interface for the device.\n";
+//
+//		if (commandList->QueryInterface(IID_PPV_ARGS(&commandList)))
+//			wstring a = L"Couldn't get DirectX Raytracing interface for the command list.\n";
+//
+//		gfxContext.Finish();
+//	}
+	//inline void ThrowIfFailed(HRESULT hr, const wchar_t* msg)
+	//{
+	//    if (FAILED(hr))
+	//    {
+	//        OutputDebugString(msg);
+	//        throw HrException(hr);
+	//    }
+	//}
+	//
+	//void SerializeAndCreateRaytracingRootSignature(D3D12_ROOT_SIGNATURE_DESC& desc, ComPtr<ID3D12RootSignature>* rootSig)
+	//{
+	//    //auto device = m_deviceResources->GetD3DDevice();
+	//    ComPtr<ID3DBlob> blob;
+	//    ComPtr<ID3DBlob> error;
+	//
+	//    ThrowIfFailed(D3D12SerializeRootSignature(&desc, D3D_ROOT_SIGNATURE_VERSION_1, &blob, &error), error ? static_cast<wchar_t*>(error->GetBufferPointer()) : nullptr);
+	//    ThrowIfFailed(device->CreateRootSignature(1, blob->GetBufferPointer(), blob->GetBufferSize(), IID_PPV_ARGS(&(*rootSig))));
+	//}
+	//void CreateRootSignatures()
+	//{
+	//    // Global Root Signature
+	//    // This is a root signature that is shared across all raytracing shaders invoked during a DispatchRays() call.
+	//    {
+	//        CD3DX12_DESCRIPTOR_RANGE UAVDescriptor;
+	//        UAVDescriptor.Init(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 1, 0);
+	//        //CD3DX12_ROOT_PARAMETER rootParameters[GlobalRootSignatureParams::Count];
+	//        //rootParameters[GlobalRootSignatureParams::OutputViewSlot].InitAsDescriptorTable(1, &UAVDescriptor);
+	//        //rootParameters[GlobalRootSignatureParams::AccelerationStructureSlot].InitAsShaderResourceView(0);
+	//        CD3DX12_ROOT_PARAMETER rootParameters[2];
+	//        rootParameters[0].InitAsDescriptorTable(1, &UAVDescriptor);
+	//        rootParameters[1].InitAsShaderResourceView(0);
+	//        CD3DX12_ROOT_SIGNATURE_DESC globalRootSignatureDesc(ARRAYSIZE(rootParameters), rootParameters);
+	//        SerializeAndCreateRaytracingRootSignature(globalRootSignatureDesc, &m_raytracingGlobalRootSignature);
+	//    }
+	//
+	//    // Local Root Signature
+	//    // This is a root signature that enables a shader to have unique arguments that come from shader tables.
+	//    {
+	//        //CD3DX12_ROOT_PARAMETER rootParameters[LocalRootSignatureParams::Count];
+	//        //rootParameters[LocalRootSignatureParams::ViewportConstantSlot].InitAsConstants(SizeOfInUint32(m_rayGenCB), 0, 0);
+	//        CD3DX12_ROOT_PARAMETER rootParameters[1];
+	//        rootParameters[0].InitAsConstants(SizeOfInUint32(m_rayGenCB), 0, 0);
+	//        CD3DX12_ROOT_SIGNATURE_DESC localRootSignatureDesc(ARRAYSIZE(rootParameters), rootParameters);
+	//        localRootSignatureDesc.Flags = D3D12_ROOT_SIGNATURE_FLAG_LOCAL_ROOT_SIGNATURE;
+	//        SerializeAndCreateRaytracingRootSignature(localRootSignatureDesc, &m_raytracingLocalRootSignature);
+	//    }
+	//}
+	//
+	//// Create resources that depend on the device.
+	//void CreateDeviceDependentResources()
+	//{
+	//    // Initialize raytracing pipeline.
+	//
+	//    // Create raytracing interfaces: raytracing device and commandlist.
+	//    CreateRaytracingInterfaces();
+	//
+	//    // Create root signatures for the shaders.
+	//    CreateRootSignatures();
+	//
+	//    // Create a raytracing pipeline state object which defines the binding of shaders, state and resources to be used during raytracing.
+	//    CreateRaytracingPipelineStateObject();
+	//
+	//    // Create a heap for descriptors.
+	//    CreateDescriptorHeap();
+	//
+	//    // Build geometry to be used in the sample.
+	//    BuildGeometry();
+	//
+	//    // Build raytracing acceleration structures from the generated geometry.
+	//    BuildAccelerationStructures();
+	//
+	//    // Build shader tables, which define shaders and their local root arguments.
+	//    BuildShaderTables();
+	//
+	//    // Create an output 2D texture to store the raytracing result to.
+	//    CreateRaytracingOutputResource();
+	//}
+	//
+#pragma endregion
+
 }
 
 void TestRenderer::Startup( Camera& Camera )
