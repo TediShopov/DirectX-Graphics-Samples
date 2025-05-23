@@ -291,6 +291,7 @@ void CreateDescriptorHeap()
     descriptorHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
     descriptorHeapDesc.NodeMask = 0;
     device->CreateDescriptorHeap(&descriptorHeapDesc, IID_PPV_ARGS(&m_descriptorHeap));
+   // m_descriptorHeap->SetName(L"Ray-Tracing Heap Descriptor");
     NAME_D3D12_OBJECT(m_descriptorHeap);
 
     m_descriptorSize = device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
@@ -570,7 +571,7 @@ void CreateRaytracingOutputResource()
 
 void DoRaytracing()
 {
-	GraphicsContext& gfxContext = GraphicsContext::Begin();
+	GraphicsContext& gfxContext = GraphicsContext::Begin(L"RayTracing");
 	ID3D12GraphicsCommandList4* pCmdList = static_cast<ID3D12GraphicsCommandList4*>(gfxContext.GetCommandList());
 	auto commandList = pCmdList;
     
@@ -601,6 +602,7 @@ void DoRaytracing()
     commandList->SetComputeRootDescriptorTable(0, m_raytracingOutputResourceUAVGpuDescriptor);
     commandList->SetComputeRootShaderResourceView(1, m_topLevelAccelerationStructure->GetGPUVirtualAddress());
     DispatchRays(commandList, m_dxrStateObject.Get(), &dispatchDesc);
+    gfxContext.Finish(true);
 }
 #pragma endregion
 
@@ -896,165 +898,165 @@ void TestRenderer::RenderScene(
     bool skipShadowMap)
 {
     DoRaytracing();
-    Renderer::UpdateGlobalDescriptors();
+    //Renderer::UpdateGlobalDescriptors();
 
-    uint32_t FrameIndex = TemporalEffects::GetFrameIndexMod2();
+    //uint32_t FrameIndex = TemporalEffects::GetFrameIndexMod2();
 
-    float costheta = cosf(m_SunOrientation);
-    float sintheta = sinf(m_SunOrientation);
-    float cosphi = cosf(m_SunInclination * 3.14159f * 0.5f);
-    float sinphi = sinf(m_SunInclination * 3.14159f * 0.5f);
-    m_SunDirection = Normalize(Vector3( costheta * cosphi, sinphi, sintheta * cosphi ));
+    //float costheta = cosf(m_SunOrientation);
+    //float sintheta = sinf(m_SunOrientation);
+    //float cosphi = cosf(m_SunInclination * 3.14159f * 0.5f);
+    //float sinphi = sinf(m_SunInclination * 3.14159f * 0.5f);
+    //m_SunDirection = Normalize(Vector3( costheta * cosphi, sinphi, sintheta * cosphi ));
 
-    __declspec(align(16)) struct
-    {
-        Vector3 sunDirection;
-        Vector3 sunLight;
-        Vector3 ambientLight;
-        float ShadowTexelSize[4];
+    //__declspec(align(16)) struct
+    //{
+    //    Vector3 sunDirection;
+    //    Vector3 sunLight;
+    //    Vector3 ambientLight;
+    //    float ShadowTexelSize[4];
 
-        float InvTileDim[4];
-        uint32_t TileCount[4];
-        uint32_t FirstLightIndex[4];
+    //    float InvTileDim[4];
+    //    uint32_t TileCount[4];
+    //    uint32_t FirstLightIndex[4];
 
-		uint32_t FrameIndexMod2;
-    } psConstants;
+	//	uint32_t FrameIndexMod2;
+    //} psConstants;
 
-    psConstants.sunDirection = m_SunDirection;
-    psConstants.sunLight = Vector3(1.0f, 1.0f, 1.0f) * m_SunLightIntensity;
-    psConstants.ambientLight = Vector3(1.0f, 1.0f, 1.0f) * m_AmbientIntensity;
-    psConstants.ShadowTexelSize[0] = 1.0f / g_ShadowBuffer.GetWidth();
-    psConstants.InvTileDim[0] = 1.0f / Lighting::LightGridDim;
-    psConstants.InvTileDim[1] = 1.0f / Lighting::LightGridDim;
-    psConstants.TileCount[0] = Math::DivideByMultiple(g_SceneColorBuffer.GetWidth(), Lighting::LightGridDim);
-    psConstants.TileCount[1] = Math::DivideByMultiple(g_SceneColorBuffer.GetHeight(), Lighting::LightGridDim);
-    psConstants.FirstLightIndex[0] = Lighting::m_FirstConeLight;
-    psConstants.FirstLightIndex[1] = Lighting::m_FirstConeShadowedLight;
-	psConstants.FrameIndexMod2 = FrameIndex;
+    //psConstants.sunDirection = m_SunDirection;
+    //psConstants.sunLight = Vector3(1.0f, 1.0f, 1.0f) * m_SunLightIntensity;
+    //psConstants.ambientLight = Vector3(1.0f, 1.0f, 1.0f) * m_AmbientIntensity;
+    //psConstants.ShadowTexelSize[0] = 1.0f / g_ShadowBuffer.GetWidth();
+    //psConstants.InvTileDim[0] = 1.0f / Lighting::LightGridDim;
+    //psConstants.InvTileDim[1] = 1.0f / Lighting::LightGridDim;
+    //psConstants.TileCount[0] = Math::DivideByMultiple(g_SceneColorBuffer.GetWidth(), Lighting::LightGridDim);
+    //psConstants.TileCount[1] = Math::DivideByMultiple(g_SceneColorBuffer.GetHeight(), Lighting::LightGridDim);
+    //psConstants.FirstLightIndex[0] = Lighting::m_FirstConeLight;
+    //psConstants.FirstLightIndex[1] = Lighting::m_FirstConeShadowedLight;
+	//psConstants.FrameIndexMod2 = FrameIndex;
 
-    // Set the default state for command lists
-    auto& pfnSetupGraphicsState = [&](void)
-    {
-        gfxContext.SetRootSignature(Renderer::m_RootSig);
-        gfxContext.SetDescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, Renderer::s_TextureHeap.GetHeapPointer());
-        gfxContext.SetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-        gfxContext.SetIndexBuffer(m_Model.GetIndexBuffer());
-        gfxContext.SetVertexBuffer(0, m_Model.GetVertexBuffer());
-    };
+    //// Set the default state for command lists
+    //auto& pfnSetupGraphicsState = [&](void)
+    //{
+    //    gfxContext.SetRootSignature(Renderer::m_RootSig);
+    //    gfxContext.SetDescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, Renderer::s_TextureHeap.GetHeapPointer());
+    //    gfxContext.SetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+    //    gfxContext.SetIndexBuffer(m_Model.GetIndexBuffer());
+    //    gfxContext.SetVertexBuffer(0, m_Model.GetVertexBuffer());
+    //};
 
-    pfnSetupGraphicsState();
+    //pfnSetupGraphicsState();
 
-    RenderLightShadows(gfxContext, camera);
+    //RenderLightShadows(gfxContext, camera);
 
-    {
-        ScopedTimer _prof(L"Z PrePass", gfxContext);
+    //{
+    //    ScopedTimer _prof(L"Z PrePass", gfxContext);
 
-        gfxContext.SetDynamicConstantBufferView(Renderer::kMaterialConstants, sizeof(psConstants), &psConstants);
+    //    gfxContext.SetDynamicConstantBufferView(Renderer::kMaterialConstants, sizeof(psConstants), &psConstants);
 
-        {
-            ScopedTimer _prof2(L"Opaque", gfxContext);
-            {
-                gfxContext.TransitionResource(g_SceneDepthBuffer, D3D12_RESOURCE_STATE_DEPTH_WRITE, true);
-                gfxContext.ClearDepth(g_SceneDepthBuffer);
-                gfxContext.SetPipelineState(m_DepthPSO);
-                gfxContext.SetDepthStencilTarget(g_SceneDepthBuffer.GetDSV());
-                gfxContext.SetViewportAndScissor(viewport, scissor);
-            }
-            RenderObjects(gfxContext, camera.GetViewProjMatrix(), camera.GetPosition(), kOpaque );
-        }
+    //    {
+    //        ScopedTimer _prof2(L"Opaque", gfxContext);
+    //        {
+    //            gfxContext.TransitionResource(g_SceneDepthBuffer, D3D12_RESOURCE_STATE_DEPTH_WRITE, true);
+    //            gfxContext.ClearDepth(g_SceneDepthBuffer);
+    //            gfxContext.SetPipelineState(m_DepthPSO);
+    //            gfxContext.SetDepthStencilTarget(g_SceneDepthBuffer.GetDSV());
+    //            gfxContext.SetViewportAndScissor(viewport, scissor);
+    //        }
+    //        RenderObjects(gfxContext, camera.GetViewProjMatrix(), camera.GetPosition(), kOpaque );
+    //    }
 
-       //--- CUTOUT RENDERING ---
-        {
-            ScopedTimer _prof2(L"Cutout", gfxContext);
-            {
-                gfxContext.SetPipelineState(m_CutoutDepthPSO);
-            }
-            RenderObjects(gfxContext, camera.GetViewProjMatrix(), camera.GetPosition(), kCutout );
-        }
-    }
+    //   //--- CUTOUT RENDERING ---
+    //    {
+    //        ScopedTimer _prof2(L"Cutout", gfxContext);
+    //        {
+    //            gfxContext.SetPipelineState(m_CutoutDepthPSO);
+    //        }
+    //        RenderObjects(gfxContext, camera.GetViewProjMatrix(), camera.GetPosition(), kCutout );
+    //    }
+    //}
 
-    SSAO::Render(gfxContext, camera);
+    //SSAO::Render(gfxContext, camera);
 
-    if (!skipDiffusePass)
-    {
-        Lighting::FillLightGrid(gfxContext, camera);
+    //if (!skipDiffusePass)
+    //{
+    //    Lighting::FillLightGrid(gfxContext, camera);
 
-        if (!SSAO::DebugDraw)
-        {
-            ScopedTimer _prof(L"Main Render", gfxContext);
-            {
-                gfxContext.TransitionResource(g_SceneColorBuffer, D3D12_RESOURCE_STATE_RENDER_TARGET, true);
-                gfxContext.TransitionResource(g_SceneNormalBuffer, D3D12_RESOURCE_STATE_RENDER_TARGET, true);
-                gfxContext.ClearColor(g_SceneColorBuffer);
-            }
-        }
-    }
+    //    if (!SSAO::DebugDraw)
+    //    {
+    //        ScopedTimer _prof(L"Main Render", gfxContext);
+    //        {
+    //            gfxContext.TransitionResource(g_SceneColorBuffer, D3D12_RESOURCE_STATE_RENDER_TARGET, true);
+    //            gfxContext.TransitionResource(g_SceneNormalBuffer, D3D12_RESOURCE_STATE_RENDER_TARGET, true);
+    //            gfxContext.ClearColor(g_SceneColorBuffer);
+    //        }
+    //    }
+    //}
 
-    if (!skipShadowMap)
-    {
-        if (!SSAO::DebugDraw)
-        {
-//--- SHADOWS PASS ---
-            pfnSetupGraphicsState();
-            {
-                ScopedTimer _prof2(L"Render Shadow Map", gfxContext);
+    //if (!skipShadowMap)
+    //{
+    //    if (!SSAO::DebugDraw)
+    //    {
+//--//- SHADOWS PASS ---
+    //        pfnSetupGraphicsState();
+    //        {
+    //            ScopedTimer _prof2(L"Render Shadow Map", gfxContext);
 
-                m_SunShadow.UpdateMatrix(-m_SunDirection, Vector3(0, -500.0f, 0), Vector3(ShadowDimX, ShadowDimY, ShadowDimZ),
-                    (uint32_t)g_ShadowBuffer.GetWidth(), (uint32_t)g_ShadowBuffer.GetHeight(), 16);
+    //            m_SunShadow.UpdateMatrix(-m_SunDirection, Vector3(0, -500.0f, 0), Vector3(ShadowDimX, ShadowDimY, ShadowDimZ),
+    //                (uint32_t)g_ShadowBuffer.GetWidth(), (uint32_t)g_ShadowBuffer.GetHeight(), 16);
 
-                g_ShadowBuffer.BeginRendering(gfxContext);
-                gfxContext.SetPipelineState(m_ShadowPSO);
-                RenderObjects(gfxContext, m_SunShadow.GetViewProjMatrix(), camera.GetPosition(), kOpaque);
-                gfxContext.SetPipelineState(m_CutoutShadowPSO);
-                RenderObjects(gfxContext, m_SunShadow.GetViewProjMatrix(), camera.GetPosition(), kCutout);
-                g_ShadowBuffer.EndRendering(gfxContext);
-            }
-        }
-    }
+    //            g_ShadowBuffer.BeginRendering(gfxContext);
+    //            gfxContext.SetPipelineState(m_ShadowPSO);
+    //            RenderObjects(gfxContext, m_SunShadow.GetViewProjMatrix(), camera.GetPosition(), kOpaque);
+    //            gfxContext.SetPipelineState(m_CutoutShadowPSO);
+    //            RenderObjects(gfxContext, m_SunShadow.GetViewProjMatrix(), camera.GetPosition(), kCutout);
+    //            g_ShadowBuffer.EndRendering(gfxContext);
+    //        }
+    //    }
+    //}
 
-    if (!skipDiffusePass)
-    {
-        if (!SSAO::DebugDraw)
-        {
-            if (SSAO::AsyncCompute)
-            {
-                gfxContext.Flush();
-                pfnSetupGraphicsState();
+    //if (!skipDiffusePass)
+    //{
+    //    if (!SSAO::DebugDraw)
+    //    {
+    //        if (SSAO::AsyncCompute)
+    //        {
+    //            gfxContext.Flush();
+    //            pfnSetupGraphicsState();
 
-                // Make the 3D queue wait for the Compute queue to finish SSAO
-                g_CommandManager.GetGraphicsQueue().StallForProducer(g_CommandManager.GetComputeQueue());
-            }
+    //            // Make the 3D queue wait for the Compute queue to finish SSAO
+    //            g_CommandManager.GetGraphicsQueue().StallForProducer(g_CommandManager.GetComputeQueue());
+    //        }
 
-            {
-                ScopedTimer _prof2(L"Render Color", gfxContext);
+    //        {
+    //            ScopedTimer _prof2(L"Render Color", gfxContext);
 
-                gfxContext.TransitionResource(g_SSAOFullScreen, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+    //            gfxContext.TransitionResource(g_SSAOFullScreen, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 
-                gfxContext.SetDescriptorTable(Renderer::kCommonSRVs, Renderer::m_CommonTextures);
-                gfxContext.SetDynamicConstantBufferView(Renderer::kMaterialConstants, sizeof(psConstants), &psConstants);
+    //            gfxContext.SetDescriptorTable(Renderer::kCommonSRVs, Renderer::m_CommonTextures);
+    //            gfxContext.SetDynamicConstantBufferView(Renderer::kMaterialConstants, sizeof(psConstants), &psConstants);
 
-                {
-                    gfxContext.SetPipelineState(m_ModelPSO);
-                    gfxContext.TransitionResource(g_SceneDepthBuffer, D3D12_RESOURCE_STATE_DEPTH_READ);
-                    D3D12_CPU_DESCRIPTOR_HANDLE rtvs[]{ g_SceneColorBuffer.GetRTV(), g_SceneNormalBuffer.GetRTV() };
-                    gfxContext.SetRenderTargets(ARRAYSIZE(rtvs), rtvs, g_SceneDepthBuffer.GetDSV_DepthReadOnly());
-                    gfxContext.SetViewportAndScissor(viewport, scissor);
-                }
-                RenderObjects( gfxContext, camera.GetViewProjMatrix(), camera.GetPosition(), TestRenderer::kOpaque );
-                {
-                    ScopedTimer _prof3(L"Render Triangle", gfxContext);
-                    gfxContext.SetPipelineState(m_TestPSO);
-                    gfxContext.TransitionResource(g_SceneDepthBuffer, D3D12_RESOURCE_STATE_DEPTH_READ);
-                    D3D12_CPU_DESCRIPTOR_HANDLE rtvs[]{ g_SceneColorBuffer.GetRTV(), g_SceneNormalBuffer.GetRTV() };
-                    gfxContext.SetRenderTargets(ARRAYSIZE(rtvs), rtvs, g_SceneDepthBuffer.GetDSV_DepthReadOnly());
-                    gfxContext.SetViewportAndScissor(viewport, scissor);
-					RenderTriangleObject(gfxContext, camera.GetViewProjMatrix(), camera.GetPosition(), TestRenderer::kOpaque);
-                }
+    //            {
+    //                gfxContext.SetPipelineState(m_ModelPSO);
+    //                gfxContext.TransitionResource(g_SceneDepthBuffer, D3D12_RESOURCE_STATE_DEPTH_READ);
+    //                D3D12_CPU_DESCRIPTOR_HANDLE rtvs[]{ g_SceneColorBuffer.GetRTV(), g_SceneNormalBuffer.GetRTV() };
+    //                gfxContext.SetRenderTargets(ARRAYSIZE(rtvs), rtvs, g_SceneDepthBuffer.GetDSV_DepthReadOnly());
+    //                gfxContext.SetViewportAndScissor(viewport, scissor);
+    //            }
+    //            RenderObjects( gfxContext, camera.GetViewProjMatrix(), camera.GetPosition(), TestRenderer::kOpaque );
+    //            {
+    //                ScopedTimer _prof3(L"Render Triangle", gfxContext);
+    //                gfxContext.SetPipelineState(m_TestPSO);
+    //                gfxContext.TransitionResource(g_SceneDepthBuffer, D3D12_RESOURCE_STATE_DEPTH_READ);
+    //                D3D12_CPU_DESCRIPTOR_HANDLE rtvs[]{ g_SceneColorBuffer.GetRTV(), g_SceneNormalBuffer.GetRTV() };
+    //                gfxContext.SetRenderTargets(ARRAYSIZE(rtvs), rtvs, g_SceneDepthBuffer.GetDSV_DepthReadOnly());
+    //                gfxContext.SetViewportAndScissor(viewport, scissor);
+	//				RenderTriangleObject(gfxContext, camera.GetViewProjMatrix(), camera.GetPosition(), TestRenderer::kOpaque);
+    //            }
 
-//                --- SKIP NORMAL CUTOUTS---
-//                gfxContext.SetPipelineState(m_CutoutModelPSO);
-//                RenderObjects( gfxContext, camera.GetViewProjMatrix(), camera.GetPosition(), TestRenderer::kCutout );
-            }
-        }
-    }
+//  //              --- SKIP NORMAL CUTOUTS---
+//  //              gfxContext.SetPipelineState(m_CutoutModelPSO);
+//  //              RenderObjects( gfxContext, camera.GetViewProjMatrix(), camera.GetPosition(), TestRenderer::kCutout );
+    //        }
+    //    }
+    //}
 }
