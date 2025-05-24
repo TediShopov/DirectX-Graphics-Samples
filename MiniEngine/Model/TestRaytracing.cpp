@@ -405,9 +405,33 @@ namespace TestRaytracing
 		m_raytracingOutputResourceUAVGpuDescriptor = CD3DX12_GPU_DESCRIPTOR_HANDLE(m_descriptorHeap->GetGPUDescriptorHandleForHeapStart(), m_raytracingOutputResourceUAVDescriptorHeapIndex, m_descriptorSize);
 	}
 
+	void UpdateCBForSizeChange(UINT width, UINT height)
+	{
+		float border = 0.1f;
+		float aspectRatio = (float)height / (float)width;
+		if (width < height)
+		{
+			m_rayGenCB.stencil =
+			{
+				-1 + border, -1 + border * aspectRatio,
+				1.0f - border, 1 - border * aspectRatio
+			};
+		}
+		else
+		{
+			m_rayGenCB.stencil =
+			{
+				-1 + border / aspectRatio, -1 + border,
+				 1 - border / aspectRatio, 1.0f - border
+			};
+
+		}
+	}
 	// Create resources that depend on the device.
 	void CreateDeviceDependentResources(D3D12_VERTEX_BUFFER_VIEW vertexBV, D3D12_INDEX_BUFFER_VIEW indexBV, ColorBuffer* outputBuffer)
 	{
+		m_rayGenCB.viewport = { -1.0f, -1.0f, 1.0f, 1.0f };
+		UpdateCBForSizeChange(outputBuffer->GetWidth(),outputBuffer->GetHeight());
 		// Initialize raytracing pipeline.
 
 		// Create raytracing interfaces: raytracing device and commandlist.
@@ -463,6 +487,7 @@ namespace TestRaytracing
 		commandList->SetDescriptorHeaps(1, m_descriptorHeap.GetAddressOf());
 		commandList->SetComputeRootDescriptorTable(0, m_raytracingOutputResourceUAVGpuDescriptor);
 		commandList->SetComputeRootShaderResourceView(1, m_topLevelAccelerationStructure->GetGPUVirtualAddress());
+		//commandList->SetComputeRootConstantBufferView(0, constanbuff);
 		DispatchRays(commandList, m_dxrStateObject.Get(), &dispatchDesc);
 		gfxContext.Finish(true);
 	}

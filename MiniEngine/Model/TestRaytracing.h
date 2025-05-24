@@ -48,6 +48,9 @@ namespace TestRaytracing
 		ColorBuffer* outputBuffer
 	);
 
+// Update the application state with the new resolution.
+	void UpdateCBForSizeChange(UINT width, UINT height);
+
 	void DoRaytracing();
 
 	void CreateRaytracingInterfaces();

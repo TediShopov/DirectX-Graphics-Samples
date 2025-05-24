@@ -74,15 +74,27 @@ namespace TestRenderer
 	NumVar ShadowDimY("Sponza/Lighting/Shadow Dim Y", 3000, 1000, 10000, 100);
 	NumVar ShadowDimZ("Sponza/Lighting/Shadow Dim Z", 3000, 1000, 10000, 100);
 
-	struct ColorVertex { Vector3 position;  Vector4 color; };
+	struct ColorVertex { Vector4 position;  Vector4 color; };
 
 	float m_aspectRatio = 16.0f / 9.0f;
+
+//    Vertex vertices[] =
+//    {
+//        // The sample raytraces in screen space coordinates.
+//        // Since DirectX screen space coordinates are right handed (i.e. Y axis points down).
+//        // Define the vertices in counter clockwise order ~ clockwise in left handed.
+//        { 0, -offset, depthValue },
+//        { -offset, offset, depthValue },
+//        { offset, offset, depthValue }
+//    };
 	// Define the geometry for a triangle.
+    //const float m_triDepthValue = 1.0f;
+    const float m_triDepthValue = 0.1f;
 	ColorVertex triangleVertices[3] =
 	{
-		{ { 0.0f, 0.25f * m_aspectRatio, 0.0f }, { 1.0f, 0.0f, 0.0f, 1.0f } },
-		{ { 0.25f, -0.25f * m_aspectRatio, 0.0f }, { 0.0f, 1.0f, 0.0f, 1.0f } },
-		{ { -0.25f, -0.25f * m_aspectRatio, 0.0f }, { 0.0f, 0.0f, 1.0f, 1.0f } }
+		{ { 0.0f, 0.25f * m_aspectRatio, m_triDepthValue,1}, { 1.0f, 0.0f, 0.0f, 1.0f } },
+		{ { 0.25f, -0.25f * m_aspectRatio, m_triDepthValue,1}, { 0.0f, 1.0f, 0.0f, 1.0f } },
+		{ { -0.25f, -0.25f * m_aspectRatio, m_triDepthValue,1}, { 0.0f, 0.0f, 1.0f, 1.0f } }
 	};
 
 	//The triangle geomtry buffer 
@@ -114,8 +126,8 @@ void TestRenderer::Startup( Camera& Camera )
     };
 	D3D12_INPUT_ELEMENT_DESC colorElem[] =
 	{
-		{ "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
-		{ "COLOR", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 12, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 }
+		{ "POSITION", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+		{ "COLOR", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 16, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 }
 	};
 
     // Depth-only (2x rate)
@@ -392,7 +404,7 @@ void TestRenderer::RenderScene(
     bool skipDiffusePass,
     bool skipShadowMap)
 {
-    TestRaytracing::DoRaytracing();
+    //TestRaytracing::DoRaytracing();
     Renderer::UpdateGlobalDescriptors();
 
     uint32_t FrameIndex = TemporalEffects::GetFrameIndexMod2();
