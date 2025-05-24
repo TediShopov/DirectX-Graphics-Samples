@@ -86,6 +86,7 @@
       <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">6.3</ShaderModel>
     </FxCompile>
     <ClInclude Include="SponzaRenderer.h" />
+    <ClInclude Include="TestRaytracing.h" />
     <ClInclude Include="TestRenderer.h" />
     <ClInclude Include="TextureConvert.h" />
   </ItemGroup>
@@ -103,6 +104,7 @@
     <ClCompile Include="ParticleEffects.cpp" />
     <ClCompile Include="Renderer.cpp" />
     <ClCompile Include="SponzaRenderer.cpp" />
+    <ClCompile Include="TestRaytracing.cpp" />
     <ClCompile Include="TestRenderer.cpp" />
     <ClCompile Include="TextureConvert.cpp" />
   </ItemGroup>

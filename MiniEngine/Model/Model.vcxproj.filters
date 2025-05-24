@@ -46,6 +46,7 @@
     <ClCompile Include="TestRenderer.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="TestRaytracing.cpp" />
   </ItemGroup>
   <ItemGroup>
     <Filter Include="Source Files">
@@ -101,6 +102,7 @@
     <ClInclude Include="TestRenderer.h">
       <Filter>Source Files</Filter>
     </ClInclude>
+    <ClInclude Include="TestRaytracing.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="Shaders\Common.hlsli">
