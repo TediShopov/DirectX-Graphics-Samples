@@ -404,7 +404,7 @@ void TestRenderer::RenderScene(
     bool skipDiffusePass,
     bool skipShadowMap)
 {
-    //TestRaytracing::DoRaytracing();
+    TestRaytracing::DoRaytracing();
     Renderer::UpdateGlobalDescriptors();
 
     uint32_t FrameIndex = TemporalEffects::GetFrameIndexMod2();

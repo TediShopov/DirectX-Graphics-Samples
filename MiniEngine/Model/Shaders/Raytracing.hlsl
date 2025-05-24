@@ -39,7 +39,7 @@ void MyRaygenShader()
     float3 rayDir = float3(0, 0, 1);
     float3 origin = float3(
         lerp(g_rayGenCB.viewport.left, g_rayGenCB.viewport.right, lerpValues.x),
-        lerp(g_rayGenCB.viewport.top, g_rayGenCB.viewport.bottom, lerpValues.y),
+        lerp(g_rayGenCB.viewport.bottom, g_rayGenCB.viewport.top, lerpValues.y),
         0.0f);
 
     if (IsInsideViewport(origin.xy, g_rayGenCB.stencil))
