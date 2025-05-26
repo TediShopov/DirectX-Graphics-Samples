@@ -53,8 +53,8 @@ namespace TestRaytracing
 	void UpdateCBForSizeChange(UINT width, UINT height);
 
 
-	D3D12_GPU_DESCRIPTOR_HANDLE GetHandle();
-	D3D12_CPU_DESCRIPTOR_HANDLE GetCpuHandle();
+	D3D12_GPU_DESCRIPTOR_HANDLE GetSrvGpuHandle();
+	D3D12_CPU_DESCRIPTOR_HANDLE GetSrvCpuHandle();
 	ColorBuffer GetOutputBuffer();
 
 	void DoRaytracing();

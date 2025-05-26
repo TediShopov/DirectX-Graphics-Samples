@@ -7,17 +7,14 @@ struct PSInput
 };
 
 
-Texture2D<float4> t1   : register(t16);
-Texture2D<float4> t2   : register(t17);
-Texture2D<float4> t3   : register(t18);
-Texture2D<float4> t4   : register(t19);
+Texture2D<float4> rayOutput   : register(t18);
 
 float4 main(PSInput input) : SV_TARGET
 {
-    float4 res1 = t1.Sample(defaultSampler, input.position);
-    float4 res2 = t2.Sample(defaultSampler, input.position);
-    float4 res3 = t3.Sample(defaultSampler, input.position);
-    float4 res4 = t4.Sample(defaultSampler, input.position);
-    return res1 * res2 * res3 * res4;
+    float2 uv;
+    uv.x = input.position.x / 1920;
+    uv.y = input.position.y / 1080;
+    float4 res3 = rayOutput.Sample(defaultSampler, uv);
+    return res3;
 	//return input.color;
 }

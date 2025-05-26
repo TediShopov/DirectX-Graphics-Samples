@@ -260,7 +260,7 @@ void TestRenderer::Startup( Camera& Camera )
         Lighting::m_LightShadowArray.GetSRV(),
         Lighting::m_LightGrid.GetSRV(),
         Lighting::m_LightGridBitMask.GetSRV(),
-        TestRaytracing::GetCpuHandle()
+        TestRaytracing::GetOutputBuffer().GetSRV()
 
     };
 //       TestRaytracing::GetOutputBuffer().GetSRV()
@@ -612,6 +612,7 @@ void TestRenderer::RenderScene(
                 ScopedTimer _prof2(L"Render Color", gfxContext);
 
                 gfxContext.TransitionResource(g_SSAOFullScreen, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+                gfxContext.TransitionResource(TestRaytracing::GetOutputBuffer(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 
                 gfxContext.SetDescriptorTable(Renderer::kCommonSRVs, Renderer::m_CommonTextures);
                 gfxContext.SetDynamicConstantBufferView(Renderer::kMaterialConstants, sizeof(psConstants), &psConstants);

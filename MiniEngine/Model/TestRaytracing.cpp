@@ -458,25 +458,29 @@ namespace TestRaytracing
 		//	    // Create an output 2D texture to store the raytracing result to.
 		CreateRaytracingOutputResourceNew(outputBuffer);
 	}
-	D3D12_GPU_DESCRIPTOR_HANDLE GetHandle()
+	D3D12_GPU_DESCRIPTOR_HANDLE GetSrvGpuHandle()
 	{
-		return m_raytracingOutputResourceUAVGpuDescriptor;
+		return testHeap[0];
+		//return m_raytracingOutputResourceUAVGpuDescriptor;
 	}
-	D3D12_CPU_DESCRIPTOR_HANDLE GetCpuHandle()
+	D3D12_CPU_DESCRIPTOR_HANDLE GetSrvCpuHandle()
 	{
-		return m_raytracingOutputResourceUAVCpuDescriptor;
+		return testHeap[0];
+		//return m_raytracingOutputResourceUAVCpuDescriptor;
 	}
 	ColorBuffer GetOutputBuffer()
 	{
 
-		return ColorBuffer();
-		//return m_raytracingColorBuffer;
+		//return ColorBuffer();
+		return m_raytracingColorBuffer;
 	}
 	void DoRaytracing()
 	{
 		ComputeContext& gfxContext = ComputeContext::Begin(L"RayTracing");
 		ID3D12GraphicsCommandList4* pCmdList = static_cast<ID3D12GraphicsCommandList4*>(gfxContext.GetCommandList());
 		auto commandList = pCmdList;
+
+		gfxContext.TransitionResource(TestRaytracing::GetOutputBuffer(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 
 		commandList->SetComputeRootSignature(m_rtGlobalRootSignature.Get());
 		auto DispatchRays = [&](auto* commandList, auto* stateObject, auto* dispatchDesc)
