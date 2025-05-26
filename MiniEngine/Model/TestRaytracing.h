@@ -71,7 +71,6 @@ namespace TestRaytracing
 
 	void CreateRaytracingPipelineStateObject();
 
-	void CreateDescriptorHeap();
 
 	void BuildAccelerationStructures(D3D12_VERTEX_BUFFER_VIEW vertexBV, D3D12_INDEX_BUFFER_VIEW indexBV);
 
@@ -79,7 +78,6 @@ namespace TestRaytracing
 
 	UINT AllocateDescriptor(D3D12_CPU_DESCRIPTOR_HANDLE* cpuDescriptor, UINT descriptorIndexToUse);
 
-	void CreateRaytracingOutputResource(ColorBuffer* outputBuffer);
 
 
 #pragma endregion
