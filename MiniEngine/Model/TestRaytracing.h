@@ -37,6 +37,7 @@
 
 namespace TestRaytracing
 {
+
 	//---   RAY-TRACING RELATED
 #pragma region RAY-TRACING DEMO
 
@@ -50,6 +51,11 @@ namespace TestRaytracing
 
 // Update the application state with the new resolution.
 	void UpdateCBForSizeChange(UINT width, UINT height);
+
+
+	D3D12_GPU_DESCRIPTOR_HANDLE GetHandle();
+	D3D12_CPU_DESCRIPTOR_HANDLE GetCpuHandle();
+	ColorBuffer GetOutputBuffer();
 
 	void DoRaytracing();
 

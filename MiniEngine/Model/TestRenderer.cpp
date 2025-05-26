@@ -9,12 +9,12 @@
 #include "ParticleEffects.h"
 #include "TestRenderer.h"
 #include "Renderer.h"
+#include "LightManager.h"
 
 // From Model
 #include "ModelH3D.h"
 
 // From ModelViewer
-#include "LightManager.h"
 
 #include "CompiledShaders/DepthViewerVS.h"
 #include "CompiledShaders/DepthViewerPS.h"
@@ -51,6 +51,10 @@ namespace TestRenderer
 	enum eObjectFilter { kOpaque = 0x1, kCutout = 0x2, kTransparent = 0x4, kAll = 0xF, kNone = 0x0 };
 	void RenderTriangleObject(GraphicsContext& Context, const Matrix4& ViewProjMat, const Vector3& viewerPos, eObjectFilter Filter = kAll);
 	void RenderObjects(GraphicsContext& Context, const Matrix4& ViewProjMat, const Vector3& viewerPos, eObjectFilter Filter = kAll);
+
+
+    RootSignature m_TestRootSignature;
+    
 
 	GraphicsPSO m_DepthPSO = { (L"Sponza: Depth PSO") };
 	GraphicsPSO m_ModelPSO = { (L"Sponza: Color PSO") };
@@ -182,6 +186,7 @@ void TestRenderer::Startup( Camera& Camera )
 
     //--- DEMO PASS FOR RENDERING TRIANGLE ---
     // Full color pass
+    InitTestRootSignature();
     m_TestPSO = m_DepthPSO;
     m_TestPSO.SetBlendState(BlendDisable);
     m_TestPSO.SetDepthStencilState(DepthStateTestEqual);
@@ -231,14 +236,38 @@ void TestRenderer::Startup( Camera& Camera )
     Camera.SetEyeAtUp( eye, Vector3(kZero), Vector3(kYUnitVector) );
 
 
-    Lighting::CreateRandomLights(m_Model.GetBoundingBox().GetMin(), m_Model.GetBoundingBox().GetMax());
-
     //Create device dependent resource for ray tracing for the triangle 
     TestRaytracing::CreateDeviceDependentResources(
         m_VertexBufferView,
         m_IndexBufferView,
         &Graphics::g_SceneColorBuffer
     );
+
+    //Allocate just and extra descriptor table entry
+    uint32_t DestCount = 9;
+    // Allocate a descriptor table for the common textures
+    Renderer::m_CommonTextures = Renderer::s_TextureHeap.Alloc(1);
+
+    uint32_t SourceCounts[] = { 1, 1, 1, 1, 1, 1, 1, 1,1 };
+
+    D3D12_CPU_DESCRIPTOR_HANDLE SourceTextures[] =
+    {
+        GetDefaultTexture(kBlackCubeMap),
+        GetDefaultTexture(kBlackCubeMap),
+        g_SSAOFullScreen.GetSRV(),
+        g_ShadowBuffer.GetSRV(),
+        Lighting::m_LightBuffer.GetSRV(),
+        Lighting::m_LightShadowArray.GetSRV(),
+        Lighting::m_LightGrid.GetSRV(),
+        Lighting::m_LightGridBitMask.GetSRV(),
+        TestRaytracing::GetCpuHandle()
+
+    };
+//       TestRaytracing::GetOutputBuffer().GetSRV()
+    g_Device->CopyDescriptors(1, &Renderer::m_CommonTextures, &DestCount, DestCount, SourceTextures, SourceCounts, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+
+    Lighting::CreateRandomLights(m_Model.GetBoundingBox().GetMin(), m_Model.GetBoundingBox().GetMax());
+
 }
 
 const ModelH3D& TestRenderer::GetModel()
@@ -290,6 +319,36 @@ void TestRenderer::InitTriangleModel()
 //    memcpy(m_pIndexData, indices, indexDataSize);
 
 	// Done!
+}
+
+//Initializes a root signature that adds on an extra 2D texture resource to blend with
+//the final result (maybe an extra sampler as well)
+void TestRenderer::InitTestRootSignature()
+{
+
+    SamplerDesc DefaultSamplerDesc;
+    DefaultSamplerDesc.MaxAnisotropy = 8;
+    SamplerDesc CubeMapSamplerDesc = DefaultSamplerDesc;
+
+    m_TestRootSignature.Reset(7, 3);
+
+    m_TestRootSignature.InitStaticSampler(10, DefaultSamplerDesc, D3D12_SHADER_VISIBILITY_PIXEL);
+    m_TestRootSignature.InitStaticSampler(11, SamplerShadowDesc, D3D12_SHADER_VISIBILITY_PIXEL);
+    m_TestRootSignature.InitStaticSampler(12, CubeMapSamplerDesc, D3D12_SHADER_VISIBILITY_PIXEL);
+
+    m_TestRootSignature[0].InitAsConstantBuffer(0, D3D12_SHADER_VISIBILITY_VERTEX);
+    m_TestRootSignature[1].InitAsConstantBuffer(0, D3D12_SHADER_VISIBILITY_PIXEL);
+
+    m_TestRootSignature[2].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 10, D3D12_SHADER_VISIBILITY_PIXEL);
+    m_TestRootSignature[3].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SAMPLER, 0, 10, D3D12_SHADER_VISIBILITY_PIXEL);
+    m_TestRootSignature[4].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 10, 10, D3D12_SHADER_VISIBILITY_PIXEL);
+
+    m_TestRootSignature[5].InitAsConstantBuffer(1);
+
+    m_TestRootSignature[6].InitAsBufferSRV(20, D3D12_SHADER_VISIBILITY_VERTEX);
+
+    m_TestRootSignature.Finalize(L"RootSig", D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
+
 }
 //void TestRenderer::CheckRaytracingSupport(GraphicsContext gfx) {
 ////	D3D12_FEATURE_DATA_D3D12_OPTIONS5 options5 = {};
@@ -359,6 +418,21 @@ void TestRenderer::RenderObjects( GraphicsContext& gfxContext, const Matrix4& Vi
 
             materialIdx = mesh.materialIndex;
             gfxContext.SetDescriptorTable(Renderer::kMaterialSRVs, m_Model.GetSRVs(materialIdx));
+
+            //auto r = TestRaytracing::m_raytracingOutput.Get();
+            //auto r = TestRaytracing::m_raytracingColorBuffer.GetResource();
+            //gfxContext.SetDescriptorTable(Renderer::kCommonSRVs, TestRaytracing::GetHandle());
+            //Graphics::g_SceneColorBuffer
+            
+
+//            Graphics::g_Device->CreateShaderResourceView(
+//                TestRaytracing::m_raytracingOutput.Get(),
+//                nullptr,
+//                nullptr
+//            )
+
+            //gfxContext.SetDescriptorTable(Renderer::kCommonSRVs, Graphics::g_SceneColorBuffer.GetGpuVirtualAddress());
+            //gfxContext.SetDescriptorTable(Renderer::kCommonSRVs, Graphics::g_SceneColorBuffer.GetSRV());
 
             gfxContext.SetDynamicConstantBufferView(Renderer::kCommonCBV, sizeof(uint32_t), &materialIdx);
         }

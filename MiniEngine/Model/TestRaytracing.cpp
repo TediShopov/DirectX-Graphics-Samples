@@ -1,4 +1,14 @@
 #include "TestRaytracing.h"
+#include "GraphicsCore.h"
+
+
+#include "PipelineState.h"
+#include "RootSignature.h"
+#include "CommandContext.h"
+#include "Camera.h"
+#include "BufferManager.h"
+#include "TemporalEffects.h"
+#include <cstdint>
 
 namespace TestRaytracing
 {
@@ -13,7 +23,12 @@ namespace TestRaytracing
 	UINT m_descriptorSize;
 	UINT m_descriptorsAllocated;
 	ComPtr<ID3D12StateObject> m_dxrStateObject;
-	ComPtr<ID3D12DescriptorHeap> m_descriptorHeap;
+	//ComPtr<ID3D12DescriptorHeap> m_descriptorHeap;
+
+	ComPtr<ID3D12Resource> m_raytracingOutput;
+
+	D3D12_GPU_DESCRIPTOR_HANDLE m_raytracingOutputResourceUAVGpuDescriptor;
+	D3D12_CPU_DESCRIPTOR_HANDLE m_raytracingOutputResourceUAVCpuDescriptor;
 
 	//Used for all the ray shaders
 	ComPtr<ID3D12RootSignature> m_rtGlobalRootSignature;
@@ -28,10 +43,10 @@ namespace TestRaytracing
 	ComPtr<ID3D12Resource> m_missShaderTable;
 	ComPtr<ID3D12Resource> m_hitGroupShaderTable;
 	ComPtr<ID3D12Resource> m_rayGenShaderTable;
+	ColorBuffer m_raytracingColorBuffer;
 
-	ComPtr<ID3D12Resource> m_raytracingOutput;
-	D3D12_GPU_DESCRIPTOR_HANDLE m_raytracingOutputResourceUAVGpuDescriptor;
 
+	DescriptorHeap testHeap;
 	UINT m_raytracingOutputResourceUAVDescriptorHeapIndex;
 	void CreateRaytracingInterfaces()
 	{
@@ -195,9 +210,9 @@ namespace TestRaytracing
 		descriptorHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
 		descriptorHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
 		descriptorHeapDesc.NodeMask = 0;
-		device->CreateDescriptorHeap(&descriptorHeapDesc, IID_PPV_ARGS(&m_descriptorHeap));
+		//device->CreateDescriptorHeap(&descriptorHeapDesc, IID_PPV_ARGS(&m_descriptorHeap));
 		// m_descriptorHeap->SetName(L"Ray-Tracing Heap Descriptor");
-		NAME_D3D12_OBJECT(m_descriptorHeap);
+		//NAME_D3D12_OBJECT(m_descriptorHeap);
 
 		m_descriptorSize = device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 	}
@@ -374,35 +389,78 @@ namespace TestRaytracing
 	}
 	UINT AllocateDescriptor(D3D12_CPU_DESCRIPTOR_HANDLE* cpuDescriptor, UINT descriptorIndexToUse)
 	{
-		auto descriptorHeapCpuBase = m_descriptorHeap->GetCPUDescriptorHandleForHeapStart();
-		if (descriptorIndexToUse >= m_descriptorHeap->GetDesc().NumDescriptors)
-		{
-			descriptorIndexToUse = m_descriptorsAllocated++;
-		}
-		*cpuDescriptor = CD3DX12_CPU_DESCRIPTOR_HANDLE(descriptorHeapCpuBase, descriptorIndexToUse, m_descriptorSize);
-		return descriptorIndexToUse;
+	//	auto descriptorHeapCpuBase = m_descriptorHeap->GetCPUDescriptorHandleForHeapStart();
+	//	if (descriptorIndexToUse >= m_descriptorHeap->GetDesc().NumDescriptors)
+	//	{
+	//		descriptorIndexToUse = m_descriptorsAllocated++;
+	//	}
+	//	*cpuDescriptor = CD3DX12_CPU_DESCRIPTOR_HANDLE(descriptorHeapCpuBase, descriptorIndexToUse, m_descriptorSize);
+	//	return descriptorIndexToUse;
+		return 0;
+	}
+
+	void CreateRaytracingOutputResourceNew(ColorBuffer* outputBuffer)
+	{
+		m_raytracingColorBuffer.Create(L"RayTracingOutput", outputBuffer->GetWidth(), outputBuffer->GetHeight(), 1, DXGI_FORMAT_R8G8B8A8_UNORM);
+		testHeap.Create(L"HeapName",D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV,1);
+
+		uint32_t DestCount = 1;
+    // Allocate a descriptor table for the common textures
+		DescriptorHandle t = testHeap.Alloc(1);
+
+    uint32_t SourceCounts[] = {1};
+
+	D3D12_CPU_DESCRIPTOR_HANDLE SourceTextures[] =
+	{
+		m_raytracingColorBuffer.GetUAV()
+    };
+
+		Graphics::g_Device->CopyDescriptors(1, &t, &DestCount, DestCount, SourceTextures, SourceCounts, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+
+		m_raytracingOutputResourceUAVGpuDescriptor = testHeap[0];
+		m_raytracingOutputResourceUAVCpuDescriptor = testHeap[0];
+
+
+
+
+
+		
+		
 	}
 	void CreateRaytracingOutputResource(ColorBuffer* outputBuffer)
 	{
-		auto device = Graphics::g_Device;
 
-		auto backbufferFormat = outputBuffer->GetFormat();
-
-		// Create the output resource. The dimensions and format should match the swap-chain.
-		auto uavDesc = CD3DX12_RESOURCE_DESC::Tex2D(backbufferFormat,
-			outputBuffer->GetWidth(), outputBuffer->GetHeight(), 1, 1, 1, 0, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
-
-		auto defaultHeapProperties = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT);
-		ThrowIfFailed(device->CreateCommittedResource(
-			&defaultHeapProperties, D3D12_HEAP_FLAG_NONE, &uavDesc, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, nullptr, IID_PPV_ARGS(&m_raytracingOutput)), L"");
-		NAME_D3D12_OBJECT(m_raytracingOutput);
-
-		D3D12_CPU_DESCRIPTOR_HANDLE uavDescriptorHandle;
-		m_raytracingOutputResourceUAVDescriptorHeapIndex = AllocateDescriptor(&uavDescriptorHandle, m_raytracingOutputResourceUAVDescriptorHeapIndex);
-		D3D12_UNORDERED_ACCESS_VIEW_DESC UAVDesc = {};
-		UAVDesc.ViewDimension = D3D12_UAV_DIMENSION_TEXTURE2D;
-		device->CreateUnorderedAccessView(m_raytracingOutput.Get(), nullptr, &UAVDesc, uavDescriptorHandle);
-		m_raytracingOutputResourceUAVGpuDescriptor = CD3DX12_GPU_DESCRIPTOR_HANDLE(m_descriptorHeap->GetGPUDescriptorHandleForHeapStart(), m_raytracingOutputResourceUAVDescriptorHeapIndex, m_descriptorSize);
+////		auto device = Graphics::g_Device;
+////
+////		auto backbufferFormat = outputBuffer->GetFormat();
+////
+////		m_raytracingColorBuffer.Create(L"Raytracing Output", outputBuffer->GetWidth(), outputBuffer->GetHeight(), 1, DXGI_FORMAT_B8G8R8A8_UNORM);
+////		testHeap.Create(L"MainUAVHeap", D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 1);
+////		m_raytracingOutputResourceUAVGpuDescriptor = testHeap[0];
+//
+//
+//
+//
+//		// Create the output resource. The dimensions and format should match the swap-chain.
+//		auto uavDesc = CD3DX12_RESOURCE_DESC::Tex2D(outputBuffer->GetFormat(),
+//			outputBuffer->GetWidth(), outputBuffer->GetHeight(), 1, 1, 1, 0, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
+//
+//
+//
+//
+//		auto defaultHeapProperties = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT);
+//		ThrowIfFailed(Graphics::g_Device->CreateCommittedResource(
+//			&defaultHeapProperties, D3D12_HEAP_FLAG_NONE,
+//			&uavDesc, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, nullptr, IID_PPV_ARGS(&m_raytracingOutput)), L"");
+//		NAME_D3D12_OBJECT(m_raytracingOutput);
+//
+//  	D3D12_CPU_DESCRIPTOR_HANDLE uavDescriptorHandle;
+//  	m_raytracingOutputResourceUAVDescriptorHeapIndex = AllocateDescriptor(&uavDescriptorHandle, m_raytracingOutputResourceUAVDescriptorHeapIndex);
+//		D3D12_UNORDERED_ACCESS_VIEW_DESC UAVDesc = {};
+//		UAVDesc.ViewDimension = D3D12_UAV_DIMENSION_TEXTURE2D;
+//		Graphics::g_Device->CreateUnorderedAccessView(m_raytracingOutput.Get(), nullptr, &UAVDesc, uavDescriptorHandle);
+//		m_raytracingOutputResourceUAVGpuDescriptor = CD3DX12_GPU_DESCRIPTOR_HANDLE(m_descriptorHeap->GetGPUDescriptorHandleForHeapStart(), m_raytracingOutputResourceUAVDescriptorHeapIndex, m_descriptorSize);
+//		m_raytracingOutputResourceUAVCpuDescriptor = CD3DX12_CPU_DESCRIPTOR_HANDLE(m_descriptorHeap->GetCPUDescriptorHandleForHeapStart(), m_raytracingOutputResourceUAVDescriptorHeapIndex, m_descriptorSize);
 	}
 
 	void UpdateCBForSizeChange(UINT width, UINT height)
@@ -453,14 +511,30 @@ namespace TestRaytracing
 		BuildShaderTables();
 		//	
 		//	    // Create an output 2D texture to store the raytracing result to.
-		CreateRaytracingOutputResource(outputBuffer);
+		CreateRaytracingOutputResourceNew(outputBuffer);
+		//CreateRaytracingOutputResource(outputBuffer);
+	}
+	D3D12_GPU_DESCRIPTOR_HANDLE GetHandle()
+	{
+		return m_raytracingOutputResourceUAVGpuDescriptor;
+	}
+	D3D12_CPU_DESCRIPTOR_HANDLE GetCpuHandle()
+	{
+		return m_raytracingOutputResourceUAVCpuDescriptor;
+	}
+	ColorBuffer GetOutputBuffer()
+	{
+
+		return ColorBuffer();
+		//return m_raytracingColorBuffer;
 	}
 	void DoRaytracing()
 	{
-		GraphicsContext& gfxContext = GraphicsContext::Begin(L"RayTracing");
+		ComputeContext& gfxContext = ComputeContext::Begin(L"RayTracing");
 		ID3D12GraphicsCommandList4* pCmdList = static_cast<ID3D12GraphicsCommandList4*>(gfxContext.GetCommandList());
 		auto commandList = pCmdList;
 
+		commandList->SetComputeRootSignature(m_rtGlobalRootSignature.Get());
 		auto DispatchRays = [&](auto* commandList, auto* stateObject, auto* dispatchDesc)
 			{
 				// Since each shader table has only one shader record, the stride is same as the size.
@@ -480,12 +554,34 @@ namespace TestRaytracing
 				commandList->DispatchRays(dispatchDesc);
 			};
 
-		commandList->SetComputeRootSignature(m_rtGlobalRootSignature.Get());
+		//gfxContext.SetDescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, testHeap.GetHeapPointer());
+//		gfxContext.SetDescriptorTable(0, m_raytracingOutputResourceUAVGpuDescriptor);
+//		gfxContext.SetConstantBuffer(0, m_topLevelAccelerationStructure->GetGPUVirtualAddress());
+//		gfxContext.SetBufferSRV(0, m_topLevelAccelerationStructure->GetGPUVirtualAddress());
+		//gfxContext.SetConstantBuffer(1, m_topLevelAccelerationStructure->GetGPUVirtualAddress());
 
-		// Bind the heaps, acceleration structure and dispatch rays.    
+//		commandList->SetComputeRootSignature(m_rtGlobalRootSignature.Get());
+//
+//		// Bind the heaps, acceleration structure and dispatch rays.    
 		D3D12_DISPATCH_RAYS_DESC dispatchDesc = {};
-		commandList->SetDescriptorHeaps(1, m_descriptorHeap.GetAddressOf());
-		commandList->SetComputeRootDescriptorTable(0, m_raytracingOutputResourceUAVGpuDescriptor);
+		//commandList->SetDescriptorHeaps(1, m_descriptorHeap.GetAddressOf());
+		//commandList->SetDescriptorHeaps(1, testHeap.GetHeapPointer());
+		gfxContext.SetDescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, testHeap.GetHeapPointer());
+		//gfxContext.SetDescriptorTable(0, m_raytracingOutputResourceUAVGpuDescriptor);
+		//gfxContext.SetDescriptorTable(0, testHeap[0]);
+
+		//commandList->SetComputeRootDescriptorTable(0, m_raytracingColorBuffer.GetResource().GetUAV());
+		//D3D12_GPU_DESCRIPTOR_HANDLE uavHandle =static_cast<>(m_raytracingColorBuffer.GetUAV());
+//		auto constuavHandle =(m_raytracingColorBuffer.GetUAV());
+//		D3D12_GPU_DESCRIPTOR_HANDLE* uavHandle = (D3D12_GPU_DESCRIPTOR_HANDLE*)(&constuavHandle);
+//
+//		commandList->SetComputeRootDescriptorTable(0, *uavHandle);
+		commandList->SetComputeRootDescriptorTable(0, testHeap[0]);
+//		D3D12_GPU_DESCRIPTOR_HANDLE uavHandle = m_raytracingColorBuffer.GetUAV();
+//commandList->SetComputeRootDescriptorTable(rootParamIndex, uavHandle);
+//		gfxContext.SetDescriptorTable(0, m_raytracingColorBuffer.GetUAV());
+		//gfxContext.SetDynamicDescriptor(0, 0,m_raytracingColorBuffer.GetUAV());
+		//commandList->SetComputeRootDescriptorTable(0,m_raytracingColorBuffer.GetUAV());
 		commandList->SetComputeRootShaderResourceView(1, m_topLevelAccelerationStructure->GetGPUVirtualAddress());
 		//commandList->SetComputeRootConstantBufferView(0, constanbuff);
 		DispatchRays(commandList, m_dxrStateObject.Get(), &dispatchDesc);

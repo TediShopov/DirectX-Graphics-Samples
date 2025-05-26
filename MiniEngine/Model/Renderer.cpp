@@ -90,6 +90,7 @@ void Renderer::Initialize(void)
     m_RootSig.InitStaticSampler(12, CubeMapSamplerDesc, D3D12_SHADER_VISIBILITY_PIXEL);
     m_RootSig[kMeshConstants].InitAsConstantBuffer(0, D3D12_SHADER_VISIBILITY_VERTEX);
     m_RootSig[kMaterialConstants].InitAsConstantBuffer(0, D3D12_SHADER_VISIBILITY_PIXEL);
+    //Sets up a descriptor table and then fills the the table with X count of the specified descriptor range types
     m_RootSig[kMaterialSRVs].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 10, D3D12_SHADER_VISIBILITY_PIXEL);
     m_RootSig[kMaterialSamplers].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SAMPLER, 0, 10, D3D12_SHADER_VISIBILITY_PIXEL);
     m_RootSig[kCommonSRVs].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 10, 10, D3D12_SHADER_VISIBILITY_PIXEL);
@@ -221,10 +222,11 @@ void Renderer::Initialize(void)
 
     Lighting::InitializeResources();
 
+    //Change to dest count to 9. The 9th texture would be the ray-tracing ouput color buffer
+    uint32_t DestCount = 8;
     // Allocate a descriptor table for the common textures
     m_CommonTextures = s_TextureHeap.Alloc(8);
 
-    uint32_t DestCount = 8;
     uint32_t SourceCounts[] = { 1, 1, 1, 1, 1, 1, 1, 1 };
 
     D3D12_CPU_DESCRIPTOR_HANDLE SourceTextures[] =
