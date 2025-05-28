@@ -9,9 +9,19 @@
 #include "BufferManager.h"
 #include "TemporalEffects.h"
 #include <cstdint>
+#include "Camera.h"
 
+struct RayGet3DBuffer {
+
+	XMMATRIX invViewProject;
+	XMMATRIX viewToWorld;
+	Viewport viewport;
+	Viewport stencil;
+};
 namespace TestRaytracing
 {
+	//ByteAddressBuffer	TestRaytracing::m_TestCB;
+	ByteAddressBuffer	m_TestCB;
 
 	// The names of the shaders. The actual shader code is found in the Raytracing.hlsl
 	const wchar_t* c_hitGroupName = L"MyHitGroup";
@@ -39,7 +49,8 @@ namespace TestRaytracing
 	ComPtr<ID3D12Resource> m_bottomLevelAccelerationStructure;
 	ComPtr<ID3D12Resource> m_topLevelAccelerationStructure;
 
-	RayGenConstantBuffer m_rayGenCB;
+	//RayGenConstantBuffer m_rayGenCB;
+	RayGet3DBuffer m_rayGenCB;
 	ComPtr<ID3D12Resource> m_missShaderTable;
 	ComPtr<ID3D12Resource> m_hitGroupShaderTable;
 	ComPtr<ID3D12Resource> m_rayGenShaderTable;
@@ -90,9 +101,10 @@ namespace TestRaytracing
 			//CD3DX12_ROOT_PARAMETER rootParameters[GlobalRootSignatureParams::Count];
 			//rootParameters[GlobalRootSignatureParams::OutputViewSlot].InitAsDescriptorTable(1, &UAVDescriptor);
 			//rootParameters[GlobalRootSignatureParams::AccelerationStructureSlot].InitAsShaderResourceView(0);
-			CD3DX12_ROOT_PARAMETER rootParameters[2];
+			CD3DX12_ROOT_PARAMETER rootParameters[3];
 			rootParameters[0].InitAsDescriptorTable(1, &UAVDescriptor);
 			rootParameters[1].InitAsShaderResourceView(0);
+			rootParameters[2].InitAsConstantBufferView(0);
 			CD3DX12_ROOT_SIGNATURE_DESC globalRootSignatureDesc(ARRAYSIZE(rootParameters), rootParameters);
 			SerializeAndCreateRaytracingRootSignature(globalRootSignatureDesc, &m_rtGlobalRootSignature);
 		}
@@ -102,11 +114,15 @@ namespace TestRaytracing
 		{
 			//CD3DX12_ROOT_PARAMETER rootParameters[LocalRootSignatureParams::Count];
 			//rootParameters[LocalRootSignatureParams::ViewportConstantSlot].InitAsConstants(SizeOfInUint32(m_rayGenCB), 0, 0);
-			CD3DX12_ROOT_PARAMETER rootParameters[1];
-			rootParameters[0].InitAsConstants(SizeOfInUint32(m_rayGenCB), 0, 0);
+			//CD3DX12_ROOT_PARAMETER rootParameters[1];
+			//rootParameters[0].InitAsConstants(SizeOfInUint32(m_rayGenCB), 0, 0);
+			//rootParameters[0].InitAsConstantBufferView(0,sizeof(m_rayGenCB), D3D12_SHADER_VISIBILITY_ALL);
+			//rootParameters[0].InitAsConstantBufferView(0);
 			//---TODO TEST IF CORRECT SIZE IF SUPPLIED
 
-			CD3DX12_ROOT_SIGNATURE_DESC localRootSignatureDesc(ARRAYSIZE(rootParameters), rootParameters);
+			//CD3DX12_ROOT_SIGNATURE_DESC localRootSignatureDesc(ARRAYSIZE(rootParameters), rootParameters);
+			//--- ATTEMPT TO CREATE AND EMMPTY LOCAL ROOT SIGNATURE ---
+			CD3DX12_ROOT_SIGNATURE_DESC localRootSignatureDesc(0,0);
 			localRootSignatureDesc.Flags = D3D12_ROOT_SIGNATURE_FLAG_LOCAL_ROOT_SIGNATURE;
 			SerializeAndCreateRaytracingRootSignature(localRootSignatureDesc, &m_rtLocalRootSignature);
 		}
@@ -199,7 +215,16 @@ namespace TestRaytracing
 		// Create the state object.
 		ThrowIfFailed(device5->CreateStateObject(raytracingPipeline, IID_PPV_ARGS(&m_dxrStateObject)), L"Couldn't create DirectX Raytracing state object.\n");
 	}
-	void BuildAccelerationStructures(D3D12_VERTEX_BUFFER_VIEW vertexBV, D3D12_INDEX_BUFFER_VIEW indexBV)
+
+	inline void SetInstanceTransform(const DirectX::XMMATRIX& worldMatrix, D3D12_RAYTRACING_INSTANCE_DESC& instanceDesc)
+{
+    // DXR expects row-major 3x4 matrix in float[3][4]
+    // Strip last row (for affine transform) and store in Transform
+    DirectX::XMMATRIX m = DirectX::XMMatrixTranspose(worldMatrix); // DXR expects row-major
+    memcpy(instanceDesc.Transform, &m, sizeof(instanceDesc.Transform));
+}
+
+	void BuildAccelerationStructures(Transform transform,D3D12_VERTEX_BUFFER_VIEW vertexBV, D3D12_INDEX_BUFFER_VIEW indexBV)
 	{
 		//TODO Build Acceleration Structures The MiniEngine Way
 
@@ -269,22 +294,13 @@ namespace TestRaytracing
 
 		ComPtr<ID3D12Resource> instanceDescs;
 		D3D12_RAYTRACING_INSTANCE_DESC instanceDesc = {};
-		instanceDesc.Transform[0][0] = instanceDesc.Transform[1][1] = instanceDesc.Transform[2][2] = 1;
+		SetInstanceTransform(transform.getTransformMatrix(), instanceDesc);
+		//instanceDesc.Transform[0][0] = instanceDesc.Transform[1][1] = instanceDesc.Transform[2][2] = 1;
 		instanceDesc.InstanceMask = 1;
 		instanceDesc.AccelerationStructure = m_bottomLevelAccelerationStructure->GetGPUVirtualAddress();
 		AllocateUploadBuffer(Graphics::g_Device, &instanceDesc, sizeof(instanceDesc), &instanceDescs, L"InstanceDescs");
 
 		topLevelInputs.InstanceDescs = instanceDescs->GetGPUVirtualAddress();
-
-
-		// Create an instance desc for the bottom-level acceleration structure.
-		//    ComPtr<ID3D12Resource> instanceDescs;
-		//    D3D12_RAYTRACING_INSTANCE_DESC instanceDesc = {};
-		//    instanceDesc.Transform[0][0] = instanceDesc.Transform[1][1] = instanceDesc.Transform[2][2] = 1;
-		//    instanceDesc.InstanceMask = 1;
-		//    instanceDesc.AccelerationStructure = m_bottomLevelAccelerationStructure->GetGPUVirtualAddress();
-		//    AllocateUploadBuffer(Graphics::g_Device, &instanceDesc, sizeof(instanceDesc), &instanceDescs, L"InstanceDescs");
-
 		// Bottom Level Acceleration Structure desc
 		D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_DESC bottomLevelBuildDesc = {};
 		{
@@ -314,6 +330,7 @@ namespace TestRaytracing
 		// Wait for finish by passing true
 		gfxContextn.Finish(true);
 	}
+
 	void BuildShaderTables()
 	{
 		auto device = Graphics::g_Device;
@@ -341,7 +358,8 @@ namespace TestRaytracing
 		// Ray gen shader table
 		{
 			struct RootArguments {
-				RayGenConstantBuffer cb;
+				//RayGenConstantBuffer cb;
+				RayGet3DBuffer cb;
 			} rootArguments;
 			rootArguments.cb = m_rayGenCB;
 
@@ -411,10 +429,11 @@ namespace TestRaytracing
 		
 	}
 
+	float aspectRatio;
 	void UpdateCBForSizeChange(UINT width, UINT height)
 	{
 		float border = 0.1f;
-		float aspectRatio = (float)height / (float)width;
+		aspectRatio = (float)height / (float)width;
 		if (width < height)
 		{
 			m_rayGenCB.stencil =
@@ -434,9 +453,16 @@ namespace TestRaytracing
 		}
 	}
 	// Create resources that depend on the device.
-	void CreateDeviceDependentResources(D3D12_VERTEX_BUFFER_VIEW vertexBV, D3D12_INDEX_BUFFER_VIEW indexBV, ColorBuffer* outputBuffer)
+	void CreateDeviceDependentResources(Transform transform,D3D12_VERTEX_BUFFER_VIEW vertexBV, D3D12_INDEX_BUFFER_VIEW indexBV, ColorBuffer* outputBuffer)
 	{
 		m_rayGenCB.viewport = { -1.0f, -1.0f, 1.0f, 1.0f };
+
+		m_TestCB.Create(L"Ray Tracing CBV", 1, static_cast<uint32_t>(sizeof(m_rayGenCB)));
+
+
+
+
+
 		UpdateCBForSizeChange(outputBuffer->GetWidth(),outputBuffer->GetHeight());
 		// Initialize raytracing pipeline.
 
@@ -450,7 +476,7 @@ namespace TestRaytracing
 		CreateRaytracingPipelineStateObject();
 		//	
 		// Build raytracing acceleration structures from the generated geometry.
-		BuildAccelerationStructures(vertexBV, indexBV);
+		BuildAccelerationStructures(transform,vertexBV, indexBV);
 		//	
 		// Build shader tables, which define shaders and their local root arguments.
 		BuildShaderTables();
@@ -474,8 +500,27 @@ namespace TestRaytracing
 		//return ColorBuffer();
 		return m_raytracingColorBuffer;
 	}
-	void DoRaytracing()
+	void DoRaytracing(const Math::Camera& camera )
 	{
+
+		XMMATRIX viewMatrix = XMMatrixLookAtLH(camera.GetPosition(), camera.GetPosition() + camera.GetForwardVec(), camera.GetUpVec());
+		XMMATRIX projMatrix = XMMatrixPerspectiveFovLH(camera.GetFOV(), 1/aspectRatio, camera.GetNearClip(), camera.GetFarClip());
+		XMMATRIX invViewProj = XMMatrixInverse(nullptr, viewMatrix * projMatrix);
+		XMMATRIX viewToWorld = XMMatrixInverse(nullptr, viewMatrix);
+
+	//	auto invViewProj = XMMatrixInverse(nullptr, camera.GetViewProjMatrix());
+	//	auto invView = XMMatrixInverse(nullptr, camera.GetViewMatrix());
+
+		m_rayGenCB.invViewProject = XMMatrixTranspose(invViewProj);
+		m_rayGenCB.viewToWorld = XMMatrixTranspose(viewToWorld);
+
+
+		m_TestCB.Create(L"Ray Tracing CBV", 1, static_cast<uint32_t>(sizeof(m_rayGenCB)),&m_rayGenCB);
+
+
+
+
+
 		ComputeContext& gfxContext = ComputeContext::Begin(L"RayTracing");
 		ID3D12GraphicsCommandList4* pCmdList = static_cast<ID3D12GraphicsCommandList4*>(gfxContext.GetCommandList());
 		auto commandList = pCmdList;
@@ -506,6 +551,9 @@ namespace TestRaytracing
 		gfxContext.SetDescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, testHeap.GetHeapPointer());
 		commandList->SetComputeRootDescriptorTable(0, testHeap[0]);
 		commandList->SetComputeRootShaderResourceView(1, m_topLevelAccelerationStructure->GetGPUVirtualAddress());
+		//commandList->SetComputeRootConstantBufferView(0, m_rayGenCB);
+		commandList->SetComputeRootConstantBufferView(2, m_TestCB.GetGpuVirtualAddress());
+		//commandList->SetContas(0, m_rayGenCB);
 		DispatchRays(commandList, m_dxrStateObject.Get(), &dispatchDesc);
 		gfxContext.Finish(true);
 	}

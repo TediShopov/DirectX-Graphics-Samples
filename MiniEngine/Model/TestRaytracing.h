@@ -4,27 +4,7 @@
 #include "BufferManager.h"
 //#include "Camera.h"
 #include "CommandContext.h"
-//#include "TemporalEffects.h"
-//#include "SSAO.h"
-//#include "SystemTime.h"
-//#include "ShadowCamera.h"
-//#include "ParticleEffects.h"
-//#include "TestRenderer.h"
-//#include "Renderer.h"
-
-// From Model
-//#include "ModelH3D.h"
-
-// From ModelViewer
-//#include "LightManager.h"
-
-//#include "CompiledShaders/DepthViewerVS.h"
-//#include "CompiledShaders/DepthViewerPS.h"
-//#include "CompiledShaders/ModelViewerVS.h"
-//#include "CompiledShaders/ModelViewerPS.h"
-//#include "CompiledShaders/TestRendererPS.h"
-//#include "CompiledShaders/SimpleColorPS.h"
-//#include "CompiledShaders/SimpleColorVS.h"
+#include "Geometry/Transform.h"
 #include "CompiledShaders/Raytracing.h"
 
 
@@ -35,8 +15,16 @@
 #include "RaytracingHlslCompat.h"
 #include "DirectXRaytracingHelper.h"
 
+
+namespace Math
+{
+    class Camera;
+    class Vector3;
+}
+
 namespace TestRaytracing
 {
+	//ByteAddressBuffer m_TestCB;
 
 	//---   RAY-TRACING RELATED
 #pragma region RAY-TRACING DEMO
@@ -44,6 +32,7 @@ namespace TestRaytracing
 
 	// Create resources that depend on the device.
 	void CreateDeviceDependentResources(
+		Transform transform,
 		D3D12_VERTEX_BUFFER_VIEW vertexBV,
 		D3D12_INDEX_BUFFER_VIEW indexBV,
 		ColorBuffer* outputBuffer
@@ -57,7 +46,7 @@ namespace TestRaytracing
 	D3D12_CPU_DESCRIPTOR_HANDLE GetSrvCpuHandle();
 	ColorBuffer GetOutputBuffer();
 
-	void DoRaytracing();
+	void DoRaytracing(const Math::Camera& camera );
 
 	void CreateRaytracingInterfaces();
 	inline void ThrowIfFailed(HRESULT hr, const wchar_t* msg);
@@ -72,7 +61,7 @@ namespace TestRaytracing
 	void CreateRaytracingPipelineStateObject();
 
 
-	void BuildAccelerationStructures(D3D12_VERTEX_BUFFER_VIEW vertexBV, D3D12_INDEX_BUFFER_VIEW indexBV);
+	void BuildAccelerationStructures(Transform transform,D3D12_VERTEX_BUFFER_VIEW vertexBV, D3D12_INDEX_BUFFER_VIEW indexBV);
 
 	void BuildShaderTables();
 

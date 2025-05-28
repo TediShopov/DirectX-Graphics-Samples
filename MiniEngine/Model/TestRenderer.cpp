@@ -280,8 +280,11 @@ void TestRenderer::Startup( Camera& Camera )
 
     //Create device dependent resource for ray tracing for the triangle 
     TestRaytracing::CreateDeviceDependentResources(
-        m_VertexBufferView,
-        m_IndexBufferView,
+        m_Transform,
+        m_Sphere->m_VertexBufferView,
+        m_Sphere->m_IndexBufferView,
+        //m_VertexBufferView,
+        //m_IndexBufferView,
         &Graphics::g_SceneColorBuffer
     );
 
@@ -570,7 +573,7 @@ void TestRenderer::RenderScene(
     bool skipDiffusePass,
     bool skipShadowMap)
 {
-    TestRaytracing::DoRaytracing();
+    TestRaytracing::DoRaytracing(camera);
     Renderer::UpdateGlobalDescriptors();
 
     uint32_t FrameIndex = TemporalEffects::GetFrameIndexMod2();

@@ -16,7 +16,19 @@
 
 RaytracingAccelerationStructure Scene : register(t0, space0);
 RWTexture2D<float4> RenderTarget : register(u0);
-ConstantBuffer<RayGenConstantBuffer> g_rayGenCB : register(b0);
+
+
+cbuffer RayGen3DBuffer : register(b0)
+{
+    matrix invViewProj;
+    matrix viewToWorld;
+    Viewport viewport;
+    Viewport stencil;
+    
+}
+
+
+//ConstantBuffer<RayGenConstantBuffer> g_rayGenCB : register(b0);
 
 typedef BuiltInTriangleIntersectionAttributes MyAttributes;
 struct RayPayload
@@ -33,17 +45,35 @@ bool IsInsideViewport(float2 p, Viewport viewport)
 [shader("raygeneration")]
 void MyRaygenShader()
 {
-    float2 lerpValues = (float2)DispatchRaysIndex() / (float2)DispatchRaysDimensions();
+    //float2 lerpValues = (float2)DispatchRaysIndex() / (float2)DispatchRaysDimensions();
 
     // Orthographic projection since we're raytracing in screen space.
-    float3 rayDir = float3(0, 0, 1);
-    float3 origin = float3(
-        lerp(g_rayGenCB.viewport.left, g_rayGenCB.viewport.right, lerpValues.x),
-        lerp(g_rayGenCB.viewport.bottom, g_rayGenCB.viewport.top, lerpValues.y),
-        0.0f);
+//    float3 rayDir = float3(0, 0, 1);
+//    float3 origin = float3(
+//        lerp(g_rayGenCB.viewport.left, g_rayGenCB.viewport.right, lerpValues.x),
+//        lerp(g_rayGenCB.viewport.bottom, g_rayGenCB.viewport.top, lerpValues.y),
+//        0.0f);
 
-    if (IsInsideViewport(origin.xy, g_rayGenCB.stencil))
-    {
+    
+    // Get dispatch pixel coords
+    float2 screenUV = (float2)DispatchRaysIndex() / (float2)DispatchRaysDimensions(); // [0,1]
+
+    // Map to NDC space [-1,1]
+    float2 ndc = screenUV * 2.0 - 1.0;
+    ndc.x = -ndc.x; // Flip Y if needed for DX convention
+    ndc.y = -ndc.y; // Flip Y if needed for DX convention
+
+    // Ray origin is the camera position
+    float4 originH = mul(float4(0, 0, 0, 1), viewToWorld);
+    float3 origin = originH.xyz / originH.w;
+
+    // Reconstruct world-space ray direction from NDC through inverse view-projection
+    float4 target = mul(float4(ndc.x, ndc.y, 1.0f, 1.0f), invViewProj);
+    float3 worldPos = target.xyz / target.w;
+
+    float3 rayDir = normalize(worldPos - origin);
+
+    
         // Trace the ray.
         // Set the ray's extents.
         RayDesc ray;
@@ -59,12 +89,30 @@ void MyRaygenShader()
 
         // Write the raytraced color to the output texture.
         RenderTarget[DispatchRaysIndex().xy] = payload.color;
-    }
-    else
-    {
-        // Render interpolated DispatchRaysIndex outside the stencil window
-        RenderTarget[DispatchRaysIndex().xy] = float4(lerpValues, 0, 1);
-    }
+
+//    if (IsInsideViewport(origin.xy, stencil))
+//    {
+//        // Trace the ray.
+//        // Set the ray's extents.
+//        RayDesc ray;
+//        ray.Origin = origin;
+//        ray.Direction = rayDir;
+//        // Set TMin to a non-zero small value to avoid aliasing issues due to floating - point errors.
+//        // TMin should be kept small to prevent missing geometry at close contact areas.
+//        ray.TMin = 0.001;
+//        ray.TMax = 10000.0;
+//        RayPayload payload = { float4(0, 0, 0, 0) };
+//        //TraceRay(Scene, RAY_FLAG_CULL_BACK_FACING_TRIANGLES, ~0, 0, 1, 0, ray, payload);
+//        TraceRay(Scene, RAY_FLAG_NONE, ~0, 0, 1, 0, ray, payload);
+//
+//        // Write the raytraced color to the output texture.
+//        RenderTarget[DispatchRaysIndex().xy] = payload.color;
+//    }
+//    else
+//    {
+//        // Render interpolated DispatchRaysIndex outside the stencil window
+//        RenderTarget[DispatchRaysIndex().xy] = float4(screenUV, 0, 1);
+//    }
 }
 
 [shader("closesthit")]
