@@ -11,6 +11,8 @@
 #include "Renderer.h"
 #include "LightManager.h"
 
+
+
 // From Model
 #include "ModelH3D.h"
 
@@ -23,6 +25,8 @@
 #include "CompiledShaders/TestRendererPS.h"
 #include "CompiledShaders/SimpleColorPS.h"
 #include "CompiledShaders/SimpleColorVS.h"
+#include "CompiledShaders/SimpleMeshPS.h"
+#include "CompiledShaders/SimpleMeshVS.h"
 //#include "CompiledShaders/Raytracing.h"
 
 
@@ -46,10 +50,16 @@ using namespace std;
 
 namespace TestRenderer
 {
+
+	SphereMesh* TestRenderer::m_Sphere = nullptr;
+	Transform TestRenderer::m_Transform = Transform();
+
+
 	void RenderLightShadows(GraphicsContext& gfxContext, const Camera& camera);
 
 	enum eObjectFilter { kOpaque = 0x1, kCutout = 0x2, kTransparent = 0x4, kAll = 0xF, kNone = 0x0 };
 	void RenderTriangleObject(GraphicsContext& Context, const Matrix4& ViewProjMat, const Vector3& viewerPos, eObjectFilter Filter = kAll);
+	void RenderSphereObject(GraphicsContext& Context, const Matrix4& ViewProjMat, const Vector3& viewerPos, eObjectFilter Filter = kAll);
 	void RenderObjects(GraphicsContext& Context, const Matrix4& ViewProjMat, const Vector3& viewerPos, eObjectFilter Filter = kAll);
 
 
@@ -59,6 +69,7 @@ namespace TestRenderer
 	GraphicsPSO m_DepthPSO = { (L"Sponza: Depth PSO") };
 	GraphicsPSO m_ModelPSO = { (L"Sponza: Color PSO") };
 	GraphicsPSO m_TestPSO = { (L"Sponza: Triangel Test PSO") };
+	GraphicsPSO m_TestSpherePSO = { (L"Sponza: Sphere Test PSO") };
 	GraphicsPSO m_CutoutDepthPSO = { (L"Sponza: Cutout Depth PSO") };
 	GraphicsPSO m_CutoutModelPSO = { (L"Sponza: Cutout Color PSO") };
 	GraphicsPSO m_ShadowPSO(L"Sponza: Shadow PSO");
@@ -120,6 +131,9 @@ void TestRenderer::Startup( Camera& Camera )
     DXGI_FORMAT DepthFormat = g_SceneDepthBuffer.GetFormat();
     //DXGI_FORMAT ShadowFormat = g_ShadowBuffer.GetFormat();
 
+    //m_Transform.setScale(50,50,50);
+    m_Transform.setScale(100,100,100);
+
     D3D12_INPUT_ELEMENT_DESC vertElem[] =
     {
         { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
@@ -132,6 +146,13 @@ void TestRenderer::Startup( Camera& Camera )
 	{
 		{ "POSITION", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
 		{ "COLOR", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 16, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 }
+	};
+
+	D3D12_INPUT_ELEMENT_DESC simpleVertElemnt[] =
+	{
+        { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+        { "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+        { "NORMAL", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 }
 	};
 
     // Depth-only (2x rate)
@@ -191,7 +212,6 @@ void TestRenderer::Startup( Camera& Camera )
     m_TestPSO.SetBlendState(BlendDisable);
     m_TestPSO.SetDepthStencilState(DepthStateTestEqual);
     m_TestPSO.SetRenderTargetFormats(2, formats, DepthFormat);
-
     m_TestPSO.SetInputLayout(_countof(colorElem), colorElem);
     //--- CHANGE THE DEPTH STATE ALWAYS TO DRAW ON TOP OF GEOMETRY
     m_TestPSO.SetDepthStencilState(DepthStateDisabled);
@@ -206,10 +226,32 @@ void TestRenderer::Startup( Camera& Camera )
 
     m_TestPSO.Finalize();
 
+    //--- DEMO PASS FOR RENDERING SPHERE ---
+    // Full color pass
+    InitTestRootSignature();
+    m_TestSpherePSO = m_DepthPSO;
+    m_TestSpherePSO.SetBlendState(BlendDisable);
+    m_TestSpherePSO.SetDepthStencilState(DepthStateTestEqual);
+    m_TestSpherePSO.SetRenderTargetFormats(2, formats, DepthFormat);
+    m_TestSpherePSO.SetInputLayout(_countof(simpleVertElemnt), simpleVertElemnt);
+    //--- CHANGE THE DEPTH STATE ALWAYS TO DRAW ON TOP OF GEOMETRY
+    m_TestSpherePSO.SetDepthStencilState(DepthStateDisabled);
+    //--- THIS HAS TO BE SET TO UNKNOWN FORMAT TO CONFORM TO FRAMEWORK
+    m_TestSpherePSO.SetDepthTargetFormat(DXGI_FORMAT_UNKNOWN);
+    //--- MAKE SURE THAT CULLING IS OFF AND BOTH SIDES ARE DRAWN
+    m_TestSpherePSO.SetRasterizerState(RasterizerTwoSided);
+
+    //-- CHANGE TO THE NEW SHADER FOR THE TRIANGLE
+    m_TestSpherePSO.SetVertexShader( g_pSimpleMeshVS, sizeof(g_pSimpleMeshVS) );
+    m_TestSpherePSO.SetPixelShader( g_pSimpleMeshPS, sizeof(g_pSimpleMeshPS) );
+
+    m_TestSpherePSO.Finalize();
+
     // LOADING SPONZA AS WELL
     ASSERT(m_Model.Load(L"Sponza/sponza.h3d"), "Failed to load model");
     ASSERT(m_Model.GetMeshCount() > 0, "Model contains no meshes");
     InitTriangleModel();
+    InitSphereModel();
 
     // The caller of this function can override which materials are considered cutouts
     m_pMaterialIsCutout.resize(m_Model.GetMaterialCount());
@@ -321,6 +363,11 @@ void TestRenderer::InitTriangleModel()
 	// Done!
 }
 
+void TestRenderer::InitSphereModel()
+{
+    m_Sphere = new SphereMesh(2);
+}
+
 //Initializes a root signature that adds on an extra 2D texture resource to blend with
 //the final result (maybe an extra sampler as well)
 void TestRenderer::InitTestRootSignature()
@@ -384,6 +431,51 @@ void TestRenderer::RenderTriangleObject(GraphicsContext& gfxContext, const Matri
 
 }
 
+void TestRenderer::RenderSphereObject(GraphicsContext& gfxContext, const Matrix4& ViewProjMat, const Vector3& viewerPos, eObjectFilter Filter)
+{
+
+    float modelRadius = Length(m_Model.GetBoundingBox().GetDimensions()) * 0.5f;
+    const Vector3 eye = m_Model.GetBoundingBox().GetCenter() + Vector3(modelRadius * 0.5f, 0.0f, 0.0f);
+    const Vector3 relSphereOffset (0,0,0.1);
+    const Vector3 offset = relSphereOffset * modelRadius;
+
+
+
+    
+
+
+    //Camera.SetEyeAtUp( eye, Vector3(kZero), Vector3(kYUnitVector) );
+
+
+    struct VSConstants
+    {
+        Matrix4 modelToWorld;
+        Matrix4 modelToProjection;
+        Matrix4 modelToShadow;
+        XMFLOAT3 viewerPos;
+    } vsConstants;
+    //vsConstants.modelToWorld        = Matrix4(Math::XMMatrixIdentity());
+    vsConstants.modelToWorld        = Matrix4(TestRenderer::m_Transform.getTransformMatrix());
+    vsConstants.modelToProjection   = ViewProjMat;
+    vsConstants.modelToShadow = m_SunShadow.GetShadowMatrix();
+    XMStoreFloat3(&vsConstants.viewerPos, viewerPos);
+
+    gfxContext.SetDynamicConstantBufferView(Renderer::kMeshConstants, sizeof(vsConstants), &vsConstants);
+    //uint32_t VertexStride = m_Model.GetVertexStride();
+	const UINT vertexBufferSize = sizeof(triangleVertices);
+    //---TEMPORARILY switch index and vertex buffers
+	gfxContext.SetIndexBuffer(m_Sphere->m_IndexBufferView);
+	gfxContext.SetVertexBuffer(0, m_Sphere->m_VertexBufferView);
+
+    //--- Draw three indices of the triangle
+	gfxContext.DrawIndexed(m_Sphere->m_Indices.size(), 0, 0);
+    
+    //--- Switch Back To Sponza model
+	gfxContext.SetIndexBuffer(m_Model.GetIndexBuffer());
+	gfxContext.SetVertexBuffer(0, m_Model.GetVertexBuffer());
+
+}
+
 void TestRenderer::RenderObjects( GraphicsContext& gfxContext, const Matrix4& ViewProjMat, const Vector3& viewerPos, eObjectFilter Filter )
 {
     struct VSConstants
@@ -402,43 +494,43 @@ void TestRenderer::RenderObjects( GraphicsContext& gfxContext, const Matrix4& Vi
 
     uint32_t VertexStride = m_Model.GetVertexStride();
 
-    for (uint32_t meshIndex = 0; meshIndex < m_Model.GetMeshCount(); meshIndex++)
-    {
-        const ModelH3D::Mesh& mesh = m_Model.GetMesh(meshIndex);
-
-        uint32_t indexCount = mesh.indexCount;
-        uint32_t startIndex = mesh.indexDataByteOffset / sizeof(uint16_t);
-        uint32_t baseVertex = mesh.vertexDataByteOffset / VertexStride;
-
-        if (mesh.materialIndex != materialIdx)
-        {
-            if ( m_pMaterialIsCutout[mesh.materialIndex] && !(Filter & kCutout) ||
-                !m_pMaterialIsCutout[mesh.materialIndex] && !(Filter & kOpaque) )
-                continue;
-
-            materialIdx = mesh.materialIndex;
-            gfxContext.SetDescriptorTable(Renderer::kMaterialSRVs, m_Model.GetSRVs(materialIdx));
-
-            //auto r = TestRaytracing::m_raytracingOutput.Get();
-            //auto r = TestRaytracing::m_raytracingColorBuffer.GetResource();
-            //gfxContext.SetDescriptorTable(Renderer::kCommonSRVs, TestRaytracing::GetHandle());
-            //Graphics::g_SceneColorBuffer
-            
-
-//            Graphics::g_Device->CreateShaderResourceView(
-//                TestRaytracing::m_raytracingOutput.Get(),
-//                nullptr,
-//                nullptr
-//            )
-
-            //gfxContext.SetDescriptorTable(Renderer::kCommonSRVs, Graphics::g_SceneColorBuffer.GetGpuVirtualAddress());
-            //gfxContext.SetDescriptorTable(Renderer::kCommonSRVs, Graphics::g_SceneColorBuffer.GetSRV());
-
-            gfxContext.SetDynamicConstantBufferView(Renderer::kCommonCBV, sizeof(uint32_t), &materialIdx);
-        }
-
-        gfxContext.DrawIndexed(indexCount, startIndex, baseVertex);
-    }
+//    for (uint32_t meshIndex = 0; meshIndex < m_Model.GetMeshCount(); meshIndex++)
+//    {
+//        const ModelH3D::Mesh& mesh = m_Model.GetMesh(meshIndex);
+//
+//        uint32_t indexCount = mesh.indexCount;
+//        uint32_t startIndex = mesh.indexDataByteOffset / sizeof(uint16_t);
+//        uint32_t baseVertex = mesh.vertexDataByteOffset / VertexStride;
+//
+//        if (mesh.materialIndex != materialIdx)
+//        {
+//            if ( m_pMaterialIsCutout[mesh.materialIndex] && !(Filter & kCutout) ||
+//                !m_pMaterialIsCutout[mesh.materialIndex] && !(Filter & kOpaque) )
+//                continue;
+//
+//            materialIdx = mesh.materialIndex;
+//            gfxContext.SetDescriptorTable(Renderer::kMaterialSRVs, m_Model.GetSRVs(materialIdx));
+//
+//            //auto r = TestRaytracing::m_raytracingOutput.Get();
+//            //auto r = TestRaytracing::m_raytracingColorBuffer.GetResource();
+//            //gfxContext.SetDescriptorTable(Renderer::kCommonSRVs, TestRaytracing::GetHandle());
+//            //Graphics::g_SceneColorBuffer
+//            
+//
+////            Graphics::g_Device->CreateShaderResourceView(
+////                TestRaytracing::m_raytracingOutput.Get(),
+////                nullptr,
+////                nullptr
+////            )
+//
+//            //gfxContext.SetDescriptorTable(Renderer::kCommonSRVs, Graphics::g_SceneColorBuffer.GetGpuVirtualAddress());
+//            //gfxContext.SetDescriptorTable(Renderer::kCommonSRVs, Graphics::g_SceneColorBuffer.GetSRV());
+//
+//            gfxContext.SetDynamicConstantBufferView(Renderer::kCommonCBV, sizeof(uint32_t), &materialIdx);
+//        }
+//
+//        gfxContext.DrawIndexed(indexCount, startIndex, baseVertex);
+//    }
 }
 
 void TestRenderer::RenderLightShadows(GraphicsContext& gfxContext, const Camera& camera)
@@ -632,7 +724,16 @@ void TestRenderer::RenderScene(
                     D3D12_CPU_DESCRIPTOR_HANDLE rtvs[]{ g_SceneColorBuffer.GetRTV(), g_SceneNormalBuffer.GetRTV() };
                     gfxContext.SetRenderTargets(ARRAYSIZE(rtvs), rtvs, g_SceneDepthBuffer.GetDSV_DepthReadOnly());
                     gfxContext.SetViewportAndScissor(viewport, scissor);
-					RenderTriangleObject(gfxContext, camera.GetViewProjMatrix(), camera.GetPosition(), TestRenderer::kOpaque);
+                    RenderTriangleObject(gfxContext, camera.GetViewProjMatrix(), camera.GetPosition(), TestRenderer::kOpaque);
+                }
+                {
+                    ScopedTimer _prof3(L"Render Sphere", gfxContext);
+                    gfxContext.SetPipelineState(m_TestSpherePSO);
+                    gfxContext.TransitionResource(g_SceneDepthBuffer, D3D12_RESOURCE_STATE_DEPTH_READ);
+                    D3D12_CPU_DESCRIPTOR_HANDLE rtvs[]{ g_SceneColorBuffer.GetRTV(), g_SceneNormalBuffer.GetRTV() };
+                    gfxContext.SetRenderTargets(ARRAYSIZE(rtvs), rtvs, g_SceneDepthBuffer.GetDSV_DepthReadOnly());
+                    gfxContext.SetViewportAndScissor(viewport, scissor);
+					RenderSphereObject(gfxContext, camera.GetViewProjMatrix(), camera.GetPosition(), TestRenderer::kOpaque);
                 }
 
 //                --- SKIP NORMAL CUTOUTS---

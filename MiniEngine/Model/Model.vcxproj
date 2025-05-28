@@ -71,6 +71,15 @@
   <ItemGroup>
     <ClInclude Include="Animation.h" />
     <ClInclude Include="ConstantBuffers.h" />
+    <ClInclude Include="Geometry\BaseMesh.h" />
+    <ClInclude Include="Geometry\Mesh.h" />
+    <ClInclude Include="Geometry\MeshInstance.h" />
+    <ClInclude Include="Geometry\Observer.h" />
+    <ClInclude Include="Geometry\SerializableMesh.h" />
+    <ClInclude Include="Geometry\SphereMesh.h" />
+    <ClInclude Include="Geometry\Subject.h" />
+    <ClInclude Include="Geometry\TangentMesh.h" />
+    <ClInclude Include="Geometry\Transform.h" />
     <ClInclude Include="glTF.h" />
     <ClInclude Include="IndexOptimizePostTransform.h" />
     <ClInclude Include="json.hpp" />
@@ -93,6 +102,15 @@
   <ItemGroup>
     <ClCompile Include="Animation.cpp" />
     <ClCompile Include="BuildH3D.cpp" />
+    <ClCompile Include="Geometry\BaseMesh.cpp" />
+    <ClCompile Include="Geometry\Mesh.cpp" />
+    <ClCompile Include="Geometry\MeshInstance.cpp" />
+    <ClCompile Include="Geometry\Observer.cpp" />
+    <ClCompile Include="Geometry\SerializableMesh.cpp" />
+    <ClCompile Include="Geometry\SphereMesh.cpp" />
+    <ClCompile Include="Geometry\Subject.cpp" />
+    <ClCompile Include="Geometry\TangentMesh.cpp" />
+    <ClCompile Include="Geometry\Transform.cpp" />
     <ClCompile Include="glTF.cpp" />
     <ClCompile Include="IndexOptimizePostTransform.cpp" />
     <ClCompile Include="LightManager.cpp" />
@@ -192,6 +210,12 @@
     </FxCompile>
     <FxCompile Include="Shaders\SimpleColorVS.hlsl">
       <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">6.2</ShaderModel>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Vertex</ShaderType>
+    </FxCompile>
+    <FxCompile Include="Shaders\SimpleMeshPS.hlsl">
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Pixel</ShaderType>
+    </FxCompile>
+    <FxCompile Include="Shaders\SimpleMeshVS.hlsl">
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Vertex</ShaderType>
     </FxCompile>
     <FxCompile Include="Shaders\SkyboxPS.hlsl">
