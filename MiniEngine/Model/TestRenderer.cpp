@@ -11,6 +11,9 @@
 #include "Renderer.h"
 #include "LightManager.h"
 
+#include <initializer_list>
+
+
 
 
 // From Model
@@ -134,9 +137,32 @@ namespace TestRenderer
 		UINT   MaxSurfels;
 	};
     SurfelGenCB m_SurfelGen;
-    ByteAddressBuffer m_SurfelGenBuff;
+    ByteAddressBuffer m_SufelSettingBuffer;
+    StructuredBuffer m_SurfelOutputBuffer1;
+    StructuredBuffer m_SurfelOutputBuffer2;
     DescriptorHeap srvHeap;
     DescriptorHeap uavHeap;
+
+
+    void CopyDescriptorsToHeap(
+    DescriptorHeap& targetHeap,
+    std::initializer_list<D3D12_CPU_DESCRIPTOR_HANDLE> srcDescriptors,
+    D3D12_DESCRIPTOR_HEAP_TYPE heapType = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV)
+{
+    // Allocate space in the heap
+    DescriptorHandle destHandle = targetHeap.Alloc((uint32_t)srcDescriptors.size());
+
+    // Prepare descriptor arrays
+    uint32_t count = (uint32_t)srcDescriptors.size();
+    std::vector<UINT> srcCounts(count, 1);
+    std::vector<D3D12_CPU_DESCRIPTOR_HANDLE> srcHandles(srcDescriptors);
+
+    Graphics::g_Device->CopyDescriptors(
+        1, &destHandle, &count,
+        count, srcHandles.data(), srcCounts.data(),
+        heapType
+    );
+}
 
     void SurfelInitRootSignature()
     {
@@ -147,9 +173,9 @@ namespace TestRenderer
 		m_SurfelGenerationRT.Reset(3, 3);
 
 
-		m_SurfelGenerationRT.InitStaticSampler(10, DefaultSamplerDesc, D3D12_SHADER_VISIBILITY_PIXEL);
-		m_SurfelGenerationRT.InitStaticSampler(11, SamplerShadowDesc, D3D12_SHADER_VISIBILITY_PIXEL);
-		m_SurfelGenerationRT.InitStaticSampler(12, CubeMapSamplerDesc, D3D12_SHADER_VISIBILITY_PIXEL);
+		m_SurfelGenerationRT.InitStaticSampler(10, DefaultSamplerDesc);
+		m_SurfelGenerationRT.InitStaticSampler(11, SamplerShadowDesc);
+		m_SurfelGenerationRT.InitStaticSampler(12, CubeMapSamplerDesc);
 
 
 		m_SurfelGenerationRT[0].InitAsConstantBuffer(0);
@@ -157,7 +183,7 @@ namespace TestRenderer
 		//SRVs: Position and Normal
 		m_SurfelGenerationRT[1].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 2);
 		//UAVs: 
-		m_SurfelGenerationRT[2].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 2, 1);
+		m_SurfelGenerationRT[2].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 0, 2);
 
 		m_SurfelGenerationRT.Finalize(L"CS Surfel Root Signature");
 
@@ -168,24 +194,41 @@ namespace TestRenderer
         m_SurfelGen.ViewDistThreshold = 0.75;
 
         
-        m_SurfelGenBuff.Create(L"Surfel Gen CBV", 1, sizeof(SurfelGenCB), &m_SurfelGen);
-        srvHeap.Create(L"SURFEL SRV HEAP", D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 3);
+        m_SufelSettingBuffer.Create(L"Surfel Gen CBV", 1, sizeof(SurfelGenCB), &m_SurfelGen);
+
+
+        uint32_t outputColorSize = g_SceneColorBuffer.GetHeight() * g_SceneColorBuffer.GetWidth() * (sizeof(Vector4));
+        m_SurfelOutputBuffer1.Create(L"Surfel Output 1", 1, outputColorSize);
+        m_SurfelOutputBuffer2.Create(L"Surfel Output 2", 1, outputColorSize);
+
+
+
+
+        srvHeap.Create(L"SURFEL SRV HEAP", D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 4);
         //uavHeap.Create(L"SURFEL UAV HEAP", D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 2);
 
+        CopyDescriptorsToHeap(srvHeap, {
+                g_SceneColorBuffer.GetSRV(),
+                g_SceneNormalBuffer.GetSRV(),
+                m_SurfelOutputBuffer1.GetUAV(),
+                m_SurfelOutputBuffer2.GetUAV()
+            }
+        );
 
-        {
-			uint32_t DestCount = 1;
-			// Allocate a descriptor table for the common textures
-			DescriptorHandle t = srvHeap.Alloc(3);
-			uint32_t SourceCounts[] = { 1,1,1};
-			D3D12_CPU_DESCRIPTOR_HANDLE SourceTextures[] =
-			{
-				g_SceneColorBuffer.GetSRV(),
-				g_SceneNormalBuffer.GetSRV(),
-				m_SurfelGenBuff.GetUAV(),
-			};
-			Graphics::g_Device->CopyDescriptors(1, &t, &DestCount, DestCount, SourceTextures, SourceCounts, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
-        }
+//        {
+//			uint32_t DestCount = 1;
+//			// Allocate a descriptor table for the common textures
+//			DescriptorHandle t = srvHeap.Alloc(4);
+//			uint32_t SourceCounts[] = { 1,1,1,1};
+//			D3D12_CPU_DESCRIPTOR_HANDLE SourceTextures[] =
+//			{
+//				g_SceneColorBuffer.GetSRV(),
+//				g_SceneNormalBuffer.GetSRV(),
+//				m_SurfelOutputBuffer1.GetUAV(),
+//				m_SurfelOutputBuffer2.GetUAV(),
+//			};
+//			Graphics::g_Device->CopyDescriptors(1, &t, &DestCount, DestCount, SourceTextures, SourceCounts, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+//        }
 
 //        {
 //			uint32_t DestCount = 1;
@@ -222,7 +265,7 @@ namespace TestRenderer
 		//gfxContext.SetDescriptorHeaps(2,heaps)
 
 				//Bind the root parameters
-		gfxContext.SetConstantBuffer(0, m_SurfelGenBuff.GetGpuVirtualAddress());
+		gfxContext.SetConstantBuffer(0, m_SufelSettingBuffer.GetGpuVirtualAddress());
 		gfxContext.SetDescriptorTable(1, srvHeap[0]);
 		gfxContext.SetDescriptorTable(2, srvHeap[2]);
 		gfxContext.Dispatch2D(g_SceneNormalBuffer.GetWidth(), g_SceneNormalBuffer.GetHeight());

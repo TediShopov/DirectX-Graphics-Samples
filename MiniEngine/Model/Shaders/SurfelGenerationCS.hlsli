@@ -1,4 +1,9 @@
 // Constants and thresholds
+#include "Common.hlsli"
+
+//SamplerState defaultSampler : register(s10);
+//SamplerComparisonState shadowSampler : register(s11);
+//SamplerState cubeMapSampler : register(s12);
 cbuffer SurfelGenCB : register(b0)
 {
     uint   FrameIndex;
@@ -84,6 +89,22 @@ void main(
 
     uint2 tilePos = groupdId.xy;
     uint2 pixelPos = dispatchThreadId.xy;
+
+    // Add surfel
+//    surfelNormalOut;
+//    surfelPosOut.InterlockedAdd(0, 1, index);
+//    if (index >= MaxSurfels)
+//        return;
+
+    int index = pixelPos.x * gResolution.x + pixelPos.y;
+    float2 uv = float2(dispatchThreadId.xy) / float2(gResolution.x,gResolution.x);
+
+    float4 positionToOutput = gPosition.SampleLevel(defaultSampler, uv,0);
+    float4 normalToOutput = gNormal.SampleLevel(defaultSampler, uv,0);
+
+    surfelPosOut[index] =positionToOutput ;
+    surfelNormalOut[index] = normalToOutput;
+    
 
     //RNG randomState;
     //randomState.init(pixelPos, gFrameIndex);
