@@ -27,6 +27,7 @@
 #include "CompiledShaders/SimpleColorVS.h"
 #include "CompiledShaders/SimpleMeshPS.h"
 #include "CompiledShaders/SimpleMeshVS.h"
+#include "CompiledShaders/SurfelGenerationCS.h"
 //#include "CompiledShaders/Raytracing.h"
 
 
@@ -64,12 +65,14 @@ namespace TestRenderer
 
 
     RootSignature m_TestRootSignature;
+
     
 
 	GraphicsPSO m_DepthPSO = { (L"Sponza: Depth PSO") };
 	GraphicsPSO m_ModelPSO = { (L"Sponza: Color PSO") };
 	GraphicsPSO m_TestPSO = { (L"Sponza: Triangel Test PSO") };
 	GraphicsPSO m_TestSpherePSO = { (L"Sponza: Sphere Test PSO") };
+	ComputePSO m_SurfelGenerationPSO= { (L"Surfel Generation Compute Shader Stage") };
 	GraphicsPSO m_CutoutDepthPSO = { (L"Sponza: Cutout Depth PSO") };
 	GraphicsPSO m_CutoutModelPSO = { (L"Sponza: Cutout Color PSO") };
 	GraphicsPSO m_ShadowPSO(L"Sponza: Shadow PSO");
@@ -119,6 +122,120 @@ namespace TestRenderer
 	D3D12_INDEX_BUFFER_VIEW    m_IndexBufferView;
 
 
+#pragma region SurfelGI
+    RootSignature m_SurfelGenerationRT;
+
+    __declspec(align(16)) struct SurfelGenCB
+	{
+		UINT   FrameIndex;
+		float  DepthThreshold;
+		float  NormalThreshold;
+		float  ViewDistThreshold;
+		UINT   MaxSurfels;
+	};
+    SurfelGenCB m_SurfelGen;
+    ByteAddressBuffer m_SurfelGenBuff;
+    DescriptorHeap srvHeap;
+    DescriptorHeap uavHeap;
+
+    void SurfelInitRootSignature()
+    {
+
+		SamplerDesc DefaultSamplerDesc;
+		DefaultSamplerDesc.MaxAnisotropy = 8;
+		SamplerDesc CubeMapSamplerDesc = DefaultSamplerDesc;
+		m_SurfelGenerationRT.Reset(3, 3);
+
+
+		m_SurfelGenerationRT.InitStaticSampler(10, DefaultSamplerDesc, D3D12_SHADER_VISIBILITY_PIXEL);
+		m_SurfelGenerationRT.InitStaticSampler(11, SamplerShadowDesc, D3D12_SHADER_VISIBILITY_PIXEL);
+		m_SurfelGenerationRT.InitStaticSampler(12, CubeMapSamplerDesc, D3D12_SHADER_VISIBILITY_PIXEL);
+
+
+		m_SurfelGenerationRT[0].InitAsConstantBuffer(0);
+
+		//SRVs: Position and Normal
+		m_SurfelGenerationRT[1].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 2);
+		//UAVs: 
+		m_SurfelGenerationRT[2].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 2, 1);
+
+		m_SurfelGenerationRT.Finalize(L"CS Surfel Root Signature");
+
+        m_SurfelGen.DepthThreshold = 0.1;
+        m_SurfelGen.FrameIndex = 0;
+        m_SurfelGen.MaxSurfels = 50;
+        m_SurfelGen.NormalThreshold = 0.5;
+        m_SurfelGen.ViewDistThreshold = 0.75;
+
+        
+        m_SurfelGenBuff.Create(L"Surfel Gen CBV", 1, sizeof(SurfelGenCB), &m_SurfelGen);
+        srvHeap.Create(L"SURFEL SRV HEAP", D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 3);
+        //uavHeap.Create(L"SURFEL UAV HEAP", D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 2);
+
+
+        {
+			uint32_t DestCount = 1;
+			// Allocate a descriptor table for the common textures
+			DescriptorHandle t = srvHeap.Alloc(3);
+			uint32_t SourceCounts[] = { 1,1,1};
+			D3D12_CPU_DESCRIPTOR_HANDLE SourceTextures[] =
+			{
+				g_SceneColorBuffer.GetSRV(),
+				g_SceneNormalBuffer.GetSRV(),
+				m_SurfelGenBuff.GetUAV(),
+			};
+			Graphics::g_Device->CopyDescriptors(1, &t, &DestCount, DestCount, SourceTextures, SourceCounts, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+        }
+
+//        {
+//			uint32_t DestCount = 1;
+//			DescriptorHandle t = uavHeap.Alloc(1);
+//			uint32_t SourceCounts[] = { 1 };
+//			D3D12_CPU_DESCRIPTOR_HANDLE SourceTextures[] =
+//			{
+//				m_SurfelGenBuff.GetUAV(),
+//			};
+//			Graphics::g_Device->CopyDescriptors(1, &t, &DestCount, DestCount, SourceTextures, SourceCounts, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+//        }
+    }
+
+    void SurfelSetRootParameters(ComputeContext& gfxContext)
+    {
+
+		ScopedTimer _prof(L"Dispact Compute Shader", gfxContext);
+
+		//Transition resources from render target to CS 
+		//NON-PIXEL SHADER RESOURCE should cover the ComputeShader stage
+		gfxContext.TransitionResource(g_SceneColorBuffer, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, true);
+		gfxContext.TransitionResource(g_SceneNormalBuffer, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, true);
+
+		//Switch to the appropriate PSO
+		gfxContext.SetPipelineState(m_SurfelGenerationPSO);
+		gfxContext.SetRootSignature(m_SurfelGenerationRT);
+
+
+		ID3D12DescriptorHeap* heaps[] = {
+			srvHeap.GetHeapPointer(),  // This is your SURFEL SRV HEAP
+		};
+
+		gfxContext.GetCommandList()->SetDescriptorHeaps(1, heaps);
+		//gfxContext.SetDescriptorHeaps(2,heaps)
+
+				//Bind the root parameters
+		gfxContext.SetConstantBuffer(0, m_SurfelGenBuff.GetGpuVirtualAddress());
+		gfxContext.SetDescriptorTable(1, srvHeap[0]);
+		gfxContext.SetDescriptorTable(2, srvHeap[2]);
+		gfxContext.Dispatch2D(g_SceneNormalBuffer.GetWidth(), g_SceneNormalBuffer.GetHeight());
+
+    }
+
+
+
+
+
+
+
+#pragma endregion 
 
 	//---   RAY-TRACING RELATED
 
@@ -225,6 +342,16 @@ void TestRenderer::Startup( Camera& Camera )
     m_TestPSO.SetPixelShader( g_pSimpleColorPS, sizeof(g_pSimpleColorPS) );
 
     m_TestPSO.Finalize();
+
+
+
+	//--- DEMO PASS FOR GENERATING SURFEL WITH COMPUTE SHADER ---
+	SurfelInitRootSignature();
+	m_SurfelGenerationPSO.SetRootSignature(m_SurfelGenerationRT);
+	m_SurfelGenerationPSO.SetComputeShader(g_pSurfelGenerationCS, sizeof(g_pSurfelGenerationCS));
+    m_SurfelGenerationPSO.Finalize();
+
+    
 
     //--- DEMO PASS FOR RENDERING SPHERE ---
     // Full color pass
@@ -557,6 +684,7 @@ void TestRenderer::RenderLightShadows(GraphicsContext& gfxContext, const Camera&
 
     gfxContext.TransitionResource(m_LightShadowTempBuffer, D3D12_RESOURCE_STATE_COPY_SOURCE);
     gfxContext.TransitionResource(m_LightShadowArray, D3D12_RESOURCE_STATE_COPY_DEST);
+    
 
     gfxContext.CopySubresource(m_LightShadowArray, LightIndex, m_LightShadowTempBuffer, 0);
 
@@ -573,6 +701,8 @@ void TestRenderer::RenderScene(
     bool skipDiffusePass,
     bool skipShadowMap)
 {
+	ComputeContext& cfx = reinterpret_cast<ComputeContext&>(gfxContext);
+    SurfelSetRootParameters(cfx);
     TestRaytracing::DoRaytracing(camera);
     Renderer::UpdateGlobalDescriptors();
 

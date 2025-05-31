@@ -282,5 +282,8 @@
     <FxCompile Include="Shaders\SimpleMeshVS.hlsl">
       <Filter>Shaders</Filter>
     </FxCompile>
+    <FxCompile Include="Shaders\SurfelGenerationCS.hlsli">
+      <Filter>Shaders</Filter>
+    </FxCompile>
   </ItemGroup>
 </Project>
