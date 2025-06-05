@@ -113,9 +113,9 @@ namespace TestRenderer
     const float m_triDepthValue = 0.1f;
 	ColorVertex triangleVertices[3] =
 	{
-		{ { 0.0f, 0.25f * m_aspectRatio, m_triDepthValue,1}, { 1.0f, 0.0f, 0.0f, 1.0f } },
-		{ { 0.25f, -0.25f * m_aspectRatio, m_triDepthValue,1}, { 0.0f, 1.0f, 0.0f, 1.0f } },
-		{ { -0.25f, -0.25f * m_aspectRatio, m_triDepthValue,1}, { 0.0f, 0.0f, 1.0f, 1.0f } }
+		{ { 0.0f, 0.5f * m_aspectRatio, m_triDepthValue,1}, { 1.0f, 0.0f, 0.0f, 1.0f } },
+		{ { 0.5f, -0.5f * m_aspectRatio, m_triDepthValue,1}, { 0.0f, 1.0f, 0.0f, 1.0f } },
+		{ { -0.5f, -0.5f * m_aspectRatio, m_triDepthValue,1}, { 0.0f, 0.0f, 1.0f, 1.0f } }
 	};
 
 	//The triangle geomtry buffer 
@@ -208,38 +208,12 @@ namespace TestRenderer
         //uavHeap.Create(L"SURFEL UAV HEAP", D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 2);
 
         CopyDescriptorsToHeap(srvHeap, {
-                g_SceneColorBuffer.GetSRV(),
+                g_SceneDepthBuffer.GetDepthSRV(),
                 g_SceneNormalBuffer.GetSRV(),
                 m_SurfelOutputBuffer1.GetUAV(),
                 m_SurfelOutputBuffer2.GetUAV()
             }
         );
-
-//        {
-//			uint32_t DestCount = 1;
-//			// Allocate a descriptor table for the common textures
-//			DescriptorHandle t = srvHeap.Alloc(4);
-//			uint32_t SourceCounts[] = { 1,1,1,1};
-//			D3D12_CPU_DESCRIPTOR_HANDLE SourceTextures[] =
-//			{
-//				g_SceneColorBuffer.GetSRV(),
-//				g_SceneNormalBuffer.GetSRV(),
-//				m_SurfelOutputBuffer1.GetUAV(),
-//				m_SurfelOutputBuffer2.GetUAV(),
-//			};
-//			Graphics::g_Device->CopyDescriptors(1, &t, &DestCount, DestCount, SourceTextures, SourceCounts, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
-//        }
-
-//        {
-//			uint32_t DestCount = 1;
-//			DescriptorHandle t = uavHeap.Alloc(1);
-//			uint32_t SourceCounts[] = { 1 };
-//			D3D12_CPU_DESCRIPTOR_HANDLE SourceTextures[] =
-//			{
-//				m_SurfelGenBuff.GetUAV(),
-//			};
-//			Graphics::g_Device->CopyDescriptors(1, &t, &DestCount, DestCount, SourceTextures, SourceCounts, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
-//        }
     }
 
     void SurfelSetRootParameters(ComputeContext& gfxContext)
@@ -249,7 +223,7 @@ namespace TestRenderer
 
 		//Transition resources from render target to CS 
 		//NON-PIXEL SHADER RESOURCE should cover the ComputeShader stage
-		gfxContext.TransitionResource(g_SceneColorBuffer, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, true);
+		gfxContext.TransitionResource(g_SceneDepthBuffer, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, false);
 		gfxContext.TransitionResource(g_SceneNormalBuffer, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, true);
 
 		//Switch to the appropriate PSO
@@ -279,6 +253,125 @@ namespace TestRenderer
 
 
 #pragma endregion 
+
+#pragma region UniformHashGridVisualization
+
+    enum kUHGRoot {
+        kProjectionResources =0,
+        kDepth =1
+    };
+
+    __declspec(align(16)) struct UHGProjectionResources {
+
+        XMMATRIX invViewProjeciton;
+        float depthNear;
+        float depthFar;
+    };
+    UHGProjectionResources projectionData;
+    ByteAddressBuffer projectionBuffer;
+
+
+	// --- DESCRIPTOR HEAR CONTAINING DEPTH BUFFER SRV ---
+    RootSignature m_UHGRootSignature;
+
+	// --- DESCRIPTOR HEAR CONTAINING DEPTH BUFFER SRV ---
+    DescriptorHeap m_UHGTextures;
+
+
+    void CreateUHGRootSignature()
+    {
+		m_UHGRootSignature.Reset(2, 3);
+
+		SamplerDesc DefaultSamplerDesc;
+		DefaultSamplerDesc.MaxAnisotropy = 8;
+		SamplerDesc CubeMapSamplerDesc = DefaultSamplerDesc;
+
+		//---INIT THE STATIC SAMPLERS--
+		m_UHGRootSignature.InitStaticSampler(10, DefaultSamplerDesc, D3D12_SHADER_VISIBILITY_PIXEL);
+		m_UHGRootSignature.InitStaticSampler(11, SamplerShadowDesc, D3D12_SHADER_VISIBILITY_PIXEL);
+		m_UHGRootSignature.InitStaticSampler(12, CubeMapSamplerDesc, D3D12_SHADER_VISIBILITY_PIXEL);
+
+		m_UHGRootSignature[kUHGRoot::kProjectionResources].InitAsConstantBuffer(0,
+           D3D12_SHADER_VISIBILITY_PIXEL);
+
+		m_UHGRootSignature[kUHGRoot::kDepth].InitAsDescriptorRange(
+            D3D12_DESCRIPTOR_RANGE_TYPE_SRV,
+            0,2, D3D12_SHADER_VISIBILITY_PIXEL);
+		//m_UHGRootSignature[kUHGRoot::kRayTracingOutput].InitAsBufferUAV(0, D3D12_SHADER_VISIBILITY_PIXEL);
+        m_UHGRootSignature.Finalize(L"UHG Root Signature", D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
+    }
+
+    void CreateUHGDescriptorHeap()
+    {
+        m_UHGTextures.Create(L"Uniform Hash Grid Descriptor", D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 2);
+
+        CopyDescriptorsToHeap(
+            m_UHGTextures,
+            {
+                g_SceneDepthBuffer.GetDepthSRV(),
+		        TestRaytracing::GetOutputBuffer().GetSRV()
+		        //TestRaytracing::GetOutputBuffer().GetUAV()
+            },
+            D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV
+        );
+    }
+
+    void SetUHGRootParameters(GraphicsContext& gfxContext,const Camera& camera)
+    {
+		// --- TRANSITON THE DEPTH BUFFER TO BE READABLE BY THE SHADER
+		gfxContext.TransitionResource(g_SceneDepthBuffer, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, false);
+		gfxContext.TransitionResource(TestRaytracing::GetOutputBuffer(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, false);
+
+		//--- SET THE HEAP CONTAINING ALL THE TEXTURES
+		gfxContext.SetDescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, m_UHGTextures.GetHeapPointer());
+
+
+
+        //Correct way of obtraining the viewProjMatrix  as the math library used Column Major Order 
+        //m_ViewProjMatrix = m_ProjMatrix * m_ViewMatrix;
+//		Matrix4 invViewProj = Invert(camera.GetViewProjMatrix());
+//        //Need to inversly translate by the camera translation as well to get a real world position
+//		Matrix4 invViewProj = Invert();
+		Matrix4 invViewProj = Invert(camera.GetViewProjMatrix());
+        Vector3 mathPos = camera.GetPosition();
+
+		projectionData.invViewProjeciton = invViewProj;
+		//projectionData.invViewProjeciton = Transpose(invViewProj);
+		projectionData.depthNear = camera.GetNearClip();
+		projectionData.depthFar = camera.GetFarClip();
+
+		projectionBuffer.Create(L"Projectoin Data Buffer", 1, sizeof(UHGProjectionResources), &projectionData);
+
+		gfxContext.SetConstantBuffer(kUHGRoot::kProjectionResources, projectionBuffer.GetGpuVirtualAddress());
+
+		gfxContext.SetDescriptorTable(kUHGRoot::kDepth, m_UHGTextures[0]);
+    }
+
+void UHGTriangleRender(GraphicsContext& gfxContext, const D3D12_VIEWPORT& viewport, const D3D12_RECT& scissor, const Math::Camera& camera)
+{
+    {
+        ScopedTimer _prof3(L"Render Triangle", gfxContext);
+
+        gfxContext.SetPipelineState(m_TestPSO);
+        gfxContext.SetRootSignature(m_UHGRootSignature);
+
+        SetUHGRootParameters(gfxContext,camera);
+
+        //D3D12_CPU_DESCRIPTOR_HANDLE rtvs[]{ g_SceneColorBuffer.GetRTV(), g_SceneNormalBuffer.GetRTV() };
+        D3D12_CPU_DESCRIPTOR_HANDLE rtvs[]{ g_SceneColorBuffer.GetRTV(), g_SceneNormalBuffer.GetRTV()};
+
+        gfxContext.SetRenderTargets(ARRAYSIZE(rtvs), rtvs);
+
+        gfxContext.SetViewportAndScissor(viewport, scissor);
+
+        RenderTriangleObject(gfxContext, camera.GetViewProjMatrix(), camera.GetPosition(), TestRenderer::kOpaque);
+    }
+}
+
+
+
+
+#pragma endregion UniformHashGridVisualization
 
 	//---   RAY-TRACING RELATED
 
@@ -367,11 +460,18 @@ void TestRenderer::Startup( Camera& Camera )
 
     //--- DEMO PASS FOR RENDERING TRIANGLE ---
     // Full color pass
-    InitTestRootSignature();
+    //InitTestRootSignature();
+
+    CreateUHGRootSignature();
+
     m_TestPSO = m_DepthPSO;
+    //--- REPLACE THE ROOT SIGNATURE
+    m_TestPSO.SetRootSignature(m_UHGRootSignature);
+
     m_TestPSO.SetBlendState(BlendDisable);
     m_TestPSO.SetDepthStencilState(DepthStateTestEqual);
-    m_TestPSO.SetRenderTargetFormats(2, formats, DepthFormat);
+    //m_TestPSO.SetRenderTargetFormats(2, formats, DepthFormat);
+    m_TestPSO.SetRenderTargetFormats(2, formats,DepthFormat);
     m_TestPSO.SetInputLayout(_countof(colorElem), colorElem);
     //--- CHANGE THE DEPTH STATE ALWAYS TO DRAW ON TOP OF GEOMETRY
     m_TestPSO.SetDepthStencilState(DepthStateDisabled);
@@ -387,12 +487,12 @@ void TestRenderer::Startup( Camera& Camera )
     m_TestPSO.Finalize();
 
 
-
 	//--- DEMO PASS FOR GENERATING SURFEL WITH COMPUTE SHADER ---
 	SurfelInitRootSignature();
 	m_SurfelGenerationPSO.SetRootSignature(m_SurfelGenerationRT);
 	m_SurfelGenerationPSO.SetComputeShader(g_pSurfelGenerationCS, sizeof(g_pSurfelGenerationCS));
     m_SurfelGenerationPSO.Finalize();
+
 
     
 
@@ -482,6 +582,10 @@ void TestRenderer::Startup( Camera& Camera )
     g_Device->CopyDescriptors(1, &Renderer::m_CommonTextures, &DestCount, DestCount, SourceTextures, SourceCounts, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 
     Lighting::CreateRandomLights(m_Model.GetBoundingBox().GetMin(), m_Model.GetBoundingBox().GetMax());
+
+
+
+    CreateUHGDescriptorHeap();
 
 }
 
@@ -591,6 +695,8 @@ void TestRenderer::RenderTriangleObject(GraphicsContext& gfxContext, const Matri
 {
     //uint32_t VertexStride = m_Model.GetVertexStride();
 	const UINT vertexBufferSize = sizeof(triangleVertices);
+
+
     //---TEMPORARILY switch index and vertex buffers
 	gfxContext.SetIndexBuffer(m_IndexBufferView);
 	gfxContext.SetVertexBuffer(0, m_VertexBufferView);
@@ -611,14 +717,6 @@ void TestRenderer::RenderSphereObject(GraphicsContext& gfxContext, const Matrix4
     const Vector3 eye = m_Model.GetBoundingBox().GetCenter() + Vector3(modelRadius * 0.5f, 0.0f, 0.0f);
     const Vector3 relSphereOffset (0,0,0.1);
     const Vector3 offset = relSphereOffset * modelRadius;
-
-
-
-    
-
-
-    //Camera.SetEyeAtUp( eye, Vector3(kZero), Vector3(kYUnitVector) );
-
 
     struct VSConstants
     {
@@ -667,43 +765,43 @@ void TestRenderer::RenderObjects( GraphicsContext& gfxContext, const Matrix4& Vi
 
     uint32_t VertexStride = m_Model.GetVertexStride();
 
-//    for (uint32_t meshIndex = 0; meshIndex < m_Model.GetMeshCount(); meshIndex++)
-//    {
-//        const ModelH3D::Mesh& mesh = m_Model.GetMesh(meshIndex);
-//
-//        uint32_t indexCount = mesh.indexCount;
-//        uint32_t startIndex = mesh.indexDataByteOffset / sizeof(uint16_t);
-//        uint32_t baseVertex = mesh.vertexDataByteOffset / VertexStride;
-//
-//        if (mesh.materialIndex != materialIdx)
-//        {
-//            if ( m_pMaterialIsCutout[mesh.materialIndex] && !(Filter & kCutout) ||
-//                !m_pMaterialIsCutout[mesh.materialIndex] && !(Filter & kOpaque) )
-//                continue;
-//
-//            materialIdx = mesh.materialIndex;
-//            gfxContext.SetDescriptorTable(Renderer::kMaterialSRVs, m_Model.GetSRVs(materialIdx));
-//
-//            //auto r = TestRaytracing::m_raytracingOutput.Get();
-//            //auto r = TestRaytracing::m_raytracingColorBuffer.GetResource();
-//            //gfxContext.SetDescriptorTable(Renderer::kCommonSRVs, TestRaytracing::GetHandle());
-//            //Graphics::g_SceneColorBuffer
-//            
-//
-////            Graphics::g_Device->CreateShaderResourceView(
-////                TestRaytracing::m_raytracingOutput.Get(),
-////                nullptr,
-////                nullptr
-////            )
-//
-//            //gfxContext.SetDescriptorTable(Renderer::kCommonSRVs, Graphics::g_SceneColorBuffer.GetGpuVirtualAddress());
-//            //gfxContext.SetDescriptorTable(Renderer::kCommonSRVs, Graphics::g_SceneColorBuffer.GetSRV());
-//
-//            gfxContext.SetDynamicConstantBufferView(Renderer::kCommonCBV, sizeof(uint32_t), &materialIdx);
-//        }
-//
-//        gfxContext.DrawIndexed(indexCount, startIndex, baseVertex);
-//    }
+    for (uint32_t meshIndex = 0; meshIndex < m_Model.GetMeshCount(); meshIndex++)
+    {
+        const ModelH3D::Mesh& mesh = m_Model.GetMesh(meshIndex);
+
+        uint32_t indexCount = mesh.indexCount;
+        uint32_t startIndex = mesh.indexDataByteOffset / sizeof(uint16_t);
+        uint32_t baseVertex = mesh.vertexDataByteOffset / VertexStride;
+
+        if (mesh.materialIndex != materialIdx)
+        {
+            if ( m_pMaterialIsCutout[mesh.materialIndex] && !(Filter & kCutout) ||
+                !m_pMaterialIsCutout[mesh.materialIndex] && !(Filter & kOpaque) )
+                continue;
+
+            materialIdx = mesh.materialIndex;
+            gfxContext.SetDescriptorTable(Renderer::kMaterialSRVs, m_Model.GetSRVs(materialIdx));
+
+            //auto r = TestRaytracing::m_raytracingOutput.Get();
+            //auto r = TestRaytracing::m_raytracingColorBuffer.GetResource();
+            //gfxContext.SetDescriptorTable(Renderer::kCommonSRVs, TestRaytracing::GetHandle());
+            //Graphics::g_SceneColorBuffer
+            
+
+//            Graphics::g_Device->CreateShaderResourceView(
+//                TestRaytracing::m_raytracingOutput.Get(),
+//                nullptr,
+//                nullptr
+//            )
+
+            //gfxContext.SetDescriptorTable(Renderer::kCommonSRVs, Graphics::g_SceneColorBuffer.GetGpuVirtualAddress());
+            //gfxContext.SetDescriptorTable(Renderer::kCommonSRVs, Graphics::g_SceneColorBuffer.GetSRV());
+
+            gfxContext.SetDynamicConstantBufferView(Renderer::kCommonCBV, sizeof(uint32_t), &materialIdx);
+        }
+
+        gfxContext.DrawIndexed(indexCount, startIndex, baseVertex);
+    }
 }
 
 void TestRenderer::RenderLightShadows(GraphicsContext& gfxContext, const Camera& camera)
@@ -744,10 +842,9 @@ void TestRenderer::RenderScene(
     bool skipDiffusePass,
     bool skipShadowMap)
 {
-	ComputeContext& cfx = reinterpret_cast<ComputeContext&>(gfxContext);
-    SurfelSetRootParameters(cfx);
     TestRaytracing::DoRaytracing(camera);
     Renderer::UpdateGlobalDescriptors();
+    Vector3 pos = camera.GetPosition();
 
     uint32_t FrameIndex = TemporalEffects::GetFrameIndexMod2();
 
@@ -880,7 +977,7 @@ void TestRenderer::RenderScene(
                 ScopedTimer _prof2(L"Render Color", gfxContext);
 
                 gfxContext.TransitionResource(g_SSAOFullScreen, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
-                gfxContext.TransitionResource(TestRaytracing::GetOutputBuffer(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+                //gfxContext.TransitionResource(TestRaytracing::GetOutputBuffer(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 
                 gfxContext.SetDescriptorTable(Renderer::kCommonSRVs, Renderer::m_CommonTextures);
                 gfxContext.SetDynamicConstantBufferView(Renderer::kMaterialConstants, sizeof(psConstants), &psConstants);
@@ -893,19 +990,17 @@ void TestRenderer::RenderScene(
                     gfxContext.SetViewportAndScissor(viewport, scissor);
                 }
                 RenderObjects( gfxContext, camera.GetViewProjMatrix(), camera.GetPosition(), TestRenderer::kOpaque );
-                {
-                    ScopedTimer _prof3(L"Render Triangle", gfxContext);
-                    gfxContext.SetPipelineState(m_TestPSO);
-                    gfxContext.TransitionResource(g_SceneDepthBuffer, D3D12_RESOURCE_STATE_DEPTH_READ);
-                    D3D12_CPU_DESCRIPTOR_HANDLE rtvs[]{ g_SceneColorBuffer.GetRTV(), g_SceneNormalBuffer.GetRTV() };
-                    gfxContext.SetRenderTargets(ARRAYSIZE(rtvs), rtvs, g_SceneDepthBuffer.GetDSV_DepthReadOnly());
-                    gfxContext.SetViewportAndScissor(viewport, scissor);
-                    RenderTriangleObject(gfxContext, camera.GetViewProjMatrix(), camera.GetPosition(), TestRenderer::kOpaque);
-                }
+
+                UHGTriangleRender(gfxContext, viewport, scissor, camera);
+
+
+
+
                 {
                     ScopedTimer _prof3(L"Render Sphere", gfxContext);
                     gfxContext.SetPipelineState(m_TestSpherePSO);
                     gfxContext.TransitionResource(g_SceneDepthBuffer, D3D12_RESOURCE_STATE_DEPTH_READ);
+                    //gfxContext.TransitionResource(g_SceneDepthBuffer, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
                     D3D12_CPU_DESCRIPTOR_HANDLE rtvs[]{ g_SceneColorBuffer.GetRTV(), g_SceneNormalBuffer.GetRTV() };
                     gfxContext.SetRenderTargets(ARRAYSIZE(rtvs), rtvs, g_SceneDepthBuffer.GetDSV_DepthReadOnly());
                     gfxContext.SetViewportAndScissor(viewport, scissor);
@@ -918,4 +1013,13 @@ void TestRenderer::RenderScene(
             }
         }
     }
+
+    // --- SURFEL PASS
+    
+	ComputeContext& cfx = reinterpret_cast<ComputeContext&>(gfxContext);
+    SurfelSetRootParameters(cfx);
+
+
+
 }
+

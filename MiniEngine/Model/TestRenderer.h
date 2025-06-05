@@ -30,6 +30,8 @@ namespace TestRenderer
 		bool skipDiffusePass = false,
 		bool skipShadowMap = false );
 
+	void UHGTriangleRender(GraphicsContext& gfxContext, const D3D12_VIEWPORT& viewport, const D3D12_RECT& scissor, const Math::Camera& camera);
+
 	const ModelH3D& GetModel();
 	void InitTriangleModel();
 	void InitSphereModel();

@@ -1,6 +1,31 @@
 // Constants and thresholds
 #include "Common.hlsli"
 
+//struct SurfelData
+//{
+//    float3 position,
+//    float size,
+//    float4 normal
+//};
+
+    
+//cbuffer HashGridConstants : register(b0) {
+//    float cellSize;
+//    uint maxSurfels;
+//};
+
+uint3 ComputeGridIndex(float3 position,float3 gridOrigin,float3 cellSize) {
+    float3 relative = position - gridOrigin;
+    return clamp((uint3)(relative / cellSize), 0, 1);
+}
+
+
+uint HashGridIndex(uint3 gridIdx, uint3 cellSize) {
+    return gridIdx.x + 
+           gridIdx.y * cellSize.x + 
+           gridIdx.z * cellSize.x * cellSize.y;
+}
+
 //SamplerState defaultSampler : register(s10);
 //SamplerComparisonState shadowSampler : register(s11);
 //SamplerState cubeMapSampler : register(s12);
@@ -14,12 +39,13 @@ cbuffer SurfelGenCB : register(b0)
 };
 
 // G-buffer input textures
-Texture2D<float4> gPosition : register(t0); // RGB = world pos
+Texture2D<float4> gDepth : register(t0); // RGB = world pos
 Texture2D<float4> gNormal   : register(t1); // RGB = world normal
 
 // Surfel output
 RWStructuredBuffer<float4> surfelPosOut : register(u0); // world position
-RWStructuredBuffer<float4> surfelNormalOut : register(u1); // normal
+//RWStructuredBuffer<float4> surfelPosOut : register(u0); // world position
+//RWStructuredBuffer<float4> surfelNormalOut : register(u1); // normal
 
 //WStructuredBuffer<Surfel> gSurfelBuffer;
 //RWStructuredBuffer<uint4> gSurfelGeometryBuffer;
@@ -83,7 +109,7 @@ void main(
     GroupMemoryBarrierWithGroupSync();
 
     float3 gResolution;
-    gPosition.GetDimensions(0, gResolution.x, gResolution.y, gResolution.z);
+    gDepth.GetDimensions(0, gResolution.x, gResolution.y, gResolution.z);
     if (dispatchThreadId.x >= gResolution.x || dispatchThreadId.y >= gResolution.y)
         return;
 
@@ -97,13 +123,13 @@ void main(
 //        return;
 
     int index = pixelPos.x * gResolution.x + pixelPos.y;
-    float2 uv = float2(dispatchThreadId.xy) / float2(gResolution.x,gResolution.x);
+    float2 uv = float2(dispatchThreadId.xy) / float2(gResolution.x - 1,gResolution.y -1);
 
-    float4 positionToOutput = gPosition.SampleLevel(defaultSampler, uv,0);
-    float4 normalToOutput = gNormal.SampleLevel(defaultSampler, uv,0);
+    float4 atDepth = gDepth.SampleLevel(defaultSampler, uv,0);
+    float4 atNormal = gNormal.SampleLevel(defaultSampler, uv,0);
 
-    surfelPosOut[index] =positionToOutput ;
-    surfelNormalOut[index] = normalToOutput;
+    //surfelPosOut[index] =positionToOutput ;
+    //surfelNormalOut[index] = normalToOutput;
     
 
     //RNG randomState;
