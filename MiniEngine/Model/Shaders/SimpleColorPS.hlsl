@@ -49,26 +49,15 @@ uint UniqueHashGridIndex(uint3 gridIdx, uint3 cellSize) {
 
 float3 ReconstructWorldPosition(float2 uv, float depth, float4x4 invViewProj)
 {
-    // Convert from UV to NDC [-1, 1]
     float4 ndc;
-
-
+    // Convert from UV to NDC [-1, 1]
     ndc.xy = uv * 2.0 - 1.0;
+    // For some reason Y has to be flipped
     ndc.y = -ndc.y;
-
-    //ndc.z = depth * 2.0 - 1.0;       // If depth is linearized
-
-    //ndc.z = (1 - depth);
+    // Using Raw Depth
     ndc.z =  depth;
-
-    
-    
     ndc.w = 1.0;
-
-    // Transform from NDC to world
-    //float4 worldPos = mul(ndc, invViewProj);
     float4 worldPos = mul( invViewProj,ndc);
-    //float4 worldPos = mul(ndc,invViewProj);
     return worldPos.xyz / worldPos.w;
 }
 
@@ -76,11 +65,6 @@ float LinearizeDepth(float z, float nearZ, float farZ)
 {
     return (nearZ * farZ) / (farZ - z * (farZ - nearZ));
 }
-//float LinearizeDepth(float z, float nearZ, float farZ)
-//{
-//    float z_ndc = z * 2.0f - 1.0f; // Back to NDC space
-//    return (2.0 * nearZ * farZ) / (farZ + nearZ - z_ndc * (farZ - nearZ));
-//}
 
 float RemapFloat(float value, float inMin, float inMax, float outMin, float outMax)
 {
@@ -126,15 +110,6 @@ float4 main(PSInput input) : SV_TARGET
     float3 cellSize= float3(cellSizeDim,cellSizeDim,cellSizeDim);
     uint3 index = ComputeGridIndex(worldPos, gridOrigin, cellSize);
     uint indexAll = UniqueHashGridIndex(index, cellSize);
-    //indexAll = index.x + index.y + index.z;
     float4 finalColor = ColorArray[indexAll % 16];
-
-//    float4 floatX = ColorArray[index.x % 16];
-//    float4 floatY = ColorArray[index.y % 16];
-//    float4 floatZ = ColorArray[index.z % 16];
-//    float4 finalColor = (floatX + floatY + floatZ) / 3;
     return finalColor;
-    
-    
-    
 }
