@@ -1,34 +1,20 @@
 // Constants and thresholds
 #include "Common.hlsli"
 
-//struct SurfelData
-//{
-//    float3 position,
-//    float size,
-//    float4 normal
-//};
+struct SurfelData
+{
+    float4 position;
+    float4 normal;
+    float radius;
+    float3 padding;
+};
+struct UniformGrid
+{
+    float3 gridOrigin;
+    float3 cellSize;
+    float3 dimensions;
+};
 
-    
-//cbuffer HashGridConstants : register(b0) {
-//    float cellSize;
-//    uint maxSurfels;
-//};
-
-uint3 ComputeGridIndex(float3 position,float3 gridOrigin,float3 cellSize) {
-    float3 relative = position - gridOrigin;
-    return clamp((uint3)(relative / cellSize), 0, 1);
-}
-
-
-uint HashGridIndex(uint3 gridIdx, uint3 cellSize) {
-    return gridIdx.x + 
-           gridIdx.y * cellSize.x + 
-           gridIdx.z * cellSize.x * cellSize.y;
-}
-
-//SamplerState defaultSampler : register(s10);
-//SamplerComparisonState shadowSampler : register(s11);
-//SamplerState cubeMapSampler : register(s12);
 cbuffer SurfelGenCB : register(b0)
 {
     uint   FrameIndex;
@@ -36,60 +22,228 @@ cbuffer SurfelGenCB : register(b0)
     float  NormalThreshold;
     float  ViewDistThreshold;
     uint   MaxSurfels;
+    UniformGrid Grid;
 };
 
 // G-buffer input textures
 Texture2D<float4> gDepth : register(t0); // RGB = world pos
 Texture2D<float4> gNormal   : register(t1); // RGB = world normal
 
-// Surfel output
-RWStructuredBuffer<float4> surfelPosOut : register(u0); // world position
-//RWStructuredBuffer<float4> surfelPosOut : register(u0); // world position
-//RWStructuredBuffer<float4> surfelNormalOut : register(u1); // normal
+RWStructuredBuffer<SurfelData> surfels : register(u0); // world position
+// Stored pointer to a range of surfle IDs 
+// SurfelList[from SurfelGrid[i] to SurfelGrid[i+1]] is all the surfel that occupy a cell with index I
+RWStructuredBuffer<uint> surfelGrid : register(u1); 
+RWStructuredBuffer<uint> surlfeList : register(u2); // Stored pointers (indices) to the appropriate surfel data
 
-//WStructuredBuffer<Surfel> gSurfelBuffer;
-//RWStructuredBuffer<uint4> gSurfelGeometryBuffer;
-//RWStructuredBuffer<uint> gSurfelFreeIndexBuffer;
-//RWStructuredBuffer<uint> gSurfelValidIndexBuffer;
-//RWStructuredBuffer<CellInfo> gCellInfoBuffer;
-//RWStructuredBuffer<uint> gCellToSurfelBuffer;
-//RWStructuredBuffer<SurfelRecycleInfo> gSurfelRecycleInfoBuffer;
-//
-//RWByteAddressBuffer gSurfelRefCounter;
-//RWByteAddressBuffer gSurfelCounter;
-//
-//Texture2D<uint4> gPackedHitInfo;
-//Texture2D<float2> gSurfelDepth;
-//RWTexture2D<float4> gOutput;
-//
-//SamplerState gSurfelDepthSampler;
-//
+
 groupshared uint groupShareMinCoverage;
 groupshared uint groupShareMaxContribution;
 
 
+uint3 ComputeGridIndex(float3 position,float3 gridOrigin,float3 cellSize) {
 
-//RWByteAddressBuffer surfelCount : register(u2);
+    float3 relative = position - gridOrigin;
+    uint3 res;
+    return (uint3)floor(relative / cellSize);
+}
 
-//[numthreads(8, 8, 1)]
-//void main(uint3 DTid : SV_DispatchThreadID)
-//{
-//    float3 pos = gPosition.Load(int3(DTid.xy, 0)).xyz;
-//    float3 normal = gNormal.Load(int3(DTid.xy, 0)).xyz;
-//
-//    // Reject invalid data
-//    if (all(pos == 0) || all(normal == 0))
-//        return;
-//
-//    // Add surfel
-//    uint index;
-//    surfelCount.InterlockedAdd(0, 1, index);
-//    if (index >= MaxSurfels)
-//        return;
-//
-//    surfelPosOut[index] = float4(pos, 1.0f);
-//    surfelNormalOut[index] = float4(normalize(normal), 0.0f);
-//}
+
+
+uint HashGridIndex(uint3 gridIdx, uint3 cellSize) {
+    return gridIdx.x  +
+           gridIdx.y * cellSize.x   +
+           gridIdx.z * cellSize.x * cellSize.y ;
+}
+
+uint UniqueHashGridIndex(uint3 gridIdx, uint3 cellSize) {
+    const uint p1 = 73856093;
+    const uint p2 = 19349663;
+    const uint p3 = 83492791;
+    return (gridIdx.x * p1) ^ (gridIdx.y * p2) ^ (gridIdx.z * p3);
+}
+
+
+
+
+// Returns an array of 8 dot products with the surfel plane
+bool ComputeCornerDotProductsWithSurfelPlane(
+    SurfelData surfel,
+    UniformGrid grid,
+    uint3 cellIndex)
+{
+    // Compute base corner of the grid cell
+    float3 base = grid.gridOrigin + (cellIndex * grid.cellSize);
+
+    // Precompute for convenience
+    float3 size = grid.cellSize;
+    float3 N = surfel.normal;
+    float3 P0 = surfel.position;
+
+    // 8 corners of the grid cell (relative to base)
+    float3 corners[8] = {
+        base,
+        base + float3(size.x, 0, 0),
+        base + float3(0, size.y, 0),
+        base + float3(0, 0, size.z),
+        base + float3(size.x, size.y, 0),
+        base + float3(size.x, 0, size.z),
+        base + float3(0, size.y, size.z),
+        base + size
+    };
+
+    // Compute dot products: dot(corner - P0, N)
+    float previousPointDot;
+
+
+    //Test the first cell corner to avoid an if in the for loop
+
+    float3 offset = corners[0] - P0;
+    previousPointDot = dot(offset, N);
+
+
+
+
+
+    
+
+    //Test the rest of the poitns
+    [unroll]
+    for (int i = 1; i < 8; ++i)
+    {
+        float3 offset = corners[i] - P0;
+        float currentPlaneDot = dot(offset, N);
+        if (sign(currentPlaneDot) != previousPointDot)
+        {
+            //One cell corner is on one side of the plane while another is on the other 
+            //therefore the surfel disc has to cut it
+            return true;
+        }
+    }
+
+    //All the corner of the box lie on one of the side of the plane formed by the surfle
+    //the box does not overlap with the surfel
+    return false;
+
+}
+
+
+//A funciton to overlap the surfel (disc) with the grid 
+void SurfelCount(SurfelData surfel, UniformGrid grid)
+{
+    float3 minBounds = surfel.position - surfel.radius;
+    float3 maxBounds = surfel.position + surfel.radius;
+
+    // Convert world-space bounds to grid indices
+    uint3 minCell = ComputeGridIndex(surfel.position, grid.gridOrigin, grid.cellSize);
+    uint3 maxCell = ComputeGridIndex(surfel.position, grid.gridOrigin, grid.cellSize);
+
+
+    // Iterate over overlapping cells
+    for (uint z = minCell.z; z <= maxCell.z; ++z)
+    {
+        for (uint y = minCell.y; y <= maxCell.y; ++y)
+        {
+            for (uint x = minCell.x; x <= maxCell.x; ++x)
+            {
+                //uint linearIndex = x + y * gridDim.x + z * gridDim.x * gridDim.y;
+                uint3 idx = uint3(x, y, z);
+                uint linearIndex = HashGridIndex(idx,grid.cellSize);
+                if (ComputeCornerDotProductsWithSurfelPlane(surfel, grid, idx))
+                {
+                    //Surfel Overlaps with the grid cell
+                    InterlockedAdd(surfelGrid[linearIndex], 1);
+
+
+                }
+            }
+        }
+    }
+
+
+}
+
+void InclusivePrefixSum(UniformGrid grid)
+{
+    int surfelGridCellCount = 
+    (grid.dimensions.x / grid.cellSize.x) * 
+    (grid.dimensions.y / grid.cellSize.y) *
+    (grid.dimensions.z / grid.cellSize.z);
+
+    uint prefixSum = 0;
+
+    for (uint i = 0; i < surfelGridCellCount; ++i)
+    {
+        //Inclusive Prefix Sum
+        prefixSum += surfelGrid[i];
+        surfelGrid[i] = prefixSum;
+    }
+
+}
+
+
+void SurfelInsertion(uint surfelIndex, SurfelData surfel, UniformGrid grid)
+{
+    
+    float3 minBounds = surfel.position - surfel.radius;
+    float3 maxBounds = surfel.position + surfel.radius;
+
+    // Convert world-space bounds to grid indices
+    uint3 minCell = ComputeGridIndex(surfel.position, grid.gridOrigin, grid.cellSize);
+    uint3 maxCell = ComputeGridIndex(surfel.position, grid.gridOrigin, grid.cellSize);
+
+
+    // Iterate over overlapping cells
+    for (uint z = minCell.z; z <= maxCell.z; ++z)
+    {
+        for (uint y = minCell.y; y <= maxCell.y; ++y)
+        {
+            for (uint x = minCell.x; x <= maxCell.x; ++x)
+            {
+                //uint linearIndex = x + y * gridDim.x + z * gridDim.x * gridDim.y;
+                uint3 idx = uint3(x, y, z);
+                uint linearIndex = HashGridIndex(idx,grid.cellSize);
+                if (ComputeCornerDotProductsWithSurfelPlane(surfel, grid, idx))
+                {
+                    //Surfel Overlaps with the grid cell
+                    //Decrement the stored index in the grid
+                    uint originalValue;
+                    InterlockedAdd(surfelGrid[linearIndex], -1, originalValue);
+                    //Insert the ID/PTR/OFFSET of the current surfel in the sufle list at the offt
+                    surlfeList[originalValue] = surfelIndex;
+
+
+                }
+            }
+        }
+    }
+
+
+    
+}
+
+//Adapted from https://m4xc.dev/blog/surfel-maintenance/
+void FillAccelerationStructure(UniformGrid grid)
+{
+    uint surfelNum, stride;
+    surfels.GetDimensions(surfelNum,stride);
+
+    //Pass 1. Surfel Counting
+    for (uint i = 0; i < surfelNum; ++i)
+    {
+        SurfelCount(surfels[i], grid);
+    }
+    //Pass 2. Inclusive Prefix Sum on all the surfel grid buffer
+    InclusivePrefixSum(grid);
+
+
+    //Pass 3. Surfel Insertion 
+    for (uint i = 0; i < surfelNum; ++i)
+    {
+        SurfelInsertion(i,surfels[i], grid);
+    }
+    
+}
+
 
 [numthreads(16, 16, 1)]
 void main(
@@ -116,17 +270,30 @@ void main(
     uint2 tilePos = groupdId.xy;
     uint2 pixelPos = dispatchThreadId.xy;
 
-    // Add surfel
-//    surfelNormalOut;
-//    surfelPosOut.InterlockedAdd(0, 1, index);
-//    if (index >= MaxSurfels)
-//        return;
 
     int index = pixelPos.x * gResolution.x + pixelPos.y;
     float2 uv = float2(dispatchThreadId.xy) / float2(gResolution.x - 1,gResolution.y -1);
 
     float4 atDepth = gDepth.SampleLevel(defaultSampler, uv,0);
     float4 atNormal = gNormal.SampleLevel(defaultSampler, uv,0);
+
+    FillAccelerationStructure(Grid);
+
+    
+
+    GroupMemoryBarrierWithGroupSync();
+}
+
+
+
+
+
+
+
+
+
+
+
 
     //surfelPosOut[index] =positionToOutput ;
     //surfelNormalOut[index] = normalToOutput;
@@ -290,7 +457,6 @@ void main(
 //
         //InterlockedMax(groupShareMaxContribution, contributionData);
 
-        GroupMemoryBarrierWithGroupSync();
 
 //    uint coverageData = groupShareMinCoverage;
 //    float coverage = f16tof32((coverageData & 0xFFFF0000) >> 16);
@@ -370,6 +536,3 @@ void main(
 //            }
 //        }
 //    }
-}
-
-

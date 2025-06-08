@@ -67,15 +67,15 @@ namespace TestRenderer
 	void RenderObjects(GraphicsContext& Context, const Matrix4& ViewProjMat, const Vector3& viewerPos, eObjectFilter Filter = kAll);
 
 
-    RootSignature m_TestRootSignature;
+	RootSignature m_TestRootSignature;
 
-    
+
 
 	GraphicsPSO m_DepthPSO = { (L"Sponza: Depth PSO") };
 	GraphicsPSO m_ModelPSO = { (L"Sponza: Color PSO") };
 	GraphicsPSO m_TestPSO = { (L"Sponza: Triangel Test PSO") };
 	GraphicsPSO m_TestSpherePSO = { (L"Sponza: Sphere Test PSO") };
-	ComputePSO m_SurfelGenerationPSO= { (L"Surfel Generation Compute Shader Stage") };
+	ComputePSO m_SurfelGenerationPSO = { (L"Surfel Generation Compute Shader Stage") };
 	GraphicsPSO m_CutoutDepthPSO = { (L"Sponza: Cutout Depth PSO") };
 	GraphicsPSO m_CutoutModelPSO = { (L"Sponza: Cutout Color PSO") };
 	GraphicsPSO m_ShadowPSO(L"Sponza: Shadow PSO");
@@ -99,18 +99,18 @@ namespace TestRenderer
 
 	float m_aspectRatio = 16.0f / 9.0f;
 
-//    Vertex vertices[] =
-//    {
-//        // The sample raytraces in screen space coordinates.
-//        // Since DirectX screen space coordinates are right handed (i.e. Y axis points down).
-//        // Define the vertices in counter clockwise order ~ clockwise in left handed.
-//        { 0, -offset, depthValue },
-//        { -offset, offset, depthValue },
-//        { offset, offset, depthValue }
-//    };
-	// Define the geometry for a triangle.
-    //const float m_triDepthValue = 1.0f;
-    const float m_triDepthValue = 0.1f;
+	//    Vertex vertices[] =
+	//    {
+	//        // The sample raytraces in screen space coordinates.
+	//        // Since DirectX screen space coordinates are right handed (i.e. Y axis points down).
+	//        // Define the vertices in counter clockwise order ~ clockwise in left handed.
+	//        { 0, -offset, depthValue },
+	//        { -offset, offset, depthValue },
+	//        { offset, offset, depthValue }
+	//    };
+		// Define the geometry for a triangle.
+		//const float m_triDepthValue = 1.0f;
+	const float m_triDepthValue = 0.1f;
 	ColorVertex triangleVertices[3] =
 	{
 		{ { 0.0f, 0.5f * m_aspectRatio, m_triDepthValue,1}, { 1.0f, 0.0f, 0.0f, 1.0f } },
@@ -126,46 +126,84 @@ namespace TestRenderer
 
 
 #pragma region SurfelGI
-    RootSignature m_SurfelGenerationRT;
+	RootSignature m_SurfelGenerationRT;
 
-    __declspec(align(16)) struct SurfelGenCB
+	struct UniformGrid {
+
+		Vector3 gridOrigin;
+		Vector3 cellSize;
+		Vector3 dimensions;
+
+
+
+    };
+	__declspec(align(16)) struct SurfelGenCB
 	{
 		UINT   FrameIndex;
 		float  DepthThreshold;
 		float  NormalThreshold;
 		float  ViewDistThreshold;
 		UINT   MaxSurfels;
+
+        // Makes sure the struct after is properly aligned
+		UINT Padding0;
+		UINT Padding1;
+		UINT Padding2;
+
+		UniformGrid UniformGrid;
 	};
-    SurfelGenCB m_SurfelGen;
-    ByteAddressBuffer m_SufelSettingBuffer;
-    StructuredBuffer m_SurfelOutputBuffer1;
-    StructuredBuffer m_SurfelOutputBuffer2;
-    DescriptorHeap srvHeap;
-    DescriptorHeap uavHeap;
+
+	__declspec(align(16)) struct SurfelData
+	{
+		Vector4 position;
+		Vector4 normal;
+		Vector4 radius;
+		//float radius;
+        //Vector3 padding;
+	};
+	SurfelGenCB m_SurfelGen;
+	ByteAddressBuffer m_SufelSettingBuffer;
+
+    int surfelGridCellCount;
+
+    const UINT _DEBUG_SURFEL_NUM = 15;
+
+	//Adapted from https://m4xc.dev/blog/surfel-maintenance/
+	StructuredBuffer m_SurfelData;
+	StructuredBuffer m_SurfelList;
+	StructuredBuffer m_SurfelGrid;
+
+	std::vector<SurfelData> m_SurfelDataArray;
+	std::vector<UINT> m_SurfelListActual;
+	std::vector<UINT> m_SurfelGridActual;
+    
+
+	DescriptorHeap srvHeap;
+	DescriptorHeap uavHeap;
 
 
-    void CopyDescriptorsToHeap(
-    DescriptorHeap& targetHeap,
-    std::initializer_list<D3D12_CPU_DESCRIPTOR_HANDLE> srcDescriptors,
-    D3D12_DESCRIPTOR_HEAP_TYPE heapType = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV)
-{
-    // Allocate space in the heap
-    DescriptorHandle destHandle = targetHeap.Alloc((uint32_t)srcDescriptors.size());
+	void CopyDescriptorsToHeap(
+		DescriptorHeap& targetHeap,
+		std::initializer_list<D3D12_CPU_DESCRIPTOR_HANDLE> srcDescriptors,
+		D3D12_DESCRIPTOR_HEAP_TYPE heapType = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV)
+	{
+		// Allocate space in the heap
+		DescriptorHandle destHandle = targetHeap.Alloc((uint32_t)srcDescriptors.size());
 
-    // Prepare descriptor arrays
-    uint32_t count = (uint32_t)srcDescriptors.size();
-    std::vector<UINT> srcCounts(count, 1);
-    std::vector<D3D12_CPU_DESCRIPTOR_HANDLE> srcHandles(srcDescriptors);
+		// Prepare descriptor arrays
+		uint32_t count = (uint32_t)srcDescriptors.size();
+		std::vector<UINT> srcCounts(count, 1);
+		std::vector<D3D12_CPU_DESCRIPTOR_HANDLE> srcHandles(srcDescriptors);
 
-    Graphics::g_Device->CopyDescriptors(
-        1, &destHandle, &count,
-        count, srcHandles.data(), srcCounts.data(),
-        heapType
-    );
-}
+		Graphics::g_Device->CopyDescriptors(
+			1, &destHandle, &count,
+			count, srcHandles.data(), srcCounts.data(),
+			heapType
+		);
+	}
 
-    void SurfelInitRootSignature()
-    {
+	void SurfelInitRootSignature()
+	{
 
 		SamplerDesc DefaultSamplerDesc;
 		DefaultSamplerDesc.MaxAnisotropy = 8;
@@ -183,41 +221,87 @@ namespace TestRenderer
 		//SRVs: Position and Normal
 		m_SurfelGenerationRT[1].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 2);
 		//UAVs: 
-		m_SurfelGenerationRT[2].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 0, 2);
+		m_SurfelGenerationRT[2].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 0, 3);
 
 		m_SurfelGenerationRT.Finalize(L"CS Surfel Root Signature");
 
-        m_SurfelGen.DepthThreshold = 0.1;
-        m_SurfelGen.FrameIndex = 0;
-        m_SurfelGen.MaxSurfels = 50;
-        m_SurfelGen.NormalThreshold = 0.5;
-        m_SurfelGen.ViewDistThreshold = 0.75;
-
-        
-        m_SufelSettingBuffer.Create(L"Surfel Gen CBV", 1, sizeof(SurfelGenCB), &m_SurfelGen);
+		m_SurfelGen.DepthThreshold = 0.1;
+		m_SurfelGen.FrameIndex = 0;
+		m_SurfelGen.MaxSurfels = 50;
+		m_SurfelGen.NormalThreshold = 0.5;
+		m_SurfelGen.ViewDistThreshold = 0.75;
 
 
-        uint32_t outputColorSize = g_SceneColorBuffer.GetHeight() * g_SceneColorBuffer.GetWidth() * (sizeof(Vector4));
-        m_SurfelOutputBuffer1.Create(L"Surfel Output 1", 1, outputColorSize);
-        m_SurfelOutputBuffer2.Create(L"Surfel Output 2", 1, outputColorSize);
+		m_SurfelGen.UniformGrid.cellSize = Vector3(100,100,100);
+		m_SurfelGen.UniformGrid.gridOrigin = Vector3(-500, -500, -500);
+		m_SurfelGen.UniformGrid.dimensions = Vector3(500,500,500);
 
 
 
 
-        srvHeap.Create(L"SURFEL SRV HEAP", D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 4);
-        //uavHeap.Create(L"SURFEL UAV HEAP", D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 2);
 
-        CopyDescriptorsToHeap(srvHeap, {
-                g_SceneDepthBuffer.GetDepthSRV(),
-                g_SceneNormalBuffer.GetSRV(),
-                m_SurfelOutputBuffer1.GetUAV(),
-                m_SurfelOutputBuffer2.GetUAV()
-            }
-        );
-    }
 
-    void SurfelSetRootParameters(ComputeContext& gfxContext)
-    {
+
+		m_SufelSettingBuffer.Create(L"Surfel Gen CBV", 1, sizeof(SurfelGenCB), &m_SurfelGen);
+
+
+		//SURFEL SIZE STATIC BUFFER NUMB
+
+        auto grid = m_SurfelGen.UniformGrid;
+
+		 surfelGridCellCount =
+			(grid.dimensions.GetX() / grid.cellSize.GetX())*
+			(grid.dimensions.GetY() / grid.cellSize.GetY()) *
+			(grid.dimensions.GetZ() / grid.cellSize.GetZ());
+
+		m_SurfelData.Create(L"Surfel Data Buffer", _DEBUG_SURFEL_NUM, sizeof(SurfelData));
+		m_SurfelList.Create(L"Surfel List Buffer", surfelGridCellCount, sizeof(UINT));
+		m_SurfelGrid.Create(L"Surfel Grid Buffer", surfelGridCellCount, sizeof(UINT));
+
+
+
+        const SurfelData data{
+         Vector4(0, 0, 1,1),
+         Vector4(0, 0, 1,1),
+         150,
+        }
+        ;
+        for (size_t i = 0; i < _DEBUG_SURFEL_NUM; i++)
+        {
+            m_SurfelDataArray.push_back(data);
+        }
+
+		// Fill data
+		for (int i = 0; i < _DEBUG_SURFEL_NUM; ++i) {
+			m_SurfelDataArray[i].position = 
+                Math::Vector4(float(i) * m_SurfelGen.UniformGrid.cellSize.GetX(), 0.0f, 0.0f,1.0f);
+			m_SurfelDataArray[i].radius = Math::Vector4(0.5f,0.5f,0.5f,0.5f);
+			m_SurfelDataArray[i].normal = Math::Vector4(0.0f, 1.0f, 0.0f,1.0f);
+		}
+        //m_SurfelDataArray.assign(_DEBUG_SURFEL_NUM,data);
+
+		GraphicsContext& context = GraphicsContext::Begin();
+
+		context.WriteBuffer(m_SurfelData, 0 ,m_SurfelDataArray.data(), _DEBUG_SURFEL_NUM * sizeof(SurfelData));
+
+		context.Finish();
+
+
+
+		srvHeap.Create(L"SURFEL SRV HEAP", D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 5);
+
+		CopyDescriptorsToHeap(srvHeap, {
+				g_SceneDepthBuffer.GetDepthSRV(),
+				g_SceneNormalBuffer.GetSRV(),
+				m_SurfelData.GetUAV(),
+				m_SurfelList.GetUAV(),
+				m_SurfelGrid.GetUAV()
+			}
+		);
+	}
+
+	void SurfelSetRootParameters(ComputeContext& gfxContext)
+	{
 
 		ScopedTimer _prof(L"Dispact Compute Shader", gfxContext);
 
@@ -236,6 +320,10 @@ namespace TestRenderer
 		};
 
 		gfxContext.GetCommandList()->SetDescriptorHeaps(1, heaps);
+
+
+		// Write to GPU buffer
+
 		//gfxContext.SetDescriptorHeaps(2,heaps)
 
 				//Bind the root parameters
@@ -244,7 +332,7 @@ namespace TestRenderer
 		gfxContext.SetDescriptorTable(2, srvHeap[2]);
 		gfxContext.Dispatch2D(g_SceneNormalBuffer.GetWidth(), g_SceneNormalBuffer.GetHeight());
 
-    }
+	}
 
 
 
@@ -256,30 +344,30 @@ namespace TestRenderer
 
 #pragma region UniformHashGridVisualization
 
-    enum kUHGRoot {
-        kProjectionResources =0,
-        kDepth =1
-    };
+	enum kUHGRoot {
+		kProjectionResources = 0,
+		kDepth = 1
+	};
 
-    __declspec(align(16)) struct UHGProjectionResources {
+	__declspec(align(16)) struct UHGProjectionResources {
 
-        XMMATRIX invViewProjeciton;
-        float depthNear;
-        float depthFar;
-    };
-    UHGProjectionResources projectionData;
-    ByteAddressBuffer projectionBuffer;
+		XMMATRIX invViewProjeciton;
+		float depthNear;
+		float depthFar;
+	};
+	UHGProjectionResources projectionData;
+	ByteAddressBuffer projectionBuffer;
 
 
 	// --- DESCRIPTOR HEAR CONTAINING DEPTH BUFFER SRV ---
-    RootSignature m_UHGRootSignature;
+	RootSignature m_UHGRootSignature;
 
 	// --- DESCRIPTOR HEAR CONTAINING DEPTH BUFFER SRV ---
-    DescriptorHeap m_UHGTextures;
+	DescriptorHeap m_UHGTextures;
 
 
-    void CreateUHGRootSignature()
-    {
+	void CreateUHGRootSignature()
+	{
 		m_UHGRootSignature.Reset(2, 3);
 
 		SamplerDesc DefaultSamplerDesc;
@@ -292,32 +380,32 @@ namespace TestRenderer
 		m_UHGRootSignature.InitStaticSampler(12, CubeMapSamplerDesc, D3D12_SHADER_VISIBILITY_PIXEL);
 
 		m_UHGRootSignature[kUHGRoot::kProjectionResources].InitAsConstantBuffer(0,
-           D3D12_SHADER_VISIBILITY_PIXEL);
+			D3D12_SHADER_VISIBILITY_PIXEL);
 
 		m_UHGRootSignature[kUHGRoot::kDepth].InitAsDescriptorRange(
-            D3D12_DESCRIPTOR_RANGE_TYPE_SRV,
-            0,2, D3D12_SHADER_VISIBILITY_PIXEL);
+			D3D12_DESCRIPTOR_RANGE_TYPE_SRV,
+			0, 2, D3D12_SHADER_VISIBILITY_PIXEL);
 		//m_UHGRootSignature[kUHGRoot::kRayTracingOutput].InitAsBufferUAV(0, D3D12_SHADER_VISIBILITY_PIXEL);
-        m_UHGRootSignature.Finalize(L"UHG Root Signature", D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
-    }
+		m_UHGRootSignature.Finalize(L"UHG Root Signature", D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
+	}
 
-    void CreateUHGDescriptorHeap()
-    {
-        m_UHGTextures.Create(L"Uniform Hash Grid Descriptor", D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 2);
+	void CreateUHGDescriptorHeap()
+	{
+		m_UHGTextures.Create(L"Uniform Hash Grid Descriptor", D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 2);
 
-        CopyDescriptorsToHeap(
-            m_UHGTextures,
-            {
-                g_SceneDepthBuffer.GetDepthSRV(),
-		        TestRaytracing::GetOutputBuffer().GetSRV()
-		        //TestRaytracing::GetOutputBuffer().GetUAV()
-            },
-            D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV
-        );
-    }
+		CopyDescriptorsToHeap(
+			m_UHGTextures,
+			{
+				g_SceneDepthBuffer.GetDepthSRV(),
+				TestRaytracing::GetOutputBuffer().GetSRV()
+				//TestRaytracing::GetOutputBuffer().GetUAV()
+			},
+			D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV
+		);
+	}
 
-    void SetUHGRootParameters(GraphicsContext& gfxContext,const Camera& camera)
-    {
+	void SetUHGRootParameters(GraphicsContext& gfxContext, const Camera& camera)
+	{
 		// --- TRANSITON THE DEPTH BUFFER TO BE READABLE BY THE SHADER
 		gfxContext.TransitionResource(g_SceneDepthBuffer, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, false);
 		gfxContext.TransitionResource(TestRaytracing::GetOutputBuffer(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, false);
@@ -327,13 +415,13 @@ namespace TestRenderer
 
 
 
-        //Correct way of obtraining the viewProjMatrix  as the math library used Column Major Order 
-        //m_ViewProjMatrix = m_ProjMatrix * m_ViewMatrix;
+		//Correct way of obtraining the viewProjMatrix  as the math library used Column Major Order 
+		//m_ViewProjMatrix = m_ProjMatrix * m_ViewMatrix;
 //		Matrix4 invViewProj = Invert(camera.GetViewProjMatrix());
 //        //Need to inversly translate by the camera translation as well to get a real world position
 //		Matrix4 invViewProj = Invert();
 		Matrix4 invViewProj = Invert(camera.GetViewProjMatrix());
-        Vector3 mathPos = camera.GetPosition();
+		Vector3 mathPos = camera.GetPosition();
 
 		projectionData.invViewProjeciton = invViewProj;
 		//projectionData.invViewProjeciton = Transpose(invViewProj);
@@ -345,28 +433,28 @@ namespace TestRenderer
 		gfxContext.SetConstantBuffer(kUHGRoot::kProjectionResources, projectionBuffer.GetGpuVirtualAddress());
 
 		gfxContext.SetDescriptorTable(kUHGRoot::kDepth, m_UHGTextures[0]);
-    }
+	}
 
-void UHGTriangleRender(GraphicsContext& gfxContext, const D3D12_VIEWPORT& viewport, const D3D12_RECT& scissor, const Math::Camera& camera)
-{
-    {
-        ScopedTimer _prof3(L"Render Triangle", gfxContext);
+	void UHGTriangleRender(GraphicsContext& gfxContext, const D3D12_VIEWPORT& viewport, const D3D12_RECT& scissor, const Math::Camera& camera)
+	{
+		{
+			ScopedTimer _prof3(L"Render Triangle", gfxContext);
 
-        gfxContext.SetPipelineState(m_TestPSO);
-        gfxContext.SetRootSignature(m_UHGRootSignature);
+			gfxContext.SetPipelineState(m_TestPSO);
+			gfxContext.SetRootSignature(m_UHGRootSignature);
 
-        SetUHGRootParameters(gfxContext,camera);
+			SetUHGRootParameters(gfxContext, camera);
 
-        //D3D12_CPU_DESCRIPTOR_HANDLE rtvs[]{ g_SceneColorBuffer.GetRTV(), g_SceneNormalBuffer.GetRTV() };
-        D3D12_CPU_DESCRIPTOR_HANDLE rtvs[]{ g_SceneColorBuffer.GetRTV(), g_SceneNormalBuffer.GetRTV()};
+			//D3D12_CPU_DESCRIPTOR_HANDLE rtvs[]{ g_SceneColorBuffer.GetRTV(), g_SceneNormalBuffer.GetRTV() };
+			D3D12_CPU_DESCRIPTOR_HANDLE rtvs[]{ g_SceneColorBuffer.GetRTV(), g_SceneNormalBuffer.GetRTV() };
 
-        gfxContext.SetRenderTargets(ARRAYSIZE(rtvs), rtvs);
+			gfxContext.SetRenderTargets(ARRAYSIZE(rtvs), rtvs);
 
-        gfxContext.SetViewportAndScissor(viewport, scissor);
+			gfxContext.SetViewportAndScissor(viewport, scissor);
 
-        RenderTriangleObject(gfxContext, camera.GetViewProjMatrix(), camera.GetPosition(), TestRenderer::kOpaque);
-    }
-}
+			RenderTriangleObject(gfxContext, camera.GetViewProjMatrix(), camera.GetPosition(), TestRenderer::kOpaque);
+		}
+	}
 
 
 
