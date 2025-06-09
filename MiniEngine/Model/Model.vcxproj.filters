@@ -178,6 +178,12 @@
       <Filter>Shaders</Filter>
     </None>
     <None Include="packages.config" />
+    <None Include="Shaders\SurfelASAsserts.hlsli">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="Shaders\SurfelUniformGridAccelerationStructure.hlsli">
+      <Filter>Shaders</Filter>
+    </None>
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="Shaders\DefaultVS.hlsl">

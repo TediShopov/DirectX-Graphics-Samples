@@ -134,7 +134,13 @@
     <None Include="Shaders\Lighting.hlsli" />
     <FxCompile Include="Shaders\SurfelGenerationCS.hlsli">
       <FileType>Document</FileType>
+      <DisableOptimizations Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</DisableOptimizations>
+      <AdditionalOptions Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">/Gfp %(AdditionalOptions)</AdditionalOptions>
     </FxCompile>
+    <None Include="Shaders\SurfelASAsserts.hlsli" />
+    <None Include="Shaders\SurfelUniformGridAccelerationStructure.hlsli">
+      <FileType>Document</FileType>
+    </None>
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="Shaders\CutoutDepthPS.hlsl">

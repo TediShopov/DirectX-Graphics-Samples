@@ -167,11 +167,13 @@ namespace TestRenderer
     int surfelGridCellCount;
 
     const UINT _DEBUG_SURFEL_NUM = 15;
+    const UINT _DEUBG_OUTPUT_STRING_SIZE = 256;
 
 	//Adapted from https://m4xc.dev/blog/surfel-maintenance/
 	StructuredBuffer m_SurfelData;
 	StructuredBuffer m_SurfelList;
 	StructuredBuffer m_SurfelGrid;
+	//StructuredBuffer m_StringOutput;
 
 	std::vector<SurfelData> m_SurfelDataArray;
 	std::vector<UINT> m_SurfelListActual;
@@ -257,6 +259,7 @@ namespace TestRenderer
 		m_SurfelData.Create(L"Surfel Data Buffer", _DEBUG_SURFEL_NUM, sizeof(SurfelData));
 		m_SurfelList.Create(L"Surfel List Buffer", surfelGridCellCount, sizeof(UINT));
 		m_SurfelGrid.Create(L"Surfel Grid Buffer", surfelGridCellCount, sizeof(UINT));
+		//m_StringOutput.Create(L"Debug Output Strign", _DEUBG_OUTPUT_STRING_SIZE, sizeof(std::string));
 
 
 
@@ -288,7 +291,7 @@ namespace TestRenderer
 
 
 
-		srvHeap.Create(L"SURFEL SRV HEAP", D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 5);
+		srvHeap.Create(L"SURFEL SRV HEAP", D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 6);
 
 		CopyDescriptorsToHeap(srvHeap, {
 				g_SceneDepthBuffer.GetDepthSRV(),
@@ -296,6 +299,7 @@ namespace TestRenderer
 				m_SurfelData.GetUAV(),
 				m_SurfelList.GetUAV(),
 				m_SurfelGrid.GetUAV()
+				//m_StringOutput.GetUAV(),
 			}
 		);
 	}
