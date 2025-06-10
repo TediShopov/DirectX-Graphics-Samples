@@ -13,6 +13,7 @@ cbuffer SurfelGenCB : register(b0)
     float  NormalThreshold;
     float  ViewDistThreshold;
     uint   MaxSurfels;
+    //uint SurfelStackPointer;
     UniformGrid Grid;
 };
 
@@ -32,6 +33,7 @@ RWStructuredBuffer<SurfelData> surfelsUAV : register(u0); // world position
 // SurfelList[from SurfelGrid[i] to SurfelGrid[i+1]] is all the surfel that occupy a cell with index I
 RWStructuredBuffer<uint> surfelGridUAV : register(u1); 
 RWStructuredBuffer<uint> surlfeListUAV : register(u2); // Stored pointers (indices) to the appropriate surfel data
+//The first index of this structure is the stack pointer
 RWStructuredBuffer<uint> surfleStackUAV : register(u3); // Stored pointers (indices) to the appropriate surfel data
 
 groupshared uint groupShareMinCoverage;
@@ -85,7 +87,7 @@ void main(
         groupShareMinCoverage = ~0;
         groupShareMaxContribution = 0;
     }
-    surfleStackUAV[0] = 0;
+    //surfleStackUAV[0] = 0;
 
     GroupMemoryBarrierWithGroupSync();
 
@@ -151,7 +153,7 @@ void main(
         //Maybe picks a random surfels contribution value to be the initial index ???
 
 
-        FillAccelerationStructure(Grid, surfelsUAV, surlfeListUAV, surfelGridUAV);
+        //FillAccelerationStructure(Grid, surfelsUAV, surlfeListUAV, surfelGridUAV);
 
         uint maxContributionSurfelIndex = RandomUintInRange(1234, 0, surfelCount);
 
@@ -268,7 +270,7 @@ void main(
 
     
     uint kPerCellSurfelLimit = 20;
-    uint gPlacementThreshold = 0.1;
+    uint gPlacementThreshold = 2;
     uint gRemovalThreshold = 0.1;
     uint kTotalSurfelLimit = 100;
     if (surfelCount < kPerCellSurfelLimit)
@@ -279,46 +281,33 @@ void main(
             // genearte new surfel probabilistically.
             if (coverage <= gPlacementThreshold)
             {
-                //SURFEL INSERTION INTO ACCELERATION STRUCTURES
-//                const float chance = pow(depth, gChancePower);
-//                if (randomState.next_float() < chance * gChanceMultiply)
-//                {
-//                    int freeSurfelCount;
-//                    gSurfelCounter.InterlockedAdd((int) SurfelCounterOffset::FreeSurfel, -1, freeSurfelCount);
-//
-//                    if (0 < freeSurfelCount && freeSurfelCount <= kTotalSurfelLimit)
-//                    {
-//                        uint validSurfelCount;
-//                        gSurfelCounter.InterlockedAdd((int) SurfelCounterOffset::ValidSurfel, 1, validSurfelCount);
-//
-//                        if (validSurfelCount < kTotalSurfelLimit)
-//                        {
-//                            uint newIndex = gSurfelFreeIndexBuffer[freeSurfelCount - 1];
-//
-//                            float varRadius = calcSurfelRadius(
+//                //Write data to the surfel data as per the poitner in the surfel stack
+                //retrieve the stack poitner found at position 0
+                uint prevStackPointer;
+                InterlockedAdd(surfleStackUAV[0], 1, prevStackPointer);
+                uint surfelStackPointer = prevStackPointer + 2;
+                if(surfelStackPointer <= 500)
+                {
+                    uint surfelID = surfleStackUAV[surfelStackPointer];
+                    float debugRad = 1;
+                    SurfelData newSurfel;
+                    newSurfel.position = float4(worldPos, 1);
+                    newSurfel.normal = atNormal;
+                    newSurfel.radius = debugRad;
+                    newSurfel.padding = float3(0, 0, 0);
+                    surfelsUAV[surfelID] = newSurfel;
+                }
+                else
+                {
+                    InterlockedAdd(surfleStackUAV[0], -1);
+                }
+//                float varRadius = calcSurfelRadius(
 //                                distance(gScene.camera.getPosition(), v.posW),
 //                                gFOVy,
 //                                gResolution,
 //                                kSurfelTargetArea,
 //                                kCellUnit
 //                            );
-//
-//                            Surfel newSurfel = Surfel(v.posW, v.normalW, varRadius);
-//
-//                            newSurfel.radiance = indirectLighting.xyz;
-//                            newSurfel.msmeData.mean = indirectLighting.xyz;
-//                            newSurfel.msmeData.shortMean = indirectLighting.xyz;
-//
-//                            gSurfelValidIndexBuffer[validSurfelCount] = newIndex;
-//                            gSurfelBuffer[newIndex] = newSurfel;
-//                            gSurfelRecycleInfoBuffer[newIndex] = {
-//                                kMaxLife, 0u, 0u};
-//                                gSurfelGeometryBuffer[newIndex] = hitInfo.data;
-//                                gSurfelRefCounter.Store(newIndex, 0);
-//                            }
-//                        }
-//                    }
-//                }
             }
         }
     }

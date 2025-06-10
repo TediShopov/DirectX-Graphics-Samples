@@ -10,6 +10,7 @@
 #include "TestRenderer.h"
 #include "Renderer.h"
 #include "LightManager.h"
+#include "ReadbackBuffer.h"
 
 #include <initializer_list>
 
@@ -111,11 +112,12 @@ namespace TestRenderer
 		// Define the geometry for a triangle.
 		//const float m_triDepthValue = 1.0f;
 	const float m_triDepthValue = 0.1f;
+	 float _TRI_SCALE = 0.1f;
 	ColorVertex triangleVertices[3] =
 	{
-		{ { 0.0f, 0.5f * m_aspectRatio, m_triDepthValue,1}, { 1.0f, 0.0f, 0.0f, 1.0f } },
-		{ { 0.5f, -0.5f * m_aspectRatio, m_triDepthValue,1}, { 0.0f, 1.0f, 0.0f, 1.0f } },
-		{ { -0.5f, -0.5f * m_aspectRatio, m_triDepthValue,1}, { 0.0f, 0.0f, 1.0f, 1.0f } }
+		{ { 0.0f, _TRI_SCALE * m_aspectRatio, m_triDepthValue,1}, { 1.0f, 0.0f, 0.0f, 1.0f } },
+		{ { _TRI_SCALE ,-_TRI_SCALE * m_aspectRatio, m_triDepthValue,1}, { 0.0f, 1.0f, 0.0f, 1.0f } },
+		{ { -_TRI_SCALE, -_TRI_SCALE * m_aspectRatio, m_triDepthValue,1}, { 0.0f, 0.0f, 1.0f, 1.0f } }
 	};
 
 	//The triangle geomtry buffer 
@@ -147,6 +149,7 @@ namespace TestRenderer
 		UINT   MaxSurfels;
 
         // Makes sure the struct after is properly aligned
+        //UINT SurfelStackPointer;
 		UINT Padding0;
 		UINT Padding1;
 		UINT Padding2;
@@ -168,7 +171,7 @@ namespace TestRenderer
 
     int surfelGridCellCount;
 
-    const UINT _DEBUG_SURFEL_NUM = 100;
+    const UINT _DEBUG_SURFEL_NUM = 500;
     const UINT _DEUBG_OUTPUT_STRING_SIZE = 256;
 
 	//Adapted from https://m4xc.dev/blog/surfel-maintenance/
@@ -177,12 +180,16 @@ namespace TestRenderer
 	StructuredBuffer m_SurfelGrid;
     //A stack holding unique surfel IDs
     //Used for spawning and recycling surfels
+    //The first index is the pointer for reading the stack
+	//StructuredBuffer m_SurfelStack;
 	StructuredBuffer m_SurfelStack;
+	ReadbackBuffer m_SurfelDataReadback;
 	//StructuredBuffer m_StringOutput;
 
 	std::vector<SurfelData> m_SurfelDataArray;
 	std::vector<UINT> m_SurfelListActual;
 	std::vector<UINT> m_SurfelGridActual;
+	std::vector<UINT> m_SurfelStackActual;
     
 
 	DescriptorHeap srvHeap;
@@ -263,9 +270,11 @@ namespace TestRenderer
 			(grid.dimensions.GetZ() / grid.cellSize.GetZ());
 
 		m_SurfelData.Create(L"Surfel Data Buffer", _DEBUG_SURFEL_NUM, sizeof(SurfelData));
+		m_SurfelDataReadback.Create(L"Surfel Data Readback Buffer", _DEBUG_SURFEL_NUM, sizeof(SurfelData));
 		m_SurfelList.Create(L"Surfel List Buffer", surfelGridCellCount, sizeof(UINT));
 		m_SurfelGrid.Create(L"Surfel Grid Buffer", surfelGridCellCount, sizeof(UINT));
-		m_SurfelStack.Create(L"Surfel Stack", _DEBUG_SURFEL_NUM, sizeof(UINT));
+        //+1 for the stack pointer itself
+		m_SurfelStack.Create(L"Surfel Stack", _DEBUG_SURFEL_NUM + 1, sizeof(UINT));
 		//m_StringOutput.Create(L"Debug Output Strign", _DEUBG_OUTPUT_STRING_SIZE, sizeof(std::string));
 
 
@@ -288,13 +297,21 @@ namespace TestRenderer
 			m_SurfelDataArray[i].radius = Math::Vector4(0.5f,0.5f,0.5f,0.5f);
 			m_SurfelDataArray[i].normal = Math::Vector4(0.0f, 1.0f, 0.0f,1.0f);
 		}
-        //m_SurfelDataArray.assign(_DEBUG_SURFEL_NUM,data);
+
+
+
+        //Fill the surfle stack buffer
+        //The first index is the surfel stack pointer and should be set to 0
+        //E.g pointer set to 0 would actually read memory adress at 1.
+		for (int i = 0; i < _DEBUG_SURFEL_NUM + 1; ++i) {
+            m_SurfelStackActual.push_back(i);
+		}
 
 		GraphicsContext& context = GraphicsContext::Begin();
-
 		context.WriteBuffer(m_SurfelData, 0 ,m_SurfelDataArray.data(), _DEBUG_SURFEL_NUM * sizeof(SurfelData));
-
+		context.WriteBuffer(m_SurfelStack, 0 ,m_SurfelStackActual.data(), (_DEBUG_SURFEL_NUM+1) * sizeof(UINT));
 		context.Finish();
+
 
 
 
@@ -346,6 +363,73 @@ namespace TestRenderer
 
 	}
 
+    void ReadbackSurfelData(GraphicsContext& gfx)
+    {
+
+        gfx.CopyBuffer(m_SurfelDataReadback, m_SurfelData);
+        
+        void* mappedData = m_SurfelDataReadback.Map();
+        memcpy(m_SurfelDataArray.data(), mappedData,  _DEBUG_SURFEL_NUM * sizeof(SurfelData));
+        m_SurfelDataReadback.Unmap();
+
+    }
+
+
+void RenderSphereOnSurfels(GraphicsContext& gfxContext, const Matrix4& ViewProjMat, const Vector3& viewerPos, eObjectFilter Filter)
+{
+
+    float modelRadius = Length(m_Model.GetBoundingBox().GetDimensions()) * 0.5f;
+    const Vector3 eye = m_Model.GetBoundingBox().GetCenter() + Vector3(modelRadius * 0.5f, 0.0f, 0.0f);
+    const Vector3 relSphereOffset (0,0,0.1);
+    const Vector3 offset = relSphereOffset * modelRadius;
+
+    struct VSConstants
+    {
+        Matrix4 modelToWorld;
+        Matrix4 modelToProjection;
+        Matrix4 modelToShadow;
+        XMFLOAT3 viewerPos;
+    } vsConstants;
+    //vsConstants.modelToWorld        = Matrix4(Math::XMMatrixIdentity());
+    vsConstants.modelToWorld        = Matrix4(TestRenderer::m_Transform.getTransformMatrix());
+    vsConstants.modelToProjection   = ViewProjMat;
+    vsConstants.modelToShadow = m_SunShadow.GetShadowMatrix();
+    XMStoreFloat3(&vsConstants.viewerPos, viewerPos);
+
+    gfxContext.SetDynamicConstantBufferView(Renderer::kMeshConstants, sizeof(vsConstants), &vsConstants);
+    //uint32_t VertexStride = m_Model.GetVertexStride();
+	const UINT vertexBufferSize = sizeof(triangleVertices);
+    //---TEMPORARILY switch index and vertex buffers
+	gfxContext.SetIndexBuffer(m_Sphere->m_IndexBufferView);
+	gfxContext.SetVertexBuffer(0, m_Sphere->m_VertexBufferView);
+
+
+    for each (SurfelData s in m_SurfelDataArray)
+    {
+
+        Transform t;
+        t.setPosition(s.position);
+        Vector4 normalScaled = s.normal;
+        normalScaled *= 5;
+        
+        t.setScale(normalScaled.GetX(),normalScaled.GetY(),normalScaled.GetZ());
+		vsConstants.modelToWorld = Matrix4(t.getTransformMatrix());
+		XMStoreFloat3(&vsConstants.viewerPos, viewerPos);
+
+		gfxContext.SetDynamicConstantBufferView(Renderer::kMeshConstants, sizeof(vsConstants), &vsConstants);
+		//--- Draw three indices of the triangle
+		gfxContext.DrawIndexed(m_Sphere->m_Indices.size(), 0, 0);
+
+    }
+    
+
+
+    
+    //--- Switch Back To Sponza model
+	gfxContext.SetIndexBuffer(m_Model.GetIndexBuffer());
+	gfxContext.SetVertexBuffer(0, m_Model.GetVertexBuffer());
+
+}
 
 
 
@@ -837,6 +921,9 @@ void TestRenderer::RenderSphereObject(GraphicsContext& gfxContext, const Matrix4
 	gfxContext.SetIndexBuffer(m_Sphere->m_IndexBufferView);
 	gfxContext.SetVertexBuffer(0, m_Sphere->m_VertexBufferView);
 
+
+
+
     //--- Draw three indices of the triangle
 	gfxContext.DrawIndexed(m_Sphere->m_Indices.size(), 0, 0);
     
@@ -845,6 +932,7 @@ void TestRenderer::RenderSphereObject(GraphicsContext& gfxContext, const Matrix4
 	gfxContext.SetVertexBuffer(0, m_Model.GetVertexBuffer());
 
 }
+
 
 void TestRenderer::RenderObjects( GraphicsContext& gfxContext, const Matrix4& ViewProjMat, const Vector3& viewerPos, eObjectFilter Filter )
 {
@@ -1098,12 +1186,14 @@ void TestRenderer::RenderScene(
                 {
                     ScopedTimer _prof3(L"Render Sphere", gfxContext);
                     gfxContext.SetPipelineState(m_TestSpherePSO);
+                    gfxContext.SetRootSignature(m_TestSpherePSO.GetRootSignature());
                     gfxContext.TransitionResource(g_SceneDepthBuffer, D3D12_RESOURCE_STATE_DEPTH_READ);
                     //gfxContext.TransitionResource(g_SceneDepthBuffer, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
                     D3D12_CPU_DESCRIPTOR_HANDLE rtvs[]{ g_SceneColorBuffer.GetRTV(), g_SceneNormalBuffer.GetRTV() };
                     gfxContext.SetRenderTargets(ARRAYSIZE(rtvs), rtvs, g_SceneDepthBuffer.GetDSV_DepthReadOnly());
                     gfxContext.SetViewportAndScissor(viewport, scissor);
 					RenderSphereObject(gfxContext, camera.GetViewProjMatrix(), camera.GetPosition(), TestRenderer::kOpaque);
+					RenderSphereOnSurfels(gfxContext, camera.GetViewProjMatrix(), camera.GetPosition(), TestRenderer::kOpaque);
                 }
 
 //                --- SKIP NORMAL CUTOUTS---
@@ -1117,6 +1207,8 @@ void TestRenderer::RenderScene(
     
 	ComputeContext& cfx = reinterpret_cast<ComputeContext&>(gfxContext);
     SurfelSetRootParameters(cfx);
+    ReadbackSurfelData(gfxContext);
+
 
 
 
