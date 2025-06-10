@@ -124,6 +124,7 @@ namespace TestRenderer
 	D3D12_VERTEX_BUFFER_VIEW    m_VertexBufferView;
 	D3D12_INDEX_BUFFER_VIEW    m_IndexBufferView;
 
+	ByteAddressBuffer projectionBuffer;
 
 #pragma region SurfelGI
 	RootSignature m_SurfelGenerationRT;
@@ -163,16 +164,20 @@ namespace TestRenderer
 	};
 	SurfelGenCB m_SurfelGen;
 	ByteAddressBuffer m_SufelSettingBuffer;
+	//ByteAddressBuffer m_CameraProjectionBuffer;
 
     int surfelGridCellCount;
 
-    const UINT _DEBUG_SURFEL_NUM = 15;
+    const UINT _DEBUG_SURFEL_NUM = 100;
     const UINT _DEUBG_OUTPUT_STRING_SIZE = 256;
 
 	//Adapted from https://m4xc.dev/blog/surfel-maintenance/
 	StructuredBuffer m_SurfelData;
 	StructuredBuffer m_SurfelList;
 	StructuredBuffer m_SurfelGrid;
+    //A stack holding unique surfel IDs
+    //Used for spawning and recycling surfels
+	StructuredBuffer m_SurfelStack;
 	//StructuredBuffer m_StringOutput;
 
 	std::vector<SurfelData> m_SurfelDataArray;
@@ -210,7 +215,7 @@ namespace TestRenderer
 		SamplerDesc DefaultSamplerDesc;
 		DefaultSamplerDesc.MaxAnisotropy = 8;
 		SamplerDesc CubeMapSamplerDesc = DefaultSamplerDesc;
-		m_SurfelGenerationRT.Reset(3, 3);
+		m_SurfelGenerationRT.Reset(4, 3);
 
 
 		m_SurfelGenerationRT.InitStaticSampler(10, DefaultSamplerDesc);
@@ -219,11 +224,12 @@ namespace TestRenderer
 
 
 		m_SurfelGenerationRT[0].InitAsConstantBuffer(0);
+		m_SurfelGenerationRT[1].InitAsConstantBuffer(1);
 
 		//SRVs: Position and Normal
-		m_SurfelGenerationRT[1].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 2);
+		m_SurfelGenerationRT[2].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 2);
 		//UAVs: 
-		m_SurfelGenerationRT[2].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 0, 3);
+		m_SurfelGenerationRT[3].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 0, 4);
 
 		m_SurfelGenerationRT.Finalize(L"CS Surfel Root Signature");
 
@@ -259,6 +265,7 @@ namespace TestRenderer
 		m_SurfelData.Create(L"Surfel Data Buffer", _DEBUG_SURFEL_NUM, sizeof(SurfelData));
 		m_SurfelList.Create(L"Surfel List Buffer", surfelGridCellCount, sizeof(UINT));
 		m_SurfelGrid.Create(L"Surfel Grid Buffer", surfelGridCellCount, sizeof(UINT));
+		m_SurfelStack.Create(L"Surfel Stack", _DEBUG_SURFEL_NUM, sizeof(UINT));
 		//m_StringOutput.Create(L"Debug Output Strign", _DEUBG_OUTPUT_STRING_SIZE, sizeof(std::string));
 
 
@@ -298,8 +305,8 @@ namespace TestRenderer
 				g_SceneNormalBuffer.GetSRV(),
 				m_SurfelData.GetUAV(),
 				m_SurfelList.GetUAV(),
-				m_SurfelGrid.GetUAV()
-				//m_StringOutput.GetUAV(),
+				m_SurfelGrid.GetUAV(),
+				m_SurfelStack.GetUAV()
 			}
 		);
 	}
@@ -332,8 +339,9 @@ namespace TestRenderer
 
 				//Bind the root parameters
 		gfxContext.SetConstantBuffer(0, m_SufelSettingBuffer.GetGpuVirtualAddress());
-		gfxContext.SetDescriptorTable(1, srvHeap[0]);
-		gfxContext.SetDescriptorTable(2, srvHeap[2]);
+        gfxContext.SetConstantBuffer(1, projectionBuffer.GetGpuVirtualAddress());
+		gfxContext.SetDescriptorTable(2, srvHeap[0]);
+		gfxContext.SetDescriptorTable(3, srvHeap[2]);
 		gfxContext.Dispatch2D(g_SceneNormalBuffer.GetWidth(), g_SceneNormalBuffer.GetHeight());
 
 	}
@@ -360,7 +368,6 @@ namespace TestRenderer
 		float depthFar;
 	};
 	UHGProjectionResources projectionData;
-	ByteAddressBuffer projectionBuffer;
 
 
 	// --- DESCRIPTOR HEAR CONTAINING DEPTH BUFFER SRV ---

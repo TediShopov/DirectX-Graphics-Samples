@@ -86,7 +86,7 @@ bool ComputeCornerDotProductsWithSurfelPlane(
     {
         float3 offset = corners[i] - P0;
         float currentPlaneDot = dot(offset, N);
-        if (sign(currentPlaneDot) != previousPointDot)
+        if (sign(currentPlaneDot) != sign(previousPointDot))
         {
             //One cell corner is on one side of the plane while another is on the other 
             //therefore the surfel disc has to cut it
