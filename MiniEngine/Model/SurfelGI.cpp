@@ -1,0 +1,254 @@
+#include "SurfelGI.h"
+#include "CommandContext.h"
+#include "Renderer.h"
+#include "Math/Vector.h"
+#include <limits>
+
+
+#include "CompiledShaders/SurfelAccelerationStructuresCS.h"
+#include "CompiledShaders/SurfelGenerationCS.h"
+
+
+  void SurfelGI::UpdateProjectoin(const Camera& camera)
+{
+	Matrix4 invViewProj = Invert(camera.GetViewProjMatrix());
+	Vector3 mathPos = camera.GetPosition();
+
+	m_ProjectionData.invViewProjeciton = invViewProj;
+	//projectionData.invViewProjeciton = Transpose(invViewProj);
+	m_ProjectionData.depthNear = camera.GetNearClip();
+	m_ProjectionData.depthFar = camera.GetFarClip();
+
+	m_ProjectoinBuffer.Create(L"Projectoin Data Buffer", 1, sizeof(ProjectionResources), &m_ProjectionData);
+
+}
+
+  void SurfelGI::InitRootSignature(const DepthBuffer& g_SceneDepthBuffer, const ColorBuffer& g_SceneNormalBuffer)
+{
+
+
+	m_ProjectoinBuffer.Create(L"Projectoin Data Buffer", 1, sizeof(ProjectionResources), &m_ProjectionData);
+
+	SamplerDesc DefaultSamplerDesc;
+	DefaultSamplerDesc.MaxAnisotropy = 8;
+	SamplerDesc CubeMapSamplerDesc = DefaultSamplerDesc;
+	m_SurfelGenerationRT.Reset(4, 3);
+
+
+	m_SurfelGenerationRT.InitStaticSampler(10, DefaultSamplerDesc);
+	m_SurfelGenerationRT.InitStaticSampler(11, Graphics::SamplerShadowDesc);
+	m_SurfelGenerationRT.InitStaticSampler(12, CubeMapSamplerDesc);
+
+	m_SurfelGenerationRT[0].InitAsConstantBuffer(0);
+	m_SurfelGenerationRT[1].InitAsConstantBuffer(1);
+	//SRVs: Position and Normal
+	m_SurfelGenerationRT[2].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 2);
+	//UAVs: 
+	m_SurfelGenerationRT[3].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 0, 4);
+	m_SurfelGenerationRT.Finalize(L"CS Surfel Root Signature");
+
+	m_SurfelGen.DepthThreshold = 0.1;
+	m_SurfelGen.FrameIndex = 0;
+	m_SurfelGen.MaxSurfels = 50;
+	m_SurfelGen.NormalThreshold = 0.5;
+	m_SurfelGen.ViewDistThreshold = 0.75;
+
+	m_SurfelGen.UniformGrid.cellSize = Vector4(100, 100, 100, 100);
+	m_SurfelGen.UniformGrid.gridOrigin = Vector4(-2000, -2000, -2000, -2000);
+	m_SurfelGen.UniformGrid.dimensions = Vector4(+2000, +2000, +2000, +2000);
+
+	UINT grdCells[3] = {
+		m_SurfelGen.UniformGrid.dimensions.GetX() / m_SurfelGen.UniformGrid.cellSize.GetX(),
+		m_SurfelGen.UniformGrid.dimensions.GetY() / m_SurfelGen.UniformGrid.cellSize.GetY(),
+		m_SurfelGen.UniformGrid.dimensions.GetZ() / m_SurfelGen.UniformGrid.cellSize.GetZ()
+	};
+	auto grid = m_SurfelGen.UniformGrid;
+
+	_CELL_COUNT_ = grdCells[0] * grdCells[1] * grdCells[2];
+
+	m_SufelSettingBuffer.Create(L"Surfel Gen CBV", 1, sizeof(SurfelGenCB), &m_SurfelGen);
+
+
+	//SURFEL SIZE STATIC BUFFER NUMB
+	m_SurfelData.Create(L"Surfel Data Buffer", _DEBUG_SURFEL_NUM, sizeof(SurfelData));
+	m_SurfelDataReadback.Create(L"Surfel Data Readback Buffer", _DEBUG_SURFEL_NUM, sizeof(SurfelData));
+	m_SurfelList.Create(L"Surfel List Buffer", _CELL_COUNT_, sizeof(UINT));
+	m_SurfelGrid.Create(L"Surfel Grid Buffer", _CELL_COUNT_, sizeof(UINT));
+	//+1 for the stack pointer itself
+	m_SurfelStack.Create(L"Surfel Stack", _DEBUG_SURFEL_NUM + 1, sizeof(UINT));
+
+
+
+	const SurfelData data{
+		Vector4(0, 0, 1,1),
+		Vector4(0, 0, 1,1),
+		150,
+	}
+	;
+	for (size_t i = 0; i < _DEBUG_SURFEL_NUM; i++)
+	{
+		m_SurfelDataArray.push_back(data);
+	}
+
+
+	// Fill data
+	for (int i = 0; i < _DEBUG_SURFEL_NUM; ++i) {
+		m_SurfelDataArray[i].position =
+			Math::Vector4(float(i) * m_SurfelGen.UniformGrid.cellSize.GetX(), 0.0f, 0.0f, 1.0f);
+		m_SurfelDataArray[i].radius = Math::Vector4(0.5f, 0.5f, 0.5f, 0.5f);
+		m_SurfelDataArray[i].normal = Math::Vector4(0.0f, 1.0f, 0.0f, 1.0f);
+		m_SurfelDataArray[i].pixelPosX = 0;
+		m_SurfelDataArray[i].pixelPosY = 0;
+		m_SurfelDataArray[i].tilePosX = 0;
+		m_SurfelDataArray[i].tilePosY = 0;
+	}
+
+	//Fill the surfle stack buffer
+	//The first index is the surfel stack pointer and should be set to 0
+	//E.g pointer set to 0 would actually read memory adress at 1.
+	for (int i = 0; i < _CELL_COUNT_; ++i) {
+		m_SurfelGridActual.push_back(0);
+	}
+
+
+	//Fill the surfle stack buffer
+	//The first index is the surfel stack pointer and should be set to 0
+	//E.g pointer set to 0 would actually read memory adress at 1.
+	for (int i = 0; i < _DEBUG_SURFEL_NUM + 1; ++i) {
+		m_SurfelStackActual.push_back(i);
+	}
+
+	GraphicsContext& context = GraphicsContext::Begin();
+	context.WriteBuffer(m_SurfelData, 0, m_SurfelDataArray.data(), _DEBUG_SURFEL_NUM * sizeof(SurfelData));
+	context.WriteBuffer(m_SurfelStack, 0, m_SurfelStackActual.data(), (_DEBUG_SURFEL_NUM + 1) * sizeof(UINT));
+	context.WriteBuffer(m_SurfelGrid, 0, m_SurfelGridActual.data(), (_CELL_COUNT_) * sizeof(UINT));
+	context.Finish();
+
+
+
+
+	srvHeap.Create(L"SURFEL SRV HEAP", D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 6);
+
+	ExtendedUtility::CopyDescriptorsToHeap(srvHeap, {
+
+		g_SceneDepthBuffer.GetDepthSRV(),
+		g_SceneNormalBuffer.GetSRV(),
+		m_SurfelData.GetUAV(),
+		m_SurfelList.GetUAV(),
+		m_SurfelGrid.GetUAV(),
+		m_SurfelStack.GetUAV()
+		}
+	);
+
+
+	//--- DEMO PASS FOR GENERATING SURFEL WITH COMPUTE SHADER ---
+	m_SurfelGenerationPSO.SetRootSignature(m_SurfelGenerationRT);
+	m_SurfelGenerationPSO.SetComputeShader(g_pSurfelGenerationCS, sizeof(g_pSurfelGenerationCS));
+    m_SurfelGenerationPSO.Finalize();
+
+    m_SurfelAccelerationPassPSO.SetRootSignature(m_SurfelGenerationRT);
+	m_SurfelAccelerationPassPSO.SetComputeShader(g_pSurfelAccelerationStructuresCS, sizeof(g_pSurfelAccelerationStructuresCS));
+	m_SurfelAccelerationPassPSO.Finalize();
+
+
+}
+
+  void SurfelGI::SpawnSurfels(ComputeContext& gfxContext, DepthBuffer& g_SceneDepthBuffer, ColorBuffer& g_SceneNormalBuffer, const Camera& camera)
+{
+
+	ScopedTimer _prof(L"Dispact Compute Shader", gfxContext);
+
+	//Transition resources from render target to CS 
+	//NON-PIXEL SHADER RESOURCE should cover the ComputeShader stage
+	gfxContext.TransitionResource(g_SceneDepthBuffer, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, false);
+	gfxContext.TransitionResource(g_SceneNormalBuffer, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, true);
+
+	//Switch to the appropriate PSO
+	gfxContext.SetPipelineState(m_SurfelGenerationPSO);
+	gfxContext.SetRootSignature(m_SurfelGenerationRT);
+
+
+	ID3D12DescriptorHeap* heaps[] = {
+		srvHeap.GetHeapPointer()
+	};
+
+	//Update the projection from camera
+	UpdateProjectoin(camera);
+
+	gfxContext.GetCommandList()->SetDescriptorHeaps(1, heaps);
+	gfxContext.SetConstantBuffer(0, m_SufelSettingBuffer.GetGpuVirtualAddress());
+	gfxContext.SetConstantBuffer(1, m_ProjectoinBuffer.GetGpuVirtualAddress());
+	gfxContext.SetDescriptorTable(2, srvHeap[0]);
+	gfxContext.SetDescriptorTable(3, srvHeap[2]);
+	gfxContext.Dispatch2D(g_SceneNormalBuffer.GetWidth(), g_SceneNormalBuffer.GetHeight());
+
+}
+
+  void SurfelGI::FillAccelerationStructures(ComputeContext& gfxContext, DepthBuffer& g_SceneDepthBuffer, ColorBuffer& g_SceneNormalBuffer)
+{
+
+	ScopedTimer _prof(L"Disaptch Surfel Fill Acceleration Structures", gfxContext);
+
+	//Transition resources from render target to CS 
+	//NON-PIXEL SHADER RESOURCE should cover the ComputeShader stage
+	gfxContext.TransitionResource(g_SceneDepthBuffer, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, false);
+	gfxContext.TransitionResource(g_SceneNormalBuffer, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, true);
+
+	//Switch to the appropriate PSO
+	gfxContext.SetPipelineState(m_SurfelAccelerationPassPSO);
+	gfxContext.SetRootSignature(m_SurfelGenerationRT);
+
+
+	ID3D12DescriptorHeap* heaps[] = {
+		srvHeap.GetHeapPointer(),  // This is your SURFEL SRV HEAP
+	};
+
+	gfxContext.GetCommandList()->SetDescriptorHeaps(1, heaps);
+
+
+
+
+	// Write to GPU buffer
+	//Reset surfel grid buffer
+	gfxContext.WriteBuffer(m_SurfelGrid, 0, m_SurfelGridActual.data(), (_CELL_COUNT_) * sizeof(UINT));
+
+	//Bind the root parameters
+	gfxContext.SetConstantBuffer(0, m_SufelSettingBuffer.GetGpuVirtualAddress());
+	gfxContext.SetConstantBuffer(1, m_ProjectoinBuffer.GetGpuVirtualAddress());
+	gfxContext.SetDescriptorTable(2, srvHeap[0]);
+	gfxContext.SetDescriptorTable(3, srvHeap[2]);
+	gfxContext.Dispatch(1, 1, 1);
+
+}
+
+  void SurfelGI::ReadbackSurfelData(GraphicsContext& gfx)
+{
+
+	gfx.CopyBuffer(m_SurfelDataReadback, m_SurfelData);
+
+	void* mappedData = m_SurfelDataReadback.Map();
+	memcpy(m_SurfelDataArray.data(), mappedData, _DEBUG_SURFEL_NUM * sizeof(SurfelData));
+	m_SurfelDataReadback.Unmap();
+
+}
+
+  int SurfelGI::GetClosestSurfelToPosition(Vector3 worldPos)
+{
+	float minDistSq = (std::numeric_limits<float>::max)();
+	int closestIndex = -1;
+
+	for (int i = 2; i < m_SurfelDataArray.size(); ++i)
+	{
+		const SurfelData& s = m_SurfelDataArray[i];
+		Vector3 diff = Vector3(s.position) - worldPos;
+		float distSq = Math::LengthSquare(diff);
+
+		if (distSq < minDistSq)
+		{
+			minDistSq = distSq;
+			closestIndex = i;
+		}
+	}
+
+	return closestIndex;
+}

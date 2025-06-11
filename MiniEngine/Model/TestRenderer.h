@@ -16,6 +16,7 @@ namespace Math
     class Camera;
     class Vector3;
 }
+class SurfelGI;
 
 namespace TestRenderer
 {
@@ -36,6 +37,8 @@ namespace TestRenderer
 	void InitTriangleModel();
 	void InitSphereModel();
 	void InitTestRootSignature();
+
+	extern SurfelGI* SurfelIllumination;
 
 	//std::unordered_map<std::wstring, SphereMesh> m_SphereMeshes;
 	//std::vector<SphereMesh*> m_SphereMeshes;
