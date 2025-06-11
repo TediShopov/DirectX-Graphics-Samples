@@ -54,6 +54,7 @@ namespace TestRenderer
 
     SurfelGI* TestRenderer::SurfelIllumination = new SurfelGI();  // Definition (allocates storage)
     HashGridVisualization* TestRenderer::GridVisualization = new HashGridVisualization();  // Definition (allocates storage)
+    UINT TestRenderer::frameIndex = 0;
 
 
 	SphereMesh* TestRenderer::m_Sphere = nullptr;
@@ -68,7 +69,7 @@ namespace TestRenderer
 	void RenderObjects(GraphicsContext& Context, const Matrix4& ViewProjMat, const Vector3& viewerPos, eObjectFilter Filter = kAll);
 
 
-	RootSignature m_TestRootSignature;
+	//RootSignature m_TestRootSignature;
 
 
 
@@ -283,17 +284,16 @@ void TestRenderer::Startup( Camera& Camera )
 
     //--- DEMO PASS FOR RENDERING SPHERE ---
     // Full color pass
-    InitTestRootSignature();
     m_TestSpherePSO = m_DepthPSO;
     m_TestSpherePSO.SetBlendState(BlendDisable);
     //m_TestSpherePSO.SetDepthStencilState(DepthStateTestEqual);
     m_TestSpherePSO.SetRenderTargetFormats(2, formats, DepthFormat);
     m_TestSpherePSO.SetInputLayout(_countof(simpleVertElemnt), simpleVertElemnt);
     //--- CHANGE THE DEPTH STATE ALWAYS TO DRAW ON TOP OF GEOMETRY
-    //m_TestSpherePSO.SetDepthStencilState(DepthStateDisabled);
-    m_TestSpherePSO.SetDepthStencilState(DepthStateReadWrite);
+    m_TestSpherePSO.SetDepthStencilState(DepthStateDisabled);
+    //m_TestSpherePSO.SetDepthStencilState(DepthStateReadWrite);
     //--- THIS HAS TO BE SET TO UNKNOWN FORMAT TO CONFORM TO FRAMEWORK
-    //m_TestSpherePSO.SetDepthTargetFormat(DXGI_FORMAT_UNKNOWN);
+    m_TestSpherePSO.SetDepthTargetFormat(DXGI_FORMAT_UNKNOWN);
     //--- MAKE SURE THAT CULLING IS OFF AND BOTH SIDES ARE DRAWN
     m_TestSpherePSO.SetRasterizerState(RasterizerTwoSided);
 
@@ -444,35 +444,6 @@ void TestRenderer::InitSphereModel()
     m_Sphere = new SphereMesh(2);
 }
 
-//Initializes a root signature that adds on an extra 2D texture resource to blend with
-//the final result (maybe an extra sampler as well)
-void TestRenderer::InitTestRootSignature()
-{
-
-    SamplerDesc DefaultSamplerDesc;
-    DefaultSamplerDesc.MaxAnisotropy = 8;
-    SamplerDesc CubeMapSamplerDesc = DefaultSamplerDesc;
-
-    m_TestRootSignature.Reset(7, 3);
-
-    m_TestRootSignature.InitStaticSampler(10, DefaultSamplerDesc, D3D12_SHADER_VISIBILITY_PIXEL);
-    m_TestRootSignature.InitStaticSampler(11, SamplerShadowDesc, D3D12_SHADER_VISIBILITY_PIXEL);
-    m_TestRootSignature.InitStaticSampler(12, CubeMapSamplerDesc, D3D12_SHADER_VISIBILITY_PIXEL);
-
-    m_TestRootSignature[0].InitAsConstantBuffer(0, D3D12_SHADER_VISIBILITY_VERTEX);
-    m_TestRootSignature[1].InitAsConstantBuffer(0, D3D12_SHADER_VISIBILITY_PIXEL);
-
-    m_TestRootSignature[2].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 10, D3D12_SHADER_VISIBILITY_PIXEL);
-    m_TestRootSignature[3].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SAMPLER, 0, 10, D3D12_SHADER_VISIBILITY_PIXEL);
-    m_TestRootSignature[4].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 10, 10, D3D12_SHADER_VISIBILITY_PIXEL);
-
-    m_TestRootSignature[5].InitAsConstantBuffer(1);
-
-    m_TestRootSignature[6].InitAsBufferSRV(20, D3D12_SHADER_VISIBILITY_VERTEX);
-
-    m_TestRootSignature.Finalize(L"RootSig", D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
-
-}
 //void TestRenderer::CheckRaytracingSupport(GraphicsContext gfx) {
 ////	D3D12_FEATURE_DATA_D3D12_OPTIONS5 options5 = {};
 ////    ID3D12Device device;
@@ -828,6 +799,10 @@ void TestRenderer::RenderScene(
     // --- SURFEL PASS
     
 	ComputeContext& cfx = reinterpret_cast<ComputeContext&>(gfxContext);
+
+    frameIndex++;
+    //Set the frame index
+    SurfelIllumination->m_SurfelGen.FrameIndex = frameIndex;
 
     SurfelIllumination->FillAccelerationStructures(cfx);
 

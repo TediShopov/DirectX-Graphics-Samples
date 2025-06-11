@@ -9,7 +9,7 @@
 #include "CompiledShaders/SurfelGenerationCS.h"
 
 
-  void SurfelGI::UpdateProjectoin(const Camera& camera)
+  void SurfelGI::UpdateProjection(const Camera& camera)
 {
 	Matrix4 invViewProj = Invert(camera.GetViewProjMatrix());
 	Vector3 mathPos = camera.GetPosition();
@@ -186,7 +186,7 @@ void SurfelGI::FillCPUContainers()
 
 	//Transition resources from render target to CS 
 	//NON-PIXEL SHADER RESOURCE should cover the ComputeShader stage
-	gfxContext.TransitionResource(*m_GBuffer.g_Depth, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, false);
+	gfxContext.TransitionResource(*m_GBuffer.g_Depth, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, true);
 	gfxContext.TransitionResource(*m_GBuffer.g_Normal, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, true);
 
 	//Switch to the appropriate PSO
@@ -198,8 +198,21 @@ void SurfelGI::FillCPUContainers()
 		srvHeap.GetHeapPointer()
 	};
 
+
+	//TODO make use of dynamic upload buffers for per-frame data changes
+	ByteAddressBuffer uploadBuffer;
+	uploadBuffer.Create(L"Surfel GEN UPLAOD", 1, sizeof(SurfelGenCB), &m_SurfelGen);
+	// Update the surfel setting buffer with the new frame index
+	CommandContext& context = CommandContext::Begin(L"Update Surfel Generation CB");
+	context.CopyBuffer(m_SufelSettingBuffer, uploadBuffer);
+	context.Finish(true);
+	//context.CopyBuffer(m_SurfelGen,)
+	 //m_SufelSettingBuffer.Create(L"Surfel Gen CBV", 1, sizeof(SurfelGenCB), &m_SurfelGen);
+	 //gfxContext.Finish(true);
+	//m_SufelSettingBuffer.Create(L"Surfel Generation Data", 1, sizeof(SurfelGenCB), &m_SurfelGen);
+
 	//Update the projection from camera
-	UpdateProjectoin(camera);
+	UpdateProjection(camera);
 
 	gfxContext.GetCommandList()->SetDescriptorHeaps(1, heaps);
 	gfxContext.SetConstantBuffer(0, m_SufelSettingBuffer.GetGpuVirtualAddress());

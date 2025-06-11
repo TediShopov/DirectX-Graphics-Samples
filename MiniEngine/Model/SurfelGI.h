@@ -104,7 +104,7 @@ public:
 
 	GBufferPtrs m_GBuffer;
 
-	void UpdateProjectoin(const Camera& camera);
+	void UpdateProjection(const Camera& camera);
 
 	void Setup(GBufferPtrs gBuff);
 

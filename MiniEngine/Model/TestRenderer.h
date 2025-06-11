@@ -37,7 +37,8 @@ namespace TestRenderer
 	const ModelH3D& GetModel();
 	void InitTriangleModel();
 	void InitSphereModel();
-	void InitTestRootSignature();
+
+	extern UINT frameIndex;
 
 	extern SurfelGI* SurfelIllumination;
 	extern HashGridVisualization* GridVisualization;
