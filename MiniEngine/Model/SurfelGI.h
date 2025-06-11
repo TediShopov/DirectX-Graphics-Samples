@@ -106,12 +106,20 @@ public:
 
 	void UpdateProjectoin(const Camera& camera);
 
-	void InitRootSignature(GBufferPtrs gBuff);
+	void Setup(GBufferPtrs gBuff);
+
 	void SpawnSurfels(ComputeContext& gfxContext,const Camera& camera);
 	void FillAccelerationStructures(ComputeContext& gfxContext);
-
 	void ReadbackSurfelData(GraphicsContext& gfx);
-
 	int GetClosestSurfelToPosition(Vector3 worldPos);
+
+protected:
+	void CopyCPUContainersToRespectiveGPUBuffers();
+	void CreateHeaps();
+	void InitializePSOs();
+	void InitializeBuffers();
+	void CreateRootSig();
+	void SetDefaultCBData();
+	void FillCPUContainers();
 };
 

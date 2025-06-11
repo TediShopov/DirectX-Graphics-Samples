@@ -375,7 +375,7 @@ void TestRenderer::Startup( Camera& Camera )
 
     };
 
-    SurfelIllumination->InitRootSignature(
+    SurfelIllumination->Setup(
         gbuffer
     );
     GridVisualization->Setup(

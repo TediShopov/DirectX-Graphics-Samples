@@ -23,40 +23,109 @@
 
 }
 
-  void SurfelGI::InitRootSignature(GBufferPtrs gBuff)
+  void SurfelGI::Setup(GBufferPtrs gBuff)
 {
-	  m_GBuffer = gBuff;
+	m_GBuffer = gBuff;
+
+	CreateRootSig();
+
+	SetDefaultCBData();
+
+	InitializeBuffers();
+
+	FillCPUContainers();
+
+	CopyCPUContainersToRespectiveGPUBuffers();
+
+	CreateHeaps();
+
+	InitializePSOs();
+}
+
+  void SurfelGI::CopyCPUContainersToRespectiveGPUBuffers()
+  {
+	  GraphicsContext& context = GraphicsContext::Begin();
+	  context.WriteBuffer(m_SurfelData, 0, m_SurfelDataArray.data(), _DEBUG_SURFEL_NUM * sizeof(SurfelData));
+	  context.WriteBuffer(m_SurfelStack, 0, m_SurfelStackActual.data(), (_DEBUG_SURFEL_NUM + 1) * sizeof(UINT));
+	  context.WriteBuffer(m_SurfelGrid, 0, m_SurfelGridActual.data(), (_CELL_COUNT_) * sizeof(UINT));
+	  context.Finish();
+  }
+
+  void SurfelGI::CreateHeaps()
+  {
+	  srvHeap.Create(L"SURFEL SRV HEAP", D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 6);
+
+	  ExtendedUtility::CopyDescriptorsToHeap(srvHeap, {
+
+		  m_GBuffer.g_Depth->GetDepthSRV(),
+		  m_GBuffer.g_Normal->GetSRV(),
+		  m_SurfelData.GetUAV(),
+		  m_SurfelList.GetUAV(),
+		  m_SurfelGrid.GetUAV(),
+		  m_SurfelStack.GetUAV()
+		  }
+	  );
+  }
+
+  void SurfelGI::InitializePSOs()
+  {
+	  //--- DEMO PASS FOR GENERATING SURFEL WITH COMPUTE SHADER ---
+	  m_SurfelGenerationPSO.SetRootSignature(m_SurfelGenerationRT);
+	  m_SurfelGenerationPSO.SetComputeShader(g_pSurfelGenerationCS, sizeof(g_pSurfelGenerationCS));
+	  m_SurfelGenerationPSO.Finalize();
+
+	  m_SurfelAccelerationPassPSO.SetRootSignature(m_SurfelGenerationRT);
+	  m_SurfelAccelerationPassPSO.SetComputeShader(g_pSurfelAccelerationStructuresCS, sizeof(g_pSurfelAccelerationStructuresCS));
+	  m_SurfelAccelerationPassPSO.Finalize();
+
+  }
+
+  void SurfelGI::InitializeBuffers()
+  {
+	  m_ProjectoinBuffer.Create(L"Projectoin Data Buffer", 1, sizeof(ProjectionResources), &m_ProjectionData);
+	  m_SufelSettingBuffer.Create(L"Surfel Gen CBV", 1, sizeof(SurfelGenCB), &m_SurfelGen);
+	  //SURFEL SIZE STATIC BUFFER NUMB
+	  m_SurfelData.Create(L"Surfel Data Buffer", _DEBUG_SURFEL_NUM, sizeof(SurfelData));
+	  m_SurfelDataReadback.Create(L"Surfel Data Readback Buffer", _DEBUG_SURFEL_NUM, sizeof(SurfelData));
+	  m_SurfelList.Create(L"Surfel List Buffer", _CELL_COUNT_, sizeof(UINT));
+	  m_SurfelGrid.Create(L"Surfel Grid Buffer", _CELL_COUNT_, sizeof(UINT));
+	  //+1 for the stack pointer itself
+	  m_SurfelStack.Create(L"Surfel Stack", _DEBUG_SURFEL_NUM + 1, sizeof(UINT));
+  }
+
+  void SurfelGI::CreateRootSig()
+  {
+	  SamplerDesc DefaultSamplerDesc;
+	  DefaultSamplerDesc.MaxAnisotropy = 8;
+	  SamplerDesc CubeMapSamplerDesc = DefaultSamplerDesc;
+
+	  m_SurfelGenerationRT.Reset(4, 3);
 
 
-	m_ProjectoinBuffer.Create(L"Projectoin Data Buffer", 1, sizeof(ProjectionResources), &m_ProjectionData);
+	  m_SurfelGenerationRT.InitStaticSampler(10, DefaultSamplerDesc);
+	  m_SurfelGenerationRT.InitStaticSampler(11, Graphics::SamplerShadowDesc);
+	  m_SurfelGenerationRT.InitStaticSampler(12, CubeMapSamplerDesc);
 
-	SamplerDesc DefaultSamplerDesc;
-	DefaultSamplerDesc.MaxAnisotropy = 8;
-	SamplerDesc CubeMapSamplerDesc = DefaultSamplerDesc;
-	m_SurfelGenerationRT.Reset(4, 3);
+	  m_SurfelGenerationRT[0].InitAsConstantBuffer(0);
+	  m_SurfelGenerationRT[1].InitAsConstantBuffer(1);
+	  //SRVs: Position and Normal
+	  m_SurfelGenerationRT[2].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 2);
+	  //UAVs: 
+	  m_SurfelGenerationRT[3].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 0, 4);
+	  m_SurfelGenerationRT.Finalize(L"CS Surfel Root Signature");
+  }
 
+  void SurfelGI::SetDefaultCBData()
+  {
+	  m_SurfelGen.DepthThreshold = 0.1;
+	  m_SurfelGen.FrameIndex = 0;
+	  m_SurfelGen.MaxSurfels = 50;
+	  m_SurfelGen.NormalThreshold = 0.5;
+	  m_SurfelGen.ViewDistThreshold = 0.75;
 
-	m_SurfelGenerationRT.InitStaticSampler(10, DefaultSamplerDesc);
-	m_SurfelGenerationRT.InitStaticSampler(11, Graphics::SamplerShadowDesc);
-	m_SurfelGenerationRT.InitStaticSampler(12, CubeMapSamplerDesc);
-
-	m_SurfelGenerationRT[0].InitAsConstantBuffer(0);
-	m_SurfelGenerationRT[1].InitAsConstantBuffer(1);
-	//SRVs: Position and Normal
-	m_SurfelGenerationRT[2].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 2);
-	//UAVs: 
-	m_SurfelGenerationRT[3].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 0, 4);
-	m_SurfelGenerationRT.Finalize(L"CS Surfel Root Signature");
-
-	m_SurfelGen.DepthThreshold = 0.1;
-	m_SurfelGen.FrameIndex = 0;
-	m_SurfelGen.MaxSurfels = 50;
-	m_SurfelGen.NormalThreshold = 0.5;
-	m_SurfelGen.ViewDistThreshold = 0.75;
-
-	m_SurfelGen.UniformGrid.cellSize = Vector4(100, 100, 100, 100);
-	m_SurfelGen.UniformGrid.gridOrigin = Vector4(-2000, -2000, -2000, -2000);
-	m_SurfelGen.UniformGrid.dimensions = Vector4(+2000, +2000, +2000, +2000);
+	  m_SurfelGen.UniformGrid.cellSize = Vector4(100, 100, 100, 100);
+	  m_SurfelGen.UniformGrid.gridOrigin = Vector4(-2000, -2000, -2000, -2000);
+	  m_SurfelGen.UniformGrid.dimensions = Vector4(+2000, +2000, +2000, +2000);
 
 	UINT grdCells[3] = {
 		m_SurfelGen.UniformGrid.dimensions.GetX() / m_SurfelGen.UniformGrid.cellSize.GetX(),
@@ -67,18 +136,10 @@
 
 	_CELL_COUNT_ = grdCells[0] * grdCells[1] * grdCells[2];
 
-	m_SufelSettingBuffer.Create(L"Surfel Gen CBV", 1, sizeof(SurfelGenCB), &m_SurfelGen);
+  }
 
-
-	//SURFEL SIZE STATIC BUFFER NUMB
-	m_SurfelData.Create(L"Surfel Data Buffer", _DEBUG_SURFEL_NUM, sizeof(SurfelData));
-	m_SurfelDataReadback.Create(L"Surfel Data Readback Buffer", _DEBUG_SURFEL_NUM, sizeof(SurfelData));
-	m_SurfelList.Create(L"Surfel List Buffer", _CELL_COUNT_, sizeof(UINT));
-	m_SurfelGrid.Create(L"Surfel Grid Buffer", _CELL_COUNT_, sizeof(UINT));
-	//+1 for the stack pointer itself
-	m_SurfelStack.Create(L"Surfel Stack", _DEBUG_SURFEL_NUM + 1, sizeof(UINT));
-
-
+void SurfelGI::FillCPUContainers()
+{
 
 	const SurfelData data{
 		Vector4(0, 0, 1,1),
@@ -90,8 +151,6 @@
 	{
 		m_SurfelDataArray.push_back(data);
 	}
-
-
 	// Fill data
 	for (int i = 0; i < _DEBUG_SURFEL_NUM; ++i) {
 		m_SurfelDataArray[i].position =
@@ -118,40 +177,6 @@
 	for (int i = 0; i < _DEBUG_SURFEL_NUM + 1; ++i) {
 		m_SurfelStackActual.push_back(i);
 	}
-
-	GraphicsContext& context = GraphicsContext::Begin();
-	context.WriteBuffer(m_SurfelData, 0, m_SurfelDataArray.data(), _DEBUG_SURFEL_NUM * sizeof(SurfelData));
-	context.WriteBuffer(m_SurfelStack, 0, m_SurfelStackActual.data(), (_DEBUG_SURFEL_NUM + 1) * sizeof(UINT));
-	context.WriteBuffer(m_SurfelGrid, 0, m_SurfelGridActual.data(), (_CELL_COUNT_) * sizeof(UINT));
-	context.Finish();
-
-
-
-
-	srvHeap.Create(L"SURFEL SRV HEAP", D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 6);
-
-	ExtendedUtility::CopyDescriptorsToHeap(srvHeap, {
-
-		m_GBuffer.g_Depth->GetDepthSRV(),
-		m_GBuffer.g_Normal->GetSRV(),
-		m_SurfelData.GetUAV(),
-		m_SurfelList.GetUAV(),
-		m_SurfelGrid.GetUAV(),
-		m_SurfelStack.GetUAV()
-		}
-	);
-
-
-	//--- DEMO PASS FOR GENERATING SURFEL WITH COMPUTE SHADER ---
-	m_SurfelGenerationPSO.SetRootSignature(m_SurfelGenerationRT);
-	m_SurfelGenerationPSO.SetComputeShader(g_pSurfelGenerationCS, sizeof(g_pSurfelGenerationCS));
-    m_SurfelGenerationPSO.Finalize();
-
-    m_SurfelAccelerationPassPSO.SetRootSignature(m_SurfelGenerationRT);
-	m_SurfelAccelerationPassPSO.SetComputeShader(g_pSurfelAccelerationStructuresCS, sizeof(g_pSurfelAccelerationStructuresCS));
-	m_SurfelAccelerationPassPSO.Finalize();
-
-
 }
 
   void SurfelGI::SpawnSurfels(ComputeContext& gfxContext,  const Camera& camera)
