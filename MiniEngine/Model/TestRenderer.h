@@ -17,6 +17,7 @@ namespace Math
     class Vector3;
 }
 class SurfelGI;
+class HashGridVisualization;
 
 namespace TestRenderer
 {
@@ -31,7 +32,7 @@ namespace TestRenderer
 		bool skipDiffusePass = false,
 		bool skipShadowMap = false );
 
-	void UHGTriangleRender(GraphicsContext& gfxContext, const D3D12_VIEWPORT& viewport, const D3D12_RECT& scissor, const Math::Camera& camera);
+	//void UHGTriangleRender(GraphicsContext& gfxContext, const D3D12_VIEWPORT& viewport, const D3D12_RECT& scissor, const Math::Camera& camera);
 
 	const ModelH3D& GetModel();
 	void InitTriangleModel();
@@ -39,6 +40,7 @@ namespace TestRenderer
 	void InitTestRootSignature();
 
 	extern SurfelGI* SurfelIllumination;
+	extern HashGridVisualization* GridVisualization;
 
 	//std::unordered_map<std::wstring, SphereMesh> m_SphereMeshes;
 	//std::vector<SphereMesh*> m_SphereMeshes;

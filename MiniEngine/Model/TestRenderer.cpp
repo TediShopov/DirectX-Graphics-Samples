@@ -17,6 +17,7 @@
 #include <initializer_list>
 
 #include "SurfelGI.h"
+#include "HashGridVisualization.h"
 
 
 
@@ -30,8 +31,6 @@
 #include "CompiledShaders/ModelViewerVS.h"
 #include "CompiledShaders/ModelViewerPS.h"
 #include "CompiledShaders/TestRendererPS.h"
-#include "CompiledShaders/SimpleColorPS.h"
-#include "CompiledShaders/SimpleColorVS.h"
 #include "CompiledShaders/SimpleMeshPS.h"
 #include "CompiledShaders/SimpleMeshVS.h"
 #include "CompiledShaders/SurfelAccelerationStructuresCS.h"
@@ -41,13 +40,6 @@
 
 #include <dxcapi.h>
 #include <vector>
-//#include "TopLevelASGenerator.h"
-//#include "DXRHelper.h"
-//#include "BottomLevelASGenerator.h"
-//#include "DXSample.h"
-//#include "StepTimer.h"
-//#include "RaytracingHlslCompat.h"
-//#include "DirectXRaytracingHelper.h"
 #include "TestRaytracing.h"
 
 
@@ -61,6 +53,7 @@ namespace TestRenderer
 {
 
     SurfelGI* TestRenderer::SurfelIllumination = new SurfelGI();  // Definition (allocates storage)
+    HashGridVisualization* TestRenderer::GridVisualization = new HashGridVisualization();  // Definition (allocates storage)
 
 
 	SphereMesh* TestRenderer::m_Sphere = nullptr;
@@ -70,7 +63,7 @@ namespace TestRenderer
 	void RenderLightShadows(GraphicsContext& gfxContext, const Camera& camera);
 
 	enum eObjectFilter { kOpaque = 0x1, kCutout = 0x2, kTransparent = 0x4, kAll = 0xF, kNone = 0x0 };
-	void RenderTriangleObject(GraphicsContext& Context, const Matrix4& ViewProjMat, const Vector3& viewerPos, eObjectFilter Filter = kAll);
+	void RenderTriangleObject(GraphicsContext& Context);
 	void RenderSphereObject(GraphicsContext& Context, const Matrix4& ViewProjMat, const Vector3& viewerPos, eObjectFilter Filter = kAll);
 	void RenderObjects(GraphicsContext& Context, const Matrix4& ViewProjMat, const Vector3& viewerPos, eObjectFilter Filter = kAll);
 
@@ -81,7 +74,7 @@ namespace TestRenderer
 
 	GraphicsPSO m_DepthPSO = { (L"Sponza: Depth PSO") };
 	GraphicsPSO m_ModelPSO = { (L"Sponza: Color PSO") };
-	GraphicsPSO m_TestPSO = { (L"Sponza: Triangel Test PSO") };
+	//GraphicsPSO m_TestPSO = { (L"Sponza: Triangel Test PSO") };
 	GraphicsPSO m_TestSpherePSO = { (L"Sponza: Sphere Test PSO") };
 	GraphicsPSO m_CutoutDepthPSO = { (L"Sponza: Cutout Depth PSO") };
 	GraphicsPSO m_CutoutModelPSO = { (L"Sponza: Cutout Color PSO") };
@@ -193,129 +186,6 @@ void RenderSphereOnSurfels(GraphicsContext& gfxContext, const Matrix4& ViewProjM
 
 }
 
-
-
-
-#pragma region UniformHashGridVisualization
-
-	enum kUHGRoot {
-		kProjectionResources = 0,
-		kDepth = 1
-	};
-
-	__declspec(align(16)) struct UHGProjectionResources {
-
-		XMMATRIX invViewProjeciton;
-		float depthNear;
-		float depthFar;
-	};
-	UHGProjectionResources projectionData;
-
-
-	// --- DESCRIPTOR HEAR CONTAINING DEPTH BUFFER SRV ---
-	RootSignature m_UHGRootSignature;
-
-	// --- DESCRIPTOR HEAR CONTAINING DEPTH BUFFER SRV ---
-	DescriptorHeap m_UHGTextures;
-
-
-	void CreateUHGRootSignature()
-	{
-		m_UHGRootSignature.Reset(2, 3);
-
-		SamplerDesc DefaultSamplerDesc;
-		DefaultSamplerDesc.MaxAnisotropy = 8;
-		SamplerDesc CubeMapSamplerDesc = DefaultSamplerDesc;
-
-		//---INIT THE STATIC SAMPLERS--
-		m_UHGRootSignature.InitStaticSampler(10, DefaultSamplerDesc, D3D12_SHADER_VISIBILITY_PIXEL);
-		m_UHGRootSignature.InitStaticSampler(11, SamplerShadowDesc, D3D12_SHADER_VISIBILITY_PIXEL);
-		m_UHGRootSignature.InitStaticSampler(12, CubeMapSamplerDesc, D3D12_SHADER_VISIBILITY_PIXEL);
-
-		m_UHGRootSignature[kUHGRoot::kProjectionResources].InitAsConstantBuffer(0,
-			D3D12_SHADER_VISIBILITY_PIXEL);
-
-		m_UHGRootSignature[kUHGRoot::kDepth].InitAsDescriptorRange(
-			D3D12_DESCRIPTOR_RANGE_TYPE_SRV,
-			0, 2, D3D12_SHADER_VISIBILITY_PIXEL);
-		//m_UHGRootSignature[kUHGRoot::kRayTracingOutput].InitAsBufferUAV(0, D3D12_SHADER_VISIBILITY_PIXEL);
-		m_UHGRootSignature.Finalize(L"UHG Root Signature", D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
-	}
-
-	void CreateUHGDescriptorHeap()
-	{
-		m_UHGTextures.Create(L"Uniform Hash Grid Descriptor", D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 2);
-
-		ExtendedUtility::CopyDescriptorsToHeap(
-			m_UHGTextures,
-			{
-				g_SceneDepthBuffer.GetDepthSRV(),
-				TestRaytracing::GetOutputBuffer().GetSRV()
-				//TestRaytracing::GetOutputBuffer().GetUAV()
-			},
-			D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV
-		);
-	}
-
-	void SetUHGRootParameters(GraphicsContext& gfxContext, const Camera& camera)
-	{
-		// --- TRANSITON THE DEPTH BUFFER TO BE READABLE BY THE SHADER
-		gfxContext.TransitionResource(g_SceneDepthBuffer, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, false);
-		gfxContext.TransitionResource(TestRaytracing::GetOutputBuffer(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, false);
-
-		//--- SET THE HEAP CONTAINING ALL THE TEXTURES
-		gfxContext.SetDescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, m_UHGTextures.GetHeapPointer());
-
-
-
-		//Correct way of obtraining the viewProjMatrix  as the math library used Column Major Order 
-		//m_ViewProjMatrix = m_ProjMatrix * m_ViewMatrix;
-//		Matrix4 invViewProj = Invert(camera.GetViewProjMatrix());
-//        //Need to inversly translate by the camera translation as well to get a real world position
-//		Matrix4 invViewProj = Invert();
-		Matrix4 invViewProj = Invert(camera.GetViewProjMatrix());
-		Vector3 mathPos = camera.GetPosition();
-
-		projectionData.invViewProjeciton = invViewProj;
-		//projectionData.invViewProjeciton = Transpose(invViewProj);
-		projectionData.depthNear = camera.GetNearClip();
-		projectionData.depthFar = camera.GetFarClip();
-
-		projectionBuffer.Create(L"Projectoin Data Buffer", 1, sizeof(UHGProjectionResources), &projectionData);
-
-		gfxContext.SetConstantBuffer(kUHGRoot::kProjectionResources, projectionBuffer.GetGpuVirtualAddress());
-
-		gfxContext.SetDescriptorTable(kUHGRoot::kDepth, m_UHGTextures[0]);
-	}
-
-	void UHGTriangleRender(GraphicsContext& gfxContext, const D3D12_VIEWPORT& viewport, const D3D12_RECT& scissor, const Math::Camera& camera)
-	{
-		{
-			ScopedTimer _prof3(L"Render Triangle", gfxContext);
-
-			gfxContext.SetPipelineState(m_TestPSO);
-			gfxContext.SetRootSignature(m_UHGRootSignature);
-
-			SetUHGRootParameters(gfxContext, camera);
-
-			//D3D12_CPU_DESCRIPTOR_HANDLE rtvs[]{ g_SceneColorBuffer.GetRTV(), g_SceneNormalBuffer.GetRTV() };
-			D3D12_CPU_DESCRIPTOR_HANDLE rtvs[]{ g_SceneColorBuffer.GetRTV(), g_SceneNormalBuffer.GetRTV() };
-
-			gfxContext.SetRenderTargets(ARRAYSIZE(rtvs), rtvs);
-
-			gfxContext.SetViewportAndScissor(viewport, scissor);
-
-			RenderTriangleObject(gfxContext, camera.GetViewProjMatrix(), camera.GetPosition(), TestRenderer::kOpaque);
-		}
-	}
-
-
-
-
-#pragma endregion UniformHashGridVisualization
-
-	//---   RAY-TRACING RELATED
-
 }
 
 void TestRenderer::Startup( Camera& Camera )
@@ -403,30 +273,9 @@ void TestRenderer::Startup( Camera& Camera )
     // Full color pass
     //InitTestRootSignature();
 
-    CreateUHGRootSignature();
 
-    m_TestPSO = m_DepthPSO;
-    //--- REPLACE THE ROOT SIGNATURE
-    m_TestPSO.SetRootSignature(m_UHGRootSignature);
-
-    m_TestPSO.SetBlendState(BlendDisable);
-    m_TestPSO.SetDepthStencilState(DepthStateTestEqual);
-    //m_TestPSO.SetRenderTargetFormats(2, formats, DepthFormat);
-    m_TestPSO.SetRenderTargetFormats(2, formats,DepthFormat);
-    m_TestPSO.SetInputLayout(_countof(colorElem), colorElem);
-    //--- CHANGE THE DEPTH STATE ALWAYS TO DRAW ON TOP OF GEOMETRY
-    m_TestPSO.SetDepthStencilState(DepthStateDisabled);
-    //--- THIS HAS TO BE SET TO UNKNOWN FORMAT TO CONFORM TO FRAMEWORK
-    m_TestPSO.SetDepthTargetFormat(DXGI_FORMAT_UNKNOWN);
-    //--- MAKE SURE THAT CULLING IS OFF AND BOTH SIDES ARE DRAWN
-    m_TestPSO.SetRasterizerState(RasterizerTwoSided);
-
-    //-- CHANGE TO THE NEW SHADER FOR THE TRIANGLE
-    m_TestPSO.SetVertexShader( g_pSimpleColorVS, sizeof(g_pSimpleColorVS) );
-    m_TestPSO.SetPixelShader( g_pSimpleColorPS, sizeof(g_pSimpleColorPS) );
-
-    m_TestPSO.Finalize();
-
+    GridVisualization->CreateUHGRootSignature();
+    GridVisualization->CreatePSO(m_DepthPSO,formats,DepthFormat);
 
 	//--- DEMO PASS FOR GENERATING SURFEL WITH COMPUTE SHADER ---
     SurfelIllumination->InitRootSignature(
@@ -525,8 +374,12 @@ void TestRenderer::Startup( Camera& Camera )
     Lighting::CreateRandomLights(m_Model.GetBoundingBox().GetMin(), m_Model.GetBoundingBox().GetMax());
 
 
+    
+    GridVisualization->CreateUHGDescriptorHeap(
+        g_SceneDepthBuffer,
+        g_SceneNormalBuffer
+    );
 
-    CreateUHGDescriptorHeap();
 
 }
 
@@ -632,7 +485,7 @@ void TestRenderer::Cleanup( void )
     TextureManager::Shutdown();
 }
 
-void TestRenderer::RenderTriangleObject(GraphicsContext& gfxContext, const Matrix4& ViewProjMat, const Vector3& viewerPos, eObjectFilter Filter)
+void TestRenderer::RenderTriangleObject(GraphicsContext& gfxContext) 
 {
     //uint32_t VertexStride = m_Model.GetVertexStride();
 	const UINT vertexBufferSize = sizeof(triangleVertices);
@@ -936,8 +789,17 @@ void TestRenderer::RenderScene(
                 }
                 RenderObjects( gfxContext, camera.GetViewProjMatrix(), camera.GetPosition(), TestRenderer::kOpaque );
 
-               UHGTriangleRender(gfxContext, viewport, scissor, camera);
+                {
+					ScopedTimer _prof3(L"Render Triangle", gfxContext);
+					GridVisualization->UHGTriangleRender(gfxContext, viewport, scissor,
+						g_SceneColorBuffer,
+						g_SceneNormalBuffer,
+						g_SceneDepthBuffer,
+						TestRaytracing::GetOutputBuffer(),
+						camera);
+					RenderTriangleObject(gfxContext);
 
+                }
 
 
 

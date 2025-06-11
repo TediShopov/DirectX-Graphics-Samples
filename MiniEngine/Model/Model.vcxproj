@@ -82,6 +82,7 @@
     <ClInclude Include="Geometry\TangentMesh.h" />
     <ClInclude Include="Geometry\Transform.h" />
     <ClInclude Include="glTF.h" />
+    <ClInclude Include="HashGridVisualization.h" />
     <ClInclude Include="IndexOptimizePostTransform.h" />
     <ClInclude Include="json.hpp" />
     <ClInclude Include="LightManager.h" />
@@ -115,6 +116,7 @@
     <ClCompile Include="Geometry\TangentMesh.cpp" />
     <ClCompile Include="Geometry\Transform.cpp" />
     <ClCompile Include="glTF.cpp" />
+    <ClCompile Include="HashGridVisualization.cpp" />
     <ClCompile Include="IndexOptimizePostTransform.cpp" />
     <ClCompile Include="LightManager.cpp" />
     <ClCompile Include="MeshConvert.cpp" />
