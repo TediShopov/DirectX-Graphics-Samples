@@ -13,7 +13,7 @@ cbuffer SurfelGenCB : register(b0)
     float  NormalThreshold;
     float  ViewDistThreshold;
     uint   MaxSurfels;
-    //uint SurfelStackPointer;
+    uint3   padding;
     UniformGrid Grid;
 };
 
@@ -29,10 +29,10 @@ Texture2D<float4> gDepth : register(t0); // RGB = world pos
 Texture2D<float4> gNormal   : register(t1); // RGB = world normal
 
 RWStructuredBuffer<SurfelData> surfelsUAV : register(u0); // world position
+RWStructuredBuffer<uint> surlfeListUAV : register(u1); // Stored pointers (indices) to the appropriate surfel data
 // Stored pointer to a range of surfle IDs 
 // SurfelList[from SurfelGrid[i] to SurfelGrid[i+1]] is all the surfel that occupy a cell with index I
-RWStructuredBuffer<uint> surfelGridUAV : register(u1); 
-RWStructuredBuffer<uint> surlfeListUAV : register(u2); // Stored pointers (indices) to the appropriate surfel data
+RWStructuredBuffer<uint> surfelGridUAV : register(u2); 
 //The first index of this structure is the stack pointer
 RWStructuredBuffer<uint> surfleStackUAV : register(u3); // Stored pointers (indices) to the appropriate surfel data
 groupshared uint groupShareMinCoverage;
@@ -125,7 +125,7 @@ void main(
 
     //Compute cell indices
     uint3 cellIndex = ComputeGridIndex(worldPos, gridOrigin, cellSize);
-    uint flattenedIndex = HashGridIndex(cellIndex, cellSize);
+    uint flattenedIndex = HashGridIndex(cellIndex, Grid);
 
     uint surfelIdFrom = surfelGridUAV[flattenedIndex];
     uint surfelIdTo = surfelGridUAV[flattenedIndex + 1];
@@ -285,7 +285,7 @@ void main(
                 uint prevStackPointer;
                 InterlockedAdd(surfleStackUAV[0], 1, prevStackPointer);
                 uint surfelStackPointer = prevStackPointer + 2;
-                if(surfelStackPointer <= 10000)
+                if(surfelStackPointer <= 1000)
                 {
                     uint surfelID = surfleStackUAV[surfelStackPointer];
                     float debugRad = 1;

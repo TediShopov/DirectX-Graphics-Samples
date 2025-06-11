@@ -10,9 +10,9 @@ struct SurfelData
 };
 struct UniformGrid
 {
-    float3 gridOrigin;
-    float3 cellSize;
-    float3 dimensions;
+    float4 gridOrigin;
+    float4 cellSize;
+    float4 dimensions;
 };
 
 
@@ -25,10 +25,16 @@ uint3 ComputeGridIndex(float3 position,float3 gridOrigin,float3 cellSize) {
 
 
 
-uint HashGridIndex(uint3 gridIdx, uint3 cellSize) {
+uint HashGridIndex(uint3 gridIdx, UniformGrid grid) {
+
+    uint3 dim = uint3(
+    grid.dimensions.x / grid.cellSize.x,
+    grid.dimensions.y / grid.cellSize.y,
+    grid.dimensions.z / grid.cellSize.z
+);
     return gridIdx.x  +
-           gridIdx.y * cellSize.x   +
-           gridIdx.z * cellSize.x * cellSize.y ;
+           gridIdx.y * dim.x   +
+           gridIdx.z * dim.x * dim.y ;
 }
 
 uint UniqueHashGridIndex(uint3 gridIdx, uint3 cellSize) {
@@ -137,7 +143,7 @@ void SurfelCountDebug(SurfelData surfel, UniformGrid grid,out uint3 overlappingI
             {
                 //uint linearIndex = x + y * gridDim.x + z * gridDim.x * gridDim.y;
                 uint3 idx = uint3(x, y, z);
-                uint linearIndex = HashGridIndex(idx,grid.cellSize);
+                uint linearIndex = HashGridIndex(idx,grid);
                 if (ComputeCornerDotProductsWithSurfelPlane(surfel, grid, idx))
                 {
                     overlappingIndices[overlappingCount] = idx;
@@ -155,12 +161,10 @@ void SurfelCountDebug(SurfelData surfel, UniformGrid grid,out uint3 overlappingI
 //A funciton to overlap the surfel (disc) with the grid 
 void SurfelCount(SurfelData surfel, UniformGrid grid, RWStructuredBuffer<uint> surfelGrid)
 {
-    float3 minBounds = surfel.position - surfel.radius;
-    float3 maxBounds = surfel.position + surfel.radius;
-
-    // Convert world-space bounds to grid indices
-    uint3 minCell = ComputeGridIndex(surfel.position, grid.gridOrigin, grid.cellSize);
-    uint3 maxCell = ComputeGridIndex(surfel.position, grid.gridOrigin, grid.cellSize);
+    uint3 bb[2];
+    SurfelSOIBoundingCells(surfel, grid, bb);
+    uint3 minCell = bb[0];
+    uint3 maxCell = bb[1];
 
 
     // Iterate over overlapping cells
@@ -172,7 +176,8 @@ void SurfelCount(SurfelData surfel, UniformGrid grid, RWStructuredBuffer<uint> s
             {
                 //uint linearIndex = x + y * gridDim.x + z * gridDim.x * gridDim.y;
                 uint3 idx = uint3(x, y, z);
-                uint linearIndex = HashGridIndex(idx,grid.cellSize);
+
+                uint linearIndex = HashGridIndex(idx,grid);
                 if (ComputeCornerDotProductsWithSurfelPlane(surfel, grid, idx))
                 {
                     //Surfel Overlaps with the grid cell
@@ -213,12 +218,10 @@ RWStructuredBuffer<uint> surfelGrid
 )
 {
     
-    float3 minBounds = surfel.position - surfel.radius;
-    float3 maxBounds = surfel.position + surfel.radius;
-
-    // Convert world-space bounds to grid indices
-    uint3 minCell = ComputeGridIndex(surfel.position, grid.gridOrigin, grid.cellSize);
-    uint3 maxCell = ComputeGridIndex(surfel.position, grid.gridOrigin, grid.cellSize);
+    uint3 bb[2];
+    SurfelSOIBoundingCells(surfel, grid, bb);
+    uint3 minCell = bb[0];
+    uint3 maxCell = bb[1];
 
 
     // Iterate over overlapping cells
@@ -230,7 +233,8 @@ RWStructuredBuffer<uint> surfelGrid
             {
                 //uint linearIndex = x + y * gridDim.x + z * gridDim.x * gridDim.y;
                 uint3 idx = uint3(x, y, z);
-                uint linearIndex = HashGridIndex(idx,grid.cellSize);
+
+                uint linearIndex = HashGridIndex(idx,grid);
                 if (ComputeCornerDotProductsWithSurfelPlane(surfel, grid, idx))
                 {
                     //Surfel Overlaps with the grid cell
@@ -271,11 +275,11 @@ RWStructuredBuffer<uint> sgrid
     {
         SurfelCount(surfels[i], grid,sgrid);
     }
-    //Pass 2. Inclusive Prefix Sum on all the surfel grid buffer
+//    //Pass 2. Inclusive Prefix Sum on all the surfel grid buffer
     InclusivePrefixSum(grid,sgrid);
-
-
-    //Pass 3. Surfel Insertion 
+//
+//
+//    //Pass 3. Surfel Insertion 
     for (uint i = 0; i < surfelNum; ++i)
     {
         SurfelInsertion(i,surfels[i],grid,slist,sgrid);

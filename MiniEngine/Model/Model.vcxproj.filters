@@ -291,5 +291,8 @@
     <FxCompile Include="Shaders\SurfelGenerationCS.hlsli">
       <Filter>Shaders</Filter>
     </FxCompile>
+    <FxCompile Include="Shaders\SurfelAccelerationStructuresCS.hlsli">
+      <Filter>Shaders</Filter>
+    </FxCompile>
   </ItemGroup>
 </Project>

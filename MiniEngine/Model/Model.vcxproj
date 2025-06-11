@@ -137,6 +137,9 @@
       <DisableOptimizations Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</DisableOptimizations>
       <AdditionalOptions Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">/Gfp %(AdditionalOptions)</AdditionalOptions>
     </FxCompile>
+    <FxCompile Include="Shaders\SurfelAccelerationStructuresCS.hlsli">
+      <FileType>Document</FileType>
+    </FxCompile>
     <None Include="Shaders\SurfelASAsserts.hlsli" />
     <None Include="Shaders\SurfelUniformGridAccelerationStructure.hlsli">
       <FileType>Document</FileType>

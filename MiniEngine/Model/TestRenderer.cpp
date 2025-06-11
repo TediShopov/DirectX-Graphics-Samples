@@ -32,6 +32,7 @@
 #include "CompiledShaders/SimpleColorVS.h"
 #include "CompiledShaders/SimpleMeshPS.h"
 #include "CompiledShaders/SimpleMeshVS.h"
+#include "CompiledShaders/SurfelAccelerationStructuresCS.h"
 #include "CompiledShaders/SurfelGenerationCS.h"
 //#include "CompiledShaders/Raytracing.h"
 
@@ -78,6 +79,7 @@ namespace TestRenderer
 	GraphicsPSO m_TestPSO = { (L"Sponza: Triangel Test PSO") };
 	GraphicsPSO m_TestSpherePSO = { (L"Sponza: Sphere Test PSO") };
 	ComputePSO m_SurfelGenerationPSO = { (L"Surfel Generation Compute Shader Stage") };
+	ComputePSO m_SurfelAccelerationPassPSO = { (L"Surfel Fill Acceleration Structure Pass Compute Shader Stage") };
 	GraphicsPSO m_CutoutDepthPSO = { (L"Sponza: Cutout Depth PSO") };
 	GraphicsPSO m_CutoutModelPSO = { (L"Sponza: Cutout Color PSO") };
 	GraphicsPSO m_ShadowPSO(L"Sponza: Shadow PSO");
@@ -134,9 +136,9 @@ namespace TestRenderer
 
 	struct UniformGrid {
 
-		Vector3 gridOrigin;
-		Vector3 cellSize;
-		Vector3 dimensions;
+		Vector4 gridOrigin;
+		Vector4 cellSize;
+		Vector4 dimensions;
 
 
 
@@ -147,10 +149,9 @@ namespace TestRenderer
 		float  DepthThreshold;
 		float  NormalThreshold;
 		float  ViewDistThreshold;
-		UINT   MaxSurfels;
 
+		UINT   MaxSurfels;
         // Makes sure the struct after is properly aligned
-        //UINT SurfelStackPointer;
 		UINT Padding0;
 		UINT Padding1;
 		UINT Padding2;
@@ -174,7 +175,8 @@ namespace TestRenderer
 
     int surfelGridCellCount;
 
-    const UINT _DEBUG_SURFEL_NUM = 10000;
+    const UINT _DEBUG_SURFEL_NUM = 1000;
+     UINT _CELL_COUNT_;
     const UINT _DEUBG_OUTPUT_STRING_SIZE = 256;
 
 	//Adapted from https://m4xc.dev/blog/surfel-maintenance/
@@ -250,13 +252,23 @@ namespace TestRenderer
 		m_SurfelGen.ViewDistThreshold = 0.75;
 
 
-		m_SurfelGen.UniformGrid.cellSize = Vector3(100,100,100);
-		m_SurfelGen.UniformGrid.gridOrigin = Vector3(-500, -500, -500);
-		m_SurfelGen.UniformGrid.dimensions = Vector3(500,500,500);
+		m_SurfelGen.UniformGrid.cellSize = Vector4(100,100,100,100);
+		//m_SurfelGen.UniformGrid.gridOrigin = Vector4(-500, -500, -500,-500);
+		//m_SurfelGen.UniformGrid.dimensions = Vector4(500,500,500,500);
+		m_SurfelGen.UniformGrid.gridOrigin = Vector4(-2000,-2000,-2000,-2000);
+		m_SurfelGen.UniformGrid.dimensions = Vector4(+2000,+2000,+2000,+2000);
+
+        UINT grdCells[3] = {
+	m_SurfelGen.UniformGrid.dimensions.GetX() / m_SurfelGen.UniformGrid.cellSize.GetX(),
+	m_SurfelGen.UniformGrid.dimensions.GetY() / m_SurfelGen.UniformGrid.cellSize.GetY(),
+	m_SurfelGen.UniformGrid.dimensions.GetZ() / m_SurfelGen.UniformGrid.cellSize.GetZ()
+        };
 
 
 
 
+        static_assert(sizeof(SurfelGenCB) % 16 == 0,"Hello");
+        UINT sizO = sizeof(SurfelGenCB);
 
 
 
@@ -293,6 +305,8 @@ namespace TestRenderer
             m_SurfelDataArray.push_back(data);
         }
 
+        _CELL_COUNT_ = grdCells[0] * grdCells[1] * grdCells[2];
+
 		// Fill data
 		for (int i = 0; i < _DEBUG_SURFEL_NUM; ++i) {
 			m_SurfelDataArray[i].position = 
@@ -305,6 +319,12 @@ namespace TestRenderer
 			m_SurfelDataArray[i].tilePosY = 0;
 		}
 
+        //Fill the surfle stack buffer
+        //The first index is the surfel stack pointer and should be set to 0
+        //E.g pointer set to 0 would actually read memory adress at 1.
+		for (int i = 0; i < _CELL_COUNT_; ++i) {
+            m_SurfelGridActual.push_back(0);
+		}
 
 
         //Fill the surfle stack buffer
@@ -317,6 +337,7 @@ namespace TestRenderer
 		GraphicsContext& context = GraphicsContext::Begin();
 		context.WriteBuffer(m_SurfelData, 0 ,m_SurfelDataArray.data(), _DEBUG_SURFEL_NUM * sizeof(SurfelData));
 		context.WriteBuffer(m_SurfelStack, 0 ,m_SurfelStackActual.data(), (_DEBUG_SURFEL_NUM+1) * sizeof(UINT));
+		context.WriteBuffer(m_SurfelGrid, 0 ,m_SurfelGridActual.data(), (_CELL_COUNT_) * sizeof(UINT));
 		context.Finish();
 
 
@@ -361,12 +382,52 @@ namespace TestRenderer
 
 		//gfxContext.SetDescriptorHeaps(2,heaps)
 
+//		GraphicsContext& context = GraphicsContext::Begin();
+//		context.WriteBuffer(m_SurfelGrid, 0 ,m_SurfelGridActual.data(), (_DEBUG_SURFEL_NUM) * sizeof(UINT));
+//		context.Finish();
+
 				//Bind the root parameters
 		gfxContext.SetConstantBuffer(0, m_SufelSettingBuffer.GetGpuVirtualAddress());
         gfxContext.SetConstantBuffer(1, projectionBuffer.GetGpuVirtualAddress());
 		gfxContext.SetDescriptorTable(2, srvHeap[0]);
 		gfxContext.SetDescriptorTable(3, srvHeap[2]);
 		gfxContext.Dispatch2D(g_SceneNormalBuffer.GetWidth(), g_SceneNormalBuffer.GetHeight());
+
+	}
+	void SurfelFillAccelerationStructures(ComputeContext& gfxContext)
+	{
+
+		ScopedTimer _prof(L"Disaptch Surfel Fill Acceleration Structures", gfxContext);
+
+		//Transition resources from render target to CS 
+		//NON-PIXEL SHADER RESOURCE should cover the ComputeShader stage
+		gfxContext.TransitionResource(g_SceneDepthBuffer, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, false);
+		gfxContext.TransitionResource(g_SceneNormalBuffer, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, true);
+
+		//Switch to the appropriate PSO
+		gfxContext.SetPipelineState(m_SurfelAccelerationPassPSO);
+		gfxContext.SetRootSignature(m_SurfelGenerationRT);
+
+
+		ID3D12DescriptorHeap* heaps[] = {
+			srvHeap.GetHeapPointer(),  // This is your SURFEL SRV HEAP
+		};
+
+		gfxContext.GetCommandList()->SetDescriptorHeaps(1, heaps);
+
+
+
+
+		// Write to GPU buffer
+        //Reset surfel grid buffer
+        gfxContext.WriteBuffer(m_SurfelGrid, 0, m_SurfelGridActual.data(), (_CELL_COUNT_) * sizeof(UINT));
+
+		//Bind the root parameters
+		gfxContext.SetConstantBuffer(0, m_SufelSettingBuffer.GetGpuVirtualAddress());
+        gfxContext.SetConstantBuffer(1, projectionBuffer.GetGpuVirtualAddress());
+		gfxContext.SetDescriptorTable(2, srvHeap[0]);
+		gfxContext.SetDescriptorTable(3, srvHeap[2]);
+		gfxContext.Dispatch(1,1,1);
 
 	}
 
@@ -701,6 +762,10 @@ void TestRenderer::Startup( Camera& Camera )
 	m_SurfelGenerationPSO.SetRootSignature(m_SurfelGenerationRT);
 	m_SurfelGenerationPSO.SetComputeShader(g_pSurfelGenerationCS, sizeof(g_pSurfelGenerationCS));
     m_SurfelGenerationPSO.Finalize();
+
+    m_SurfelAccelerationPassPSO.SetRootSignature(m_SurfelGenerationRT);
+	m_SurfelAccelerationPassPSO.SetComputeShader(g_pSurfelAccelerationStructuresCS, sizeof(g_pSurfelAccelerationStructuresCS));
+	m_SurfelAccelerationPassPSO.Finalize();
 
 
     
@@ -1232,6 +1297,8 @@ void TestRenderer::RenderScene(
     // --- SURFEL PASS
     
 	ComputeContext& cfx = reinterpret_cast<ComputeContext&>(gfxContext);
+    SurfelFillAccelerationStructures(cfx);
+
     SurfelSetRootParameters(cfx);
     ReadbackSurfelData(gfxContext);
 

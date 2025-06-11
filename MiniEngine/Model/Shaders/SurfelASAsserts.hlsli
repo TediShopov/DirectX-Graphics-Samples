@@ -157,9 +157,9 @@ bool singleSufelExactlySizeOfCell_OneCellSOI()
 // Setup the test grid shared by the asserts
 void runAsserts(out bool  results[8],RWStructuredBuffer<uint> tb)
 {
-    testGrid.gridOrigin = float3(0, 0, 0);
-    testGrid.cellSize = float3(100,100,100);
-    testGrid.dimensions = float3(1000,1000,1000);
+    testGrid.gridOrigin = float4(0, 0, 0,0);
+    testGrid.cellSize = float4(100,100,100,100);
+    testGrid.dimensions = float4(1000,1000,1000,1000);
     cellDimesions = (uint3) floor(testGrid.dimensions / testGrid.cellSize);
 
     results[0] = singleSufelExactlySizeOfCell_3X3COI(tb);
