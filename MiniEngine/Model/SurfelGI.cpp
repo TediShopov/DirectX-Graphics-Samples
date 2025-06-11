@@ -23,8 +23,9 @@
 
 }
 
-  void SurfelGI::InitRootSignature(const DepthBuffer& g_SceneDepthBuffer, const ColorBuffer& g_SceneNormalBuffer)
+  void SurfelGI::InitRootSignature(GBufferPtrs gBuff)
 {
+	  m_GBuffer = gBuff;
 
 
 	m_ProjectoinBuffer.Create(L"Projectoin Data Buffer", 1, sizeof(ProjectionResources), &m_ProjectionData);
@@ -131,8 +132,8 @@
 
 	ExtendedUtility::CopyDescriptorsToHeap(srvHeap, {
 
-		g_SceneDepthBuffer.GetDepthSRV(),
-		g_SceneNormalBuffer.GetSRV(),
+		m_GBuffer.g_Depth->GetDepthSRV(),
+		m_GBuffer.g_Normal->GetSRV(),
 		m_SurfelData.GetUAV(),
 		m_SurfelList.GetUAV(),
 		m_SurfelGrid.GetUAV(),
@@ -153,15 +154,15 @@
 
 }
 
-  void SurfelGI::SpawnSurfels(ComputeContext& gfxContext, DepthBuffer& g_SceneDepthBuffer, ColorBuffer& g_SceneNormalBuffer, const Camera& camera)
+  void SurfelGI::SpawnSurfels(ComputeContext& gfxContext,  const Camera& camera)
 {
 
 	ScopedTimer _prof(L"Dispact Compute Shader", gfxContext);
 
 	//Transition resources from render target to CS 
 	//NON-PIXEL SHADER RESOURCE should cover the ComputeShader stage
-	gfxContext.TransitionResource(g_SceneDepthBuffer, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, false);
-	gfxContext.TransitionResource(g_SceneNormalBuffer, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, true);
+	gfxContext.TransitionResource(*m_GBuffer.g_Depth, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, false);
+	gfxContext.TransitionResource(*m_GBuffer.g_Normal, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, true);
 
 	//Switch to the appropriate PSO
 	gfxContext.SetPipelineState(m_SurfelGenerationPSO);
@@ -180,19 +181,19 @@
 	gfxContext.SetConstantBuffer(1, m_ProjectoinBuffer.GetGpuVirtualAddress());
 	gfxContext.SetDescriptorTable(2, srvHeap[0]);
 	gfxContext.SetDescriptorTable(3, srvHeap[2]);
-	gfxContext.Dispatch2D(g_SceneNormalBuffer.GetWidth(), g_SceneNormalBuffer.GetHeight());
+	gfxContext.Dispatch2D(m_GBuffer.g_Normal->GetWidth(), m_GBuffer.g_Normal->GetHeight());
 
 }
 
-  void SurfelGI::FillAccelerationStructures(ComputeContext& gfxContext, DepthBuffer& g_SceneDepthBuffer, ColorBuffer& g_SceneNormalBuffer)
+  void SurfelGI::FillAccelerationStructures(ComputeContext& gfxContext)
 {
 
 	ScopedTimer _prof(L"Disaptch Surfel Fill Acceleration Structures", gfxContext);
 
 	//Transition resources from render target to CS 
 	//NON-PIXEL SHADER RESOURCE should cover the ComputeShader stage
-	gfxContext.TransitionResource(g_SceneDepthBuffer, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, false);
-	gfxContext.TransitionResource(g_SceneNormalBuffer, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, true);
+	gfxContext.TransitionResource(*m_GBuffer.g_Depth, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, false);
+	gfxContext.TransitionResource(*m_GBuffer.g_Normal, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, true);
 
 	//Switch to the appropriate PSO
 	gfxContext.SetPipelineState(m_SurfelAccelerationPassPSO);

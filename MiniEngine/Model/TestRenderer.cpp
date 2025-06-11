@@ -277,10 +277,6 @@ void TestRenderer::Startup( Camera& Camera )
 
 
 	//--- DEMO PASS FOR GENERATING SURFEL WITH COMPUTE SHADER ---
-    SurfelIllumination->InitRootSignature(
-        g_SceneDepthBuffer,
-        g_SceneNormalBuffer
-    );
 
 
     
@@ -379,6 +375,9 @@ void TestRenderer::Startup( Camera& Camera )
 
     };
 
+    SurfelIllumination->InitRootSignature(
+        gbuffer
+    );
     GridVisualization->Setup(
         gbuffer,
         &TestRaytracing::GetOutputBuffer()
@@ -829,11 +828,9 @@ void TestRenderer::RenderScene(
     
 	ComputeContext& cfx = reinterpret_cast<ComputeContext&>(gfxContext);
 
-    SurfelIllumination->FillAccelerationStructures(cfx,
-        g_SceneDepthBuffer,g_SceneNormalBuffer);
+    SurfelIllumination->FillAccelerationStructures(cfx);
 
-    SurfelIllumination->SpawnSurfels(cfx,
-        g_SceneDepthBuffer,g_SceneNormalBuffer, camera);
+    SurfelIllumination->SpawnSurfels(cfx,camera);
 
     SurfelIllumination->ReadbackSurfelData(gfxContext);
 }

@@ -102,21 +102,13 @@ public:
 	std::vector<UINT> m_SurfelGridActual;
 	std::vector<UINT> m_SurfelStackActual;
 
+	GBufferPtrs m_GBuffer;
+
 	void UpdateProjectoin(const Camera& camera);
 
-	void InitRootSignature(
-		const DepthBuffer& g_SceneDepthBuffer,
-		const ColorBuffer& g_SceneNormalBuffer
-	);
-	void SpawnSurfels(ComputeContext& gfxContext,
-		DepthBuffer& g_SceneDepthBuffer,
-		ColorBuffer& g_SceneNormalBuffer,
-		const Camera& camera
-		);
-	void FillAccelerationStructures(ComputeContext& gfxContext,
-		 DepthBuffer& g_SceneDepthBuffer,
-		 ColorBuffer& g_SceneNormalBuffer
-		);
+	void InitRootSignature(GBufferPtrs gBuff);
+	void SpawnSurfels(ComputeContext& gfxContext,const Camera& camera);
+	void FillAccelerationStructures(ComputeContext& gfxContext);
 
 	void ReadbackSurfelData(GraphicsContext& gfx);
 
