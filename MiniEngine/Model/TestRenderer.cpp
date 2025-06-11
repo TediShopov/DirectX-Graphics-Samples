@@ -286,13 +286,14 @@ void TestRenderer::Startup( Camera& Camera )
     InitTestRootSignature();
     m_TestSpherePSO = m_DepthPSO;
     m_TestSpherePSO.SetBlendState(BlendDisable);
-    m_TestSpherePSO.SetDepthStencilState(DepthStateTestEqual);
+    //m_TestSpherePSO.SetDepthStencilState(DepthStateTestEqual);
     m_TestSpherePSO.SetRenderTargetFormats(2, formats, DepthFormat);
     m_TestSpherePSO.SetInputLayout(_countof(simpleVertElemnt), simpleVertElemnt);
     //--- CHANGE THE DEPTH STATE ALWAYS TO DRAW ON TOP OF GEOMETRY
-    m_TestSpherePSO.SetDepthStencilState(DepthStateDisabled);
+    //m_TestSpherePSO.SetDepthStencilState(DepthStateDisabled);
+    m_TestSpherePSO.SetDepthStencilState(DepthStateReadWrite);
     //--- THIS HAS TO BE SET TO UNKNOWN FORMAT TO CONFORM TO FRAMEWORK
-    m_TestSpherePSO.SetDepthTargetFormat(DXGI_FORMAT_UNKNOWN);
+    //m_TestSpherePSO.SetDepthTargetFormat(DXGI_FORMAT_UNKNOWN);
     //--- MAKE SURE THAT CULLING IS OFF AND BOTH SIDES ARE DRAWN
     m_TestSpherePSO.SetRasterizerState(RasterizerTwoSided);
 
