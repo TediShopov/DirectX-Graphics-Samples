@@ -60,59 +60,29 @@ public:
 	// --- DESCRIPTOR HEAR CONTAINING DEPTH BUFFER SRV ---
 	DescriptorHeap m_UHGTextures;
 
+	ColorBuffer* m_color;
+	ColorBuffer* m_normal;
+	DepthBuffer* m_depth;
 
-	void CreatePSO(GraphicsPSO Depth, DXGI_FORMAT formats[2], DXGI_FORMAT depthFormat)
-	{
-		D3D12_INPUT_ELEMENT_DESC colorElem[] =
-		{
-			{ "POSITION", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
-			{ "COLOR", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 16, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 }
-		};
+void Setup(ColorBuffer* color, ColorBuffer* normal, DepthBuffer* depth,ColorBuffer* rayTracingOutColor);
 
-		m_TestPSO = Depth;
-		//--- REPLACE THE ROOT SIGNATURE
-		m_TestPSO.SetRootSignature(m_UHGRootSignature);
-
-		m_TestPSO.SetBlendState(Graphics::BlendDisable);
-		m_TestPSO.SetDepthStencilState(Graphics::DepthStateTestEqual);
-		//m_TestPSO.SetRenderTargetFormats(2, formats, DepthFormat);
-		m_TestPSO.SetRenderTargetFormats(2, formats, depthFormat);
-		m_TestPSO.SetInputLayout(_countof(colorElem), colorElem);
-		//--- CHANGE THE DEPTH STATE ALWAYS TO DRAW ON TOP OF GEOMETRY
-		m_TestPSO.SetDepthStencilState(Graphics::DepthStateDisabled);
-		//--- THIS HAS TO BE SET TO UNKNOWN FORMAT TO CONFORM TO FRAMEWORK
-		m_TestPSO.SetDepthTargetFormat(DXGI_FORMAT_UNKNOWN);
-		//--- MAKE SURE THAT CULLING IS OFF AND BOTH SIDES ARE DRAWN
-		m_TestPSO.SetRasterizerState(Graphics::RasterizerTwoSided);
-
-		//-- CHANGE TO THE NEW SHADER FOR THE TRIANGLE
-		m_TestPSO.SetVertexShader(g_pSimpleColorVS, sizeof(g_pSimpleColorVS));
-		m_TestPSO.SetPixelShader(g_pSimpleColorPS, sizeof(g_pSimpleColorPS));
-
-		m_TestPSO.Finalize();
-
-	}
-	void CreateUHGRootSignature();
-
-	void CreateUHGDescriptorHeap(
-		const DepthBuffer& g_SceneDepthBuffer,
-		const ColorBuffer& rayTracingOutColor
-	);
-
-	void SetUHGRootParameters(GraphicsContext& gfxContext,
-		DepthBuffer& g_SceneDepthBuffer,
-		ColorBuffer& rayTracingOutColor,
-		const Camera& camera);
-
-
-	void UHGTriangleRender(GraphicsContext& gfxContext,
+	void SetupRenderStage(GraphicsContext& gfxContext,
 		const D3D12_VIEWPORT& viewport,
 		const D3D12_RECT& scissor,
-		ColorBuffer& sceneColor,
-		ColorBuffer& sceneNormal,
-		DepthBuffer& g_SceneDepthBuffer,
 		ColorBuffer& rayTracingOutColor,
 		const Math::Camera& camera);
+
+
+protected:
+	void InitializePSO( DXGI_FORMAT formats[2], DXGI_FORMAT depthFormat);
+	void InitializeRootSignature();
+
+	void InitializeDescriptorHeap(ColorBuffer* rayTracingOutColor);
+
+	void SetRootParameters(GraphicsContext& gfxContext,
+	ColorBuffer& rayTracingOutColor,
+		const Camera& camera);
+
 
 
 };

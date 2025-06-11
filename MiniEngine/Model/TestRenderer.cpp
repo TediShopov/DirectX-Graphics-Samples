@@ -188,6 +188,7 @@ void RenderSphereOnSurfels(GraphicsContext& gfxContext, const Matrix4& ViewProjM
 
 }
 
+
 void TestRenderer::Startup( Camera& Camera )
 {
     DXGI_FORMAT ColorFormat = g_SceneColorBuffer.GetFormat();
@@ -274,8 +275,6 @@ void TestRenderer::Startup( Camera& Camera )
     //InitTestRootSignature();
 
 
-    GridVisualization->CreateUHGRootSignature();
-    GridVisualization->CreatePSO(m_DepthPSO,formats,DepthFormat);
 
 	//--- DEMO PASS FOR GENERATING SURFEL WITH COMPUTE SHADER ---
     SurfelIllumination->InitRootSignature(
@@ -373,12 +372,13 @@ void TestRenderer::Startup( Camera& Camera )
 
     Lighting::CreateRandomLights(m_Model.GetBoundingBox().GetMin(), m_Model.GetBoundingBox().GetMax());
 
-
-    
-    GridVisualization->CreateUHGDescriptorHeap(
-        g_SceneDepthBuffer,
-        g_SceneNormalBuffer
+    GridVisualization->Setup(
+        &g_SceneColorBuffer,
+        &g_SceneNormalBuffer,
+        &g_SceneDepthBuffer,
+        &TestRaytracing::GetOutputBuffer()
     );
+
 
 
 }
@@ -791,10 +791,7 @@ void TestRenderer::RenderScene(
 
                 {
 					ScopedTimer _prof3(L"Render Triangle", gfxContext);
-					GridVisualization->UHGTriangleRender(gfxContext, viewport, scissor,
-						g_SceneColorBuffer,
-						g_SceneNormalBuffer,
-						g_SceneDepthBuffer,
+					GridVisualization->SetupRenderStage(gfxContext, viewport, scissor,
 						TestRaytracing::GetOutputBuffer(),
 						camera);
 					RenderTriangleObject(gfxContext);
