@@ -35,7 +35,6 @@ RWStructuredBuffer<uint> surfelGridUAV : register(u1);
 RWStructuredBuffer<uint> surlfeListUAV : register(u2); // Stored pointers (indices) to the appropriate surfel data
 //The first index of this structure is the stack pointer
 RWStructuredBuffer<uint> surfleStackUAV : register(u3); // Stored pointers (indices) to the appropriate surfel data
-
 groupshared uint groupShareMinCoverage;
 groupshared uint groupShareMaxContribution;
 
@@ -286,7 +285,7 @@ void main(
                 uint prevStackPointer;
                 InterlockedAdd(surfleStackUAV[0], 1, prevStackPointer);
                 uint surfelStackPointer = prevStackPointer + 2;
-                if(surfelStackPointer <= 500)
+                if(surfelStackPointer <= 10000)
                 {
                     uint surfelID = surfleStackUAV[surfelStackPointer];
                     float debugRad = 1;
@@ -295,6 +294,8 @@ void main(
                     newSurfel.normal = atNormal;
                     newSurfel.radius = debugRad;
                     newSurfel.padding = float3(0, 0, 0);
+                    newSurfel.tilePos = tilePos;
+                    newSurfel.pixelPos = pixelPos;
                     surfelsUAV[surfelID] = newSurfel;
                 }
                 else

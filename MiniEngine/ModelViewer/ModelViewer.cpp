@@ -33,6 +33,8 @@
 #include "ModelLoader.h"
 #include "ShadowCamera.h"
 #include "Display.h"
+#include "sstream"
+#include <iomanip>
 #include "TestRenderer.h"
 
 #define LEGACY_RENDERER
@@ -55,6 +57,7 @@ public:
 
     virtual void Update( float deltaT ) override;
     virtual void RenderScene( void ) override;
+    virtual void RenderUI(GraphicsContext& gfx) override;
 
     //Require hardware ray-tracing support
     bool RequiresRaytracingSupport() const override 
@@ -371,4 +374,60 @@ void ModelViewer::RenderScene( void )
         MotionBlur::RenderObjectBlur(gfxContext, g_VelocityBuffer);
 
     gfxContext.Finish();
+}
+
+void ModelViewer::RenderUI(GraphicsContext& gfx)
+{
+    //I am here
+    //GraphRenderer::RenderGraphs(Context, GraphRenderer::GraphType::Profile);
+
+    TextContext Text(gfx);
+    Text.Begin();
+
+    EngineProfiling::DisplayFrameRate(Text);
+    float x, y;
+
+    Text.ResetCursor( x, y );
+
+//    if (!sm_IsVisible)
+//    {
+//        EngineProfiling::Display(Text, x, y, w, h);
+//        return;
+//    }
+    float w = g_SceneColorBuffer.GetWidth();
+    float h = g_SceneColorBuffer.GetHeight();
+
+    
+    float s_ScrollTopTrigger = y + h * 0.2f;
+    float s_ScrollBottomTrigger = y + h * 0.8f;
+
+    float hScale = g_DisplayWidth / 1920.0f;
+    float vScale = g_DisplayHeight / 1080.0f;
+
+    gfx.SetScissor((uint32_t)Floor(x * hScale), (uint32_t)Floor(y * vScale), 
+        (uint32_t)Ceiling((x + w) * hScale), (uint32_t)Ceiling((y + h) * vScale));
+
+    //Text.ResetCursor(x, y - s_ScrollOffset );
+    Text.ResetCursor(x, y + h*0.8f);
+    Text.SetColor( Color(0.0f,1.0f,0.0f,1.0f) );
+    Text.SetTextSize(30.0f);
+
+    std::ostringstream oss;
+    oss << "Camera Position:" << "X:" <<
+        setw(1) <<  (float)m_Camera.GetPosition().GetX() << "Y:" <<
+        (float)m_Camera.GetPosition().GetY() << "Z:" <<
+        (float)m_Camera.GetPosition().GetZ() <<
+        ".";
+
+    Text.DrawString(oss.str());
+
+    //Text.DrawString("Engine Tuning\n");
+
+    //VariableGroup::sm_RootGroup.Display( Text, x, sm_SelectedVariable );
+    
+    //EngineProfiling::DisplayPerfGraph(Context);
+
+    Text.End();
+    gfx.SetScissor(0, 0, g_DisplayWidth, g_DisplayHeight);
+
 }

@@ -11,6 +11,7 @@
 #include "Renderer.h"
 #include "LightManager.h"
 #include "ReadbackBuffer.h"
+#include "Math/Vector.h"
 
 #include <initializer_list>
 
@@ -162,8 +163,10 @@ namespace TestRenderer
 		Vector4 position;
 		Vector4 normal;
 		Vector4 radius;
-		//float radius;
-        //Vector3 padding;
+        UINT tilePosX;
+        UINT tilePosY;
+        UINT pixelPosX;
+        UINT pixelPosY;
 	};
 	SurfelGenCB m_SurfelGen;
 	ByteAddressBuffer m_SufelSettingBuffer;
@@ -171,7 +174,7 @@ namespace TestRenderer
 
     int surfelGridCellCount;
 
-    const UINT _DEBUG_SURFEL_NUM = 500;
+    const UINT _DEBUG_SURFEL_NUM = 10000;
     const UINT _DEUBG_OUTPUT_STRING_SIZE = 256;
 
 	//Adapted from https://m4xc.dev/blog/surfel-maintenance/
@@ -296,6 +299,10 @@ namespace TestRenderer
                 Math::Vector4(float(i) * m_SurfelGen.UniformGrid.cellSize.GetX(), 0.0f, 0.0f,1.0f);
 			m_SurfelDataArray[i].radius = Math::Vector4(0.5f,0.5f,0.5f,0.5f);
 			m_SurfelDataArray[i].normal = Math::Vector4(0.0f, 1.0f, 0.0f,1.0f);
+			m_SurfelDataArray[i].pixelPosX = 0;
+			m_SurfelDataArray[i].pixelPosY = 0;
+			m_SurfelDataArray[i].tilePosX = 0;
+			m_SurfelDataArray[i].tilePosY = 0;
 		}
 
 
@@ -374,6 +381,26 @@ namespace TestRenderer
 
     }
 
+int GetClosestSurfelToPosition(Vector3 worldPos)
+{
+    float minDistSq = std::numeric_limits<float>::max();
+    int closestIndex = -1;
+
+    for (int i = 2; i < m_SurfelDataArray.size(); ++i)
+    {
+        const SurfelData& s = m_SurfelDataArray[i];
+        Vector3 diff = Vector3(s.position) - worldPos;
+        float distSq = Math::LengthSquare(diff);
+
+        if (distSq < minDistSq)
+        {
+            minDistSq = distSq;
+            closestIndex = i;
+        }
+    }
+
+    return closestIndex;
+}
 
 void RenderSphereOnSurfels(GraphicsContext& gfxContext, const Matrix4& ViewProjMat, const Vector3& viewerPos, eObjectFilter Filter)
 {
@@ -423,6 +450,8 @@ void RenderSphereOnSurfels(GraphicsContext& gfxContext, const Matrix4& ViewProjM
     }
     
 
+    //Vector3 explicitWorldPosition = (699.0f, 630.0f, 109.0f);
+    //int a = GetClosestSurfelToPosition(explicitWorldPosition);
 
     
     //--- Switch Back To Sponza model
@@ -430,9 +459,6 @@ void RenderSphereOnSurfels(GraphicsContext& gfxContext, const Matrix4& ViewProjM
 	gfxContext.SetVertexBuffer(0, m_Model.GetVertexBuffer());
 
 }
-
-
-
 
 
 
@@ -1178,7 +1204,7 @@ void TestRenderer::RenderScene(
                 }
                 RenderObjects( gfxContext, camera.GetViewProjMatrix(), camera.GetPosition(), TestRenderer::kOpaque );
 
-                UHGTriangleRender(gfxContext, viewport, scissor, camera);
+               UHGTriangleRender(gfxContext, viewport, scissor, camera);
 
 
 
