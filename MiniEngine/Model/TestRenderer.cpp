@@ -372,10 +372,15 @@ void TestRenderer::Startup( Camera& Camera )
 
     Lighting::CreateRandomLights(m_Model.GetBoundingBox().GetMin(), m_Model.GetBoundingBox().GetMax());
 
-    GridVisualization->Setup(
+    GBufferPtrs gbuffer{
         &g_SceneColorBuffer,
         &g_SceneNormalBuffer,
-        &g_SceneDepthBuffer,
+        &g_SceneDepthBuffer
+
+    };
+
+    GridVisualization->Setup(
+        gbuffer,
         &TestRaytracing::GetOutputBuffer()
     );
 

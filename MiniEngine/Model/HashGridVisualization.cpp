@@ -1,13 +1,11 @@
 #include "HashGridVisualization.h"
 
- void HashGridVisualization::Setup(ColorBuffer* color, ColorBuffer* normal, DepthBuffer* depth,ColorBuffer* rayTracingOutColor)
+ void HashGridVisualization::Setup(GBufferPtrs gbuffer,ColorBuffer* rayTracingOutColor)
 {
-	 m_color = color;
-	 m_depth = depth;
-	 m_normal = normal;
-	DXGI_FORMAT ColorFormat = color->GetFormat();
-	DXGI_FORMAT NormalFormat = normal->GetFormat();
-	DXGI_FORMAT DepthFormat = depth->GetFormat();
+	 m_GBuffer = gbuffer;
+	DXGI_FORMAT ColorFormat = m_GBuffer.g_Color->GetFormat();
+	DXGI_FORMAT NormalFormat = m_GBuffer.g_Normal->GetFormat();
+	DXGI_FORMAT DepthFormat = m_GBuffer.g_Depth->GetFormat();
 	DXGI_FORMAT formats[2] = { ColorFormat, NormalFormat };
 
 	InitializeRootSignature();
@@ -20,7 +18,7 @@
 void HashGridVisualization::InitializePSO(DXGI_FORMAT formats[2], DXGI_FORMAT depthFormat)
 {
 
-    //m_DepthPSO.SetVertexShader(g_pDepthViewerVS, sizeof(g_pDepthViewerVS));
+    //m_GBuffer.g_DepthPSO.SetVertexShader(g_pDepthViewerVS, sizeof(g_pDepthViewerVS));
 
 	D3D12_INPUT_ELEMENT_DESC colorElem[] =
 	{
@@ -84,7 +82,7 @@ void HashGridVisualization::InitializeDescriptorHeap(ColorBuffer* rayTracingOutC
 	ExtendedUtility::CopyDescriptorsToHeap(
 		m_UHGTextures,
 		{
-			(*m_depth).GetDepthSRV(),
+			(*m_GBuffer.g_Depth).GetDepthSRV(),
 			rayTracingOutColor->GetSRV()
 		},
 		D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV
@@ -94,7 +92,7 @@ void HashGridVisualization::InitializeDescriptorHeap(ColorBuffer* rayTracingOutC
   void HashGridVisualization::SetRootParameters(GraphicsContext& gfxContext,  ColorBuffer& rayTracingOutColor, const Camera& camera)
 {
 	// --- TRANSITON THE DEPTH BUFFER TO BE READABLE BY THE SHADER
-	gfxContext.TransitionResource((*m_depth), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, false);
+	gfxContext.TransitionResource((*m_GBuffer.g_Depth), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, false);
 	gfxContext.TransitionResource(rayTracingOutColor, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, false);
 
 	//--- SET THE HEAP CONTAINING ALL THE TEXTURES
@@ -131,7 +129,7 @@ void HashGridVisualization::InitializeDescriptorHeap(ColorBuffer* rayTracingOutC
 
 		SetRootParameters(gfxContext, rayTracingOutColor, camera);
 
-		D3D12_CPU_DESCRIPTOR_HANDLE rtvs[]{ m_color->GetRTV(), m_normal->GetRTV() };
+		D3D12_CPU_DESCRIPTOR_HANDLE rtvs[]{ m_GBuffer.g_Color->GetRTV(), m_GBuffer.g_Normal->GetRTV() };
 
 		gfxContext.SetRenderTargets(ARRAYSIZE(rtvs), rtvs);
 

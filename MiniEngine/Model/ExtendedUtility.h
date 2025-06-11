@@ -5,6 +5,13 @@
 #include "BufferManager.h"
 
 #include <initializer_list>
+struct GBufferPtrs
+{
+	ColorBuffer* g_Color;
+	ColorBuffer* g_Normal;
+	DepthBuffer* g_Depth;
+
+};
 
 class ExtendedUtility
 {

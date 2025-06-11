@@ -50,21 +50,19 @@ public:
 		float depthNear;
 		float depthFar;
 	};
+
+
+	RootSignature m_UHGRootSignature;
+
 	UHGProjectionResources m_projectionData;
 	ByteAddressBuffer m_projectionBuffer;
-
-
-	// --- DESCRIPTOR HEAR CONTAINING DEPTH BUFFER SRV ---
-	RootSignature m_UHGRootSignature;
 
 	// --- DESCRIPTOR HEAR CONTAINING DEPTH BUFFER SRV ---
 	DescriptorHeap m_UHGTextures;
 
-	ColorBuffer* m_color;
-	ColorBuffer* m_normal;
-	DepthBuffer* m_depth;
+	GBufferPtrs m_GBuffer;
 
-void Setup(ColorBuffer* color, ColorBuffer* normal, DepthBuffer* depth,ColorBuffer* rayTracingOutColor);
+void Setup(GBufferPtrs gbuffer,ColorBuffer* rayTracingOutColor);
 
 	void SetupRenderStage(GraphicsContext& gfxContext,
 		const D3D12_VIEWPORT& viewport,
