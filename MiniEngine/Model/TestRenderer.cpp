@@ -58,6 +58,7 @@ namespace TestRenderer
 
 
 	SphereMesh* TestRenderer::m_Sphere = nullptr;
+	DiscMesh* TestRenderer::m_Disc = nullptr;
 	Transform TestRenderer::m_Transform = Transform();
 
 
@@ -129,6 +130,38 @@ namespace TestRenderer
 	ByteAddressBuffer projectionBuffer;
 
 
+XMVECTOR GetRotationQuaternionFromUpToDirection(FXMVECTOR targetDirection)
+{
+    const XMVECTOR up = XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f); // original surfel normal
+    XMVECTOR dir = XMVector3Normalize(targetDirection);
+
+    float dot = XMVectorGetX(XMVector3Dot(up, dir));
+
+    // Case 1: Vectors are already aligned
+    if (dot > 0.9999f)
+    {
+        return XMQuaternionIdentity();
+    }
+
+    // Case 2: Vectors are opposite
+    if (dot < -0.9999f)
+    {
+        // Pick an arbitrary perpendicular axis to rotate 180 degrees
+        XMVECTOR axis = XMVector3Cross(up, XMVectorSet(1.0f, 0.0f, 0.0f, 0.0f));
+        if (XMVector3LengthSq(axis).m128_f32[0] < 1e-6f)
+        {
+            axis = XMVector3Cross(up, XMVectorSet(0.0f, 0.0f, 1.0f, 0.0f));
+        }
+        axis = XMVector3Normalize(axis);
+        return XMQuaternionRotationAxis(axis, XM_PI);
+    }
+
+    // General case: shortest arc quaternion between up and direction
+    XMVECTOR axis = XMVector3Cross(up, dir);
+    float angle = acosf(dot); // angle between vectors
+    return XMQuaternionRotationAxis(axis, angle);
+}
+
 void RenderSphereOnSurfels(GraphicsContext& gfxContext, const Matrix4& ViewProjMat, const Vector3& viewerPos, eObjectFilter Filter)
 {
 
@@ -154,8 +187,10 @@ void RenderSphereOnSurfels(GraphicsContext& gfxContext, const Matrix4& ViewProjM
     //uint32_t VertexStride = m_Model.GetVertexStride();
 	const UINT vertexBufferSize = sizeof(triangleVertices);
     //---TEMPORARILY switch index and vertex buffers
-	gfxContext.SetIndexBuffer(m_Sphere->m_IndexBufferView);
-	gfxContext.SetVertexBuffer(0, m_Sphere->m_VertexBufferView);
+//	gfxContext.SetIndexBuffer(m_Sphere->m_IndexBufferView);
+//	gfxContext.SetVertexBuffer(0, m_Sphere->m_VertexBufferView);
+	gfxContext.SetIndexBuffer(m_Disc->m_IndexBufferView);
+	gfxContext.SetVertexBuffer(0, m_Disc->m_VertexBufferView);
 
 
     for each (SurfelData s in SurfelIllumination->m_SurfelDataArray)
@@ -163,16 +198,27 @@ void RenderSphereOnSurfels(GraphicsContext& gfxContext, const Matrix4& ViewProjM
 
         Transform t;
         t.setPosition(s.position);
-        Vector4 normalScaled = s.normal;
-        normalScaled *= 5;
-        
-        t.setScale(normalScaled.GetX(),normalScaled.GetY(),normalScaled.GetZ());
-		vsConstants.modelToWorld = Matrix4(t.getTransformMatrix());
-		XMStoreFloat3(&vsConstants.viewerPos, viewerPos);
+//        Vector4 normalScaled = s.normal;
+//        normalScaled *= 5;
+//        
+//        t.setScale(normalScaled.GetX(),normalScaled.GetY(),normalScaled.GetZ());
+        if (XMVector4Length(s.normal).m128_f32[0] > 0.001f)
+        {
+			Vector4 quat = Vector4(GetRotationQuaternionFromUpToDirection(s.normal));
+			t.setQuaternion(quat.GetX(), quat.GetY(), quat.GetZ(), quat.GetW());
+			t.setComposeRotationFromQuaternions(true);
 
-		gfxContext.SetDynamicConstantBufferView(Renderer::kMeshConstants, sizeof(vsConstants), &vsConstants);
-		//--- Draw three indices of the triangle
-		gfxContext.DrawIndexed(m_Sphere->m_Indices.size(), 0, 0);
+			t.setScale(s.radius.GetX(),s.radius.GetX(),s.radius.GetX());
+
+
+			vsConstants.modelToWorld = Matrix4(t.getTransformMatrix());
+			XMStoreFloat3(&vsConstants.viewerPos, viewerPos);
+
+			gfxContext.SetDynamicConstantBufferView(Renderer::kMeshConstants, sizeof(vsConstants), &vsConstants);
+			//--- Draw three indices of the triangle
+			gfxContext.DrawIndexed(m_Sphere->m_Indices.size(), 0, 0);
+
+        }
 
     }
     
@@ -308,6 +354,7 @@ void TestRenderer::Startup( Camera& Camera )
     ASSERT(m_Model.GetMeshCount() > 0, "Model contains no meshes");
     InitTriangleModel();
     InitSphereModel();
+    m_Disc = new DiscMesh(10);
 
     // The caller of this function can override which materials are considered cutouts
     m_pMaterialIsCutout.resize(m_Model.GetMaterialCount());

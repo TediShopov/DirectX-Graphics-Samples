@@ -11,17 +11,11 @@
 #include "GpuBuffer.h"
 #include <DirectXMath.h>
 #include <vector>
+#include "BaseMesh.h"
 
 using namespace DirectX;
 
-struct VertexType
-{
-	XMFLOAT3 position;
-	XMFLOAT2 texture;
-	XMFLOAT3 normal;
-};
 
-using namespace DirectX;
 
 class SphereMesh 
 //	: public BaseMesh

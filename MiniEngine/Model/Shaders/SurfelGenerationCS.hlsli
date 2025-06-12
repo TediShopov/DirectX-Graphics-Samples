@@ -95,6 +95,29 @@ float RemapFloat(float value, float inMin, float inMax, float outMin, float outM
     return outMin + normalized * (outMax - outMin);
 }
 
+//float calcProjectArea(float radius, float distance, float fovy, uint2 resolution)
+//{
+//    float projRadius = atan(radius / distance) * max(resolution.x, resolution.y) / fovy;
+//    return M_PI * projRadius * projRadius;
+//}
+//
+//float calcRadiusApprox(float area, float distance, float fovy, uint2 resolution)
+//{
+//    return distance * tan(sqrt(area / M_PI) * fovy / max(resolution.x, resolution.y));
+//}
+//
+//float calcRadius(float area, float distance, float fovy, uint2 resolution)
+//{
+//    float cosTheta = 1 - (area * (1 - cos(fovy / 2)) / M_PI) / (resolution.x * resolution.y);
+//    float sinTheta = sqrt(1 - pow(cosTheta, 2));
+//    return distance * sinTheta;
+//}
+//
+//float calcSurfelRadius(float distance, float fovy, uint2 resolution, float area, float cellUnit)
+//{
+//    return min(calcRadiusApprox(area, distance, fovy, resolution), cellUnit * 2);
+//}
+
 
 [numthreads(16, 16, 1)]
 void main(
@@ -315,6 +338,7 @@ void main(
     float gChanceMultiply = 15;
 
     
+    float linearDepth = LinearizeDepth(depthRaw, depthNear, depthFar);
     float normalizedDepth = RemapFloat(LinearizeDepth(depthRaw, depthNear, depthFar), depthNear, depthFar, 0, 1);
     
     
@@ -341,7 +365,7 @@ void main(
                     if (surfelStackPointer <= 1000)
                     {
                         uint surfelID = surfleStackUAV[surfelStackPointer];
-                        float debugRad = 1;
+                        float debugRad = 15;
                         SurfelData newSurfel;
                         newSurfel.position = float4(worldPos, 1);
                         newSurfel.normal = atNormal;
@@ -353,6 +377,8 @@ void main(
                         newSurfel.randomValues.z = 5;
                         newSurfel.randomValues.w = RandomUintInRange(threadRandomnessSeed, 0, 255);
 
+                        //float varRadius = calcSurfelRadius(linearDepth,fo)I
+
                         //newSurfel.randomValues.z = threadRandomnessSeed;
                         surfelsUAV[surfelID] = newSurfel;
                     }
@@ -361,13 +387,6 @@ void main(
                         InterlockedAdd(surfleStackUAV[0], -1);
                     }
                 }
-//                float varRadius = calcSurfelRadius(
-//                                distance(gScene.camera.getPosition(), v.posW),
-//                                gFOVy,
-//                                gResolution,
-//                                kSurfelTargetArea,
-//                                kCellUnit
-//                            );
             }
         }
     }

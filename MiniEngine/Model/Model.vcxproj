@@ -73,6 +73,7 @@
     <ClInclude Include="ConstantBuffers.h" />
     <ClInclude Include="ExtendedUtility.h" />
     <ClInclude Include="Geometry\BaseMesh.h" />
+    <ClInclude Include="Geometry\DiscMesh.h" />
     <ClInclude Include="Geometry\Mesh.h" />
     <ClInclude Include="Geometry\MeshInstance.h" />
     <ClInclude Include="Geometry\Observer.h" />
@@ -107,6 +108,7 @@
     <ClCompile Include="BuildH3D.cpp" />
     <ClCompile Include="ExtendedUtility.cpp" />
     <ClCompile Include="Geometry\BaseMesh.cpp" />
+    <ClCompile Include="Geometry\DiscMesh.cpp" />
     <ClCompile Include="Geometry\Mesh.cpp" />
     <ClCompile Include="Geometry\MeshInstance.cpp" />
     <ClCompile Include="Geometry\Observer.cpp" />

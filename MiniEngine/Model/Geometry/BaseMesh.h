@@ -1,4 +1,19 @@
+
+#pragma once
+#include "GpuBuffer.h"
+#include <DirectXMath.h>
+#include <vector>
+
+struct VertexType
+{
+	XMFLOAT3 position;
+	XMFLOAT2 texture;
+	XMFLOAT3 normal;
+};
+
+
 ///**
+
 //* \class Base Mesh
 //*
 //* \brief The parent for all mesh objects. Provides default functionality.

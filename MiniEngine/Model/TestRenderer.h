@@ -3,6 +3,7 @@
 //#include "SerializableMesh.h"
 //#include "MeshInstance.h"
 #include "Geometry/SphereMesh.h"
+#include "Geometry/DiscMesh.h"
 #include "Geometry/Transform.h"
 
 
@@ -46,6 +47,7 @@ namespace TestRenderer
 	//std::unordered_map<std::wstring, SphereMesh> m_SphereMeshes;
 	//std::vector<SphereMesh*> m_SphereMeshes;
 	extern SphereMesh* m_Sphere;
+	extern DiscMesh* m_Disc;
 	extern Transform m_Transform;
 	//std::vector<MeshInstance*> m_meshes;
 
