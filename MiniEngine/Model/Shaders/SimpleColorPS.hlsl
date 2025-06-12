@@ -1,77 +1,42 @@
 
 #include "Common.hlsli"
+#include "SurfelASAsserts.hlsli"
 struct PSInput
 {
     float4 position : SV_POSITION;
     float4 color : COLOR;
 };
 
-cbuffer ProjectionData : register(b0)
+
+cbuffer SurfelGenCB : register(b0)
+{
+    uint   FrameIndex;
+    float  DepthThreshold;
+    float  NormalThreshold;
+    float  ViewDistThreshold;
+    uint   MaxSurfels;
+    uint3   padding;
+    UniformGrid Grid;
+};
+
+cbuffer ProjectionData : register(b1)
 {
     matrix invViewProjectionMatrix;
     float depthNear;
     float depthFar;
 }
 
+// G-buffer input textures
+Texture2D<float4> gDepth : register(t0); // RGB = world pos
+Texture2D<float4> gNormal   : register(t1); // RGB = world normal
 
-Texture2D<float4> depthResource   : register(t0);
-Texture2D<float4> rayOutput   : register(t1);
-
-
-uint3 ComputeGridIndex(float3 position,float3 gridOrigin,float3 cellSize) {
-
-    //return uint3(floor(((position - gridOrigin), cellSize)));
-    float3 relative = position - gridOrigin;
-    uint3 res;
-    return (uint3)floor(relative / cellSize);
-    res.x = (uint) floor(relative.x / cellSize.x);
-    res.y = (uint) floor(relative.y / cellSize.y);
-    res.z = (uint) floor(relative.z / cellSize.z);
-    return res;
-}
-
-
-
-uint HashGridIndex(uint3 gridIdx, uint3 cellSize) {
-    return gridIdx.x  +
-           gridIdx.y * cellSize.x   +
-           gridIdx.z * cellSize.x * cellSize.y ;
-}
-
-uint UniqueHashGridIndex(uint3 gridIdx, uint3 cellSize) {
-    const uint p1 = 73856093;
-    const uint p2 = 19349663;
-    const uint p3 = 83492791;
-    return (gridIdx.x * p1) ^ (gridIdx.y * p2) ^ (gridIdx.z * p3);
-}
-
-
-
-float3 ReconstructWorldPosition(float2 uv, float depth, float4x4 invViewProj)
-{
-    float4 ndc;
-    // Convert from UV to NDC [-1, 1]
-    ndc.xy = uv * 2.0 - 1.0;
-    // For some reason Y has to be flipped
-    ndc.y = -ndc.y;
-    // Using Raw Depth
-    ndc.z =  depth;
-    ndc.w = 1.0;
-    float4 worldPos = mul( invViewProj,ndc);
-    return worldPos.xyz / worldPos.w;
-}
-
-float LinearizeDepth(float z, float nearZ, float farZ)
-{
-    return (nearZ * farZ) / (farZ - z * (farZ - nearZ));
-}
-
-float RemapFloat(float value, float inMin, float inMax, float outMin, float outMax)
-{
-    float normalized = (value - inMin) / (inMax - inMin);
-    normalized = saturate(normalized);
-    return outMin + normalized * (outMax - outMin);
-}
+RWStructuredBuffer<SurfelData> surfelsUAV : register(u0); // world position
+RWStructuredBuffer<uint> surlfeListUAV : register(u1); // Stored pointers (indices) to the appropriate surfel data
+// Stored pointer to a range of surfle IDs 
+// SurfelList[from SurfelGrid[i] to SurfelGrid[i+1]] is all the surfel that occupy a cell with index I
+RWStructuredBuffer<uint> surfelGridUAV : register(u2); 
+//The first index of this structure is the stack pointer
+RWStructuredBuffer<uint> surfleStackUAV : register(u3); // Stored pointers (indices) to the appropriate surfel data
 
 static const float4 ColorArray[16] = {
     float4(0.0, 0.0, 0.0, 1.0),     // Black
@@ -95,21 +60,35 @@ static const float4 ColorArray[16] = {
 
 float4 main(PSInput input) : SV_TARGET
 {
-    float2 uv;
-    //TEMPORARY RESOLUTION TO USE PIXEL POSITION FROM RAYTRACE OUTPUT
-    uv.x = input.position.x / 1920;
-    uv.y = input.position.y / 1080;
-    float4 res3 = rayOutput.Sample(defaultSampler, uv);
-        
-    float4 depthRaw = depthResource.Sample(defaultSampler, uv);
+    uint2 gRes;
+    uint numberOfLevels;
+    gDepth.GetDimensions(0, gRes.x, gRes.y, numberOfLevels);
+
+    float2 uv = input.position.xy / gRes; 
+    //uv.y = 1.0f - uv.y;
+
+    //Reconstruct world position
+    float4 depthRaw = gDepth.Sample(defaultSampler, uv);
     float depthRange = 0.005;
-    float3 worldPos = ReconstructWorldPosition(uv,depthRaw.x,invViewProjectionMatrix);
+    float3 worldPos = ReconstructWorldPosition(uv, depthRaw.x, invViewProjectionMatrix);
+
+    //Compute cell indices
+    uint3 cellIndex = ComputeGridIndex(worldPos, Grid.gridOrigin,Grid.cellSize);
+    uint flattenedIndex = HashGridIndex(cellIndex, Grid);
+
+    uint numStructs, stride;
+    surfelGridUAV.GetDimensions(numStructs, stride);
+    if ((flattenedIndex + 1) >= numStructs)
+        return float4(0, 0, 1, 1); // Debug blue
+
+    uint surfelIdFrom = surfelGridUAV[flattenedIndex];
+    uint surfelIdTo = surfelGridUAV[flattenedIndex + 1];
+    uint surfelCount = surfelIdTo - surfelIdFrom;
+
+    float redValue = saturate(RemapFloat(surfelCount, 0, 20, 0, 1));
+    float4 colorBasedOnSurfelCount = float4(redValue, 1-redValue, 0, 1);
+    return colorBasedOnSurfelCount;
     
-    float3 gridOrigin= float3(-2000, -2000, -2000);
-    float cellSizeDim = 50;
-    float3 cellSize= float3(cellSizeDim,cellSizeDim,cellSizeDim);
-    uint3 index = ComputeGridIndex(worldPos, gridOrigin, cellSize);
-    uint indexAll = UniqueHashGridIndex(index, cellSize);
-    float4 finalColor = ColorArray[indexAll % 16];
+    float4 finalColor = colorBasedOnSurfelCount;
     return finalColor;
 }

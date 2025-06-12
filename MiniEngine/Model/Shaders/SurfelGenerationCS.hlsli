@@ -38,62 +38,7 @@ RWStructuredBuffer<uint> surfleStackUAV : register(u3); // Stored pointers (indi
 groupshared uint groupShareMinCoverage;
 groupshared uint groupShareMaxContribution;
 
-float3 ReconstructWorldPosition(float2 uv, float depth, float4x4 invViewProj)
-{
-    float4 ndc;
-    // Convert from UV to NDC [-1, 1]
-    ndc.xy = uv * 2.0 - 1.0;
-    // For some reason Y has to be flipped
-    ndc.y = -ndc.y;
-    // Using Raw Depth
-    ndc.z =  depth;
-    ndc.w = 1.0;
-    float4 worldPos = mul( invViewProj,ndc);
-    return worldPos.xyz / worldPos.w;
-}
 
-uint Hash(uint x)
-{
-    x ^= x >> 17;
-    x *= 0xed5ad4bb;
-    x ^= x >> 11;
-    x *= 0xac4c1b51;
-    x ^= x >> 15;
-    x *= 0x31848bab;
-    x ^= x >> 14;
-    return x;
-}
-
-uint RandomUintInRange(inout uint seed, uint minVal, uint maxVal)
-{
-    uint range = maxVal - minVal;
-    seed += 100;
-    return minVal + (Hash(seed) % range);
-}
-float RandomFloat01(inout uint seed)
-{
-    seed += 100;
-    return (float)(Hash(seed) & 0xFFFFFF) / 16777216.0f; // 2^24
-}
-
-uint GetThreadTemporalSeed(uint3 dispatchThreadID)
-{
-    uint seed = dispatchThreadID.x * 73856093 ^ dispatchThreadID.y * 19349663 ^ dispatchThreadID.z * 83492791;
-    seed ^= (FrameIndex + 1) * 2654435761; // +1 prevents seed staying zero on frame 0
-    return seed;
-}
-
-float LinearizeDepth(float z, float nearZ, float farZ)
-{
-    return (nearZ * farZ) / (farZ - z * (farZ - nearZ));
-}
-
-float RemapFloat(float value, float inMin, float inMax, float outMin, float outMax)
-{
-    float normalized = (value - inMin) / (inMax - inMin);
-    normalized = saturate(normalized);
-    return outMin + normalized * (outMax - outMin);
-}
 
 //float calcProjectArea(float radius, float distance, float fovy, uint2 resolution)
 //{
@@ -153,7 +98,7 @@ void main(
     uint2 tilePos = groupdId.xy;
     uint2 pixelPos = dispatchThreadId.xy;
 
-    uint threadRandomnessSeed = GetThreadTemporalSeed(dispatchThreadId);
+    uint threadRandomnessSeed = GetThreadTemporalSeed(dispatchThreadId,FrameIndex);
 
 
     int index = pixelPos.x * gResolution.x + pixelPos.y;
@@ -168,13 +113,9 @@ void main(
     //Find cell in acceleratoin structure
 
 
-    //Setting up test grid data
-    float3 gridOrigin = float3(-2000, -2000, -2000);
-    float cellSizeDim = 50;
-    float3 cellSize = float3(cellSizeDim, cellSizeDim, cellSizeDim);
 
     //Compute cell indices
-    uint3 cellIndex = ComputeGridIndex(worldPos, gridOrigin, cellSize);
+    uint3 cellIndex = ComputeGridIndex(worldPos, Grid.gridOrigin, Grid.cellSize);
     uint flattenedIndex = HashGridIndex(cellIndex, Grid);
 
     uint surfelIdFrom = surfelGridUAV[flattenedIndex];
@@ -186,7 +127,7 @@ void main(
      // Evaluate min coverage value and pixel position.
     // Also evaluate max contribution and surfel index (for handling over-coverage).
     // Also evalute weighted color output (indrect lighting).
-    float4 indirectLighting = float4(0,0,0,1);
+    float4 indirectLighting = float4(0, 0, 0, 1);
     if (true)
     {
         // Other surfel heuristics
@@ -208,7 +149,8 @@ void main(
         //In this case is the uniform grid
         for (uint i = surfelIdFrom; i < surfelIdTo; ++i)
         {
-            uint surfelIndex = surlfeListUAV[index];
+            //uint surfelIndex = surlfeListUAV[index];
+            uint surfelIndex = surlfeListUAV[i];
             SurfelData surfel = surfelsUAV[surfelIndex];
 
             //Bias is relative position from surfel world to the current reconstructed world 
@@ -315,9 +257,9 @@ void main(
     
     uint coverageData = groupShareMinCoverage;
     
-    uint x  =  coverageData & 0xF;            // bits 0–3
+    uint x = coverageData & 0xF; // bits 0–3
     uint y = (coverageData >> 4) & 0xF; // bits 4–7
-    uint rndThreshold   = (coverageData >> 8) & 0xFF;     // bits 8–15
+    uint rndThreshold = (coverageData >> 8) & 0xFF; // bits 8–15
     uint coverage = f16tof32((coverageData >> 16) & 0xFFFF); // bits 16–31
 
 
@@ -336,6 +278,7 @@ void main(
     
     float gChancePower = 2;
     float gChanceMultiply = 15;
+     gChanceMultiply = 50;
 
     
     float linearDepth = LinearizeDepth(depthRaw, depthNear, depthFar);
@@ -353,7 +296,7 @@ void main(
                 float chanceSpawn = pow(depthRaw, gChancePower) * gChanceMultiply;
                 float changeAgainst = RandomFloat01(threadRandomnessSeed);
 
-                if(changeAgainst < chanceSpawn )
+                if (changeAgainst < chanceSpawn)
                 //if( chanceSpawn<  changeAgainst)
                 {
                     
@@ -392,36 +335,48 @@ void main(
     }
 
         //--SURFEL TO DESTROY --
-//        if (cellInfo.surfelCount > 0)
-//        {
-//            if (groupThreadID.x == x && groupThreadID.y == y)
-//            {
-//            // If coverage is upper removal threshold,
-//            // remove surfel that most contribute to coverage probabilistically.
-//                if (coverage > gRemovalThreshold)
-//                {
-//                    const float chance = pow(depth, gChancePower);
-//                    if (randomState.next_float() < chance * gChanceMultiply)
-//                    {
-//                        uint contributionData = groupShareMaxContribution;
-//                        float maxContribution = f16tof32((contributionData & 0xFFFF0000) >> 16);
-//                        uint maxContributionSurfelIndex = (contributionData & 0x0000FFFF) >> 0;
-//
-//                        uint toDestroySurfelIndex = gCellToSurfelBuffer[cellInfo.cellToSurfelBufferOffset + maxContributionSurfelIndex];
-//                        Surfel toDestroySurfel = gSurfelBuffer[toDestroySurfelIndex];
-//
-//                        toDestroySurfel.radius = 0;
-//                        gSurfelBuffer[toDestroySurfelIndex] = toDestroySurfel;
-//                    }
-//                }
-//            }
-//        }
+    if (surfelCount > 0)
+    {
+        if (groupThreadID.x == x && groupThreadID.y == y)
+        {
+            // If coverage is upper removal threshold,
+            // remove surfel that most contribute to coverage probabilistically.
+            if (coverage > gRemovalThreshold)
+            {
 
-    
-    
+                float chanceRemove = pow(depthRaw, gChancePower) * gChanceMultiply;
+                float changeAgainst = RandomFloat01(threadRandomnessSeed);
+                if (changeAgainst < chanceRemove)
+                {
+                    uint contributionData = groupShareMaxContribution;
+                    float maxContribution = f16tof32((contributionData & 0xFFFF0000) >> 16);
+                    uint maxContributionSurfelIndex = (contributionData & 0x0000FFFF) >> 0;
 
-        GroupMemoryBarrierWithGroupSync();
+                    
+
+                    uint toDestroySurfelIndex = surlfeListUAV[maxContributionSurfelIndex];
+                    surfelsUAV[toDestroySurfelIndex].radius = 0;
+
+                    //Decrement surfel stack pointer by one 
+                    uint orig;
+                    InterlockedAdd(surfleStackUAV[0], -1, orig);
+                    surfleStackUAV[orig] = toDestroySurfelIndex;
+
+                    
+                     
+
+                    
+
+                }
+            }
+        }
     }
+
+    
+    
+
+    GroupMemoryBarrierWithGroupSync();
+}
 
 
 

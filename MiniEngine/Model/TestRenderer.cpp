@@ -113,7 +113,7 @@ namespace TestRenderer
 		// Define the geometry for a triangle.
 		//const float m_triDepthValue = 1.0f;
 	const float m_triDepthValue = 0.1f;
-	 float _TRI_SCALE = 0.1f;
+	 float _TRI_SCALE = 0.6f;
 	ColorVertex triangleVertices[3] =
 	{
 		{ { 0.0f, _TRI_SCALE * m_aspectRatio, m_triDepthValue,1}, { 1.0f, 0.0f, 0.0f, 1.0f } },
@@ -216,7 +216,7 @@ void RenderSphereOnSurfels(GraphicsContext& gfxContext, const Matrix4& ViewProjM
 
 			gfxContext.SetDynamicConstantBufferView(Renderer::kMeshConstants, sizeof(vsConstants), &vsConstants);
 			//--- Draw three indices of the triangle
-			gfxContext.DrawIndexed(m_Sphere->m_Indices.size(), 0, 0);
+			gfxContext.DrawIndexed(m_Disc->m_Indices.size(), 0, 0);
 
         }
 
@@ -336,10 +336,10 @@ void TestRenderer::Startup( Camera& Camera )
     m_TestSpherePSO.SetRenderTargetFormats(2, formats, DepthFormat);
     m_TestSpherePSO.SetInputLayout(_countof(simpleVertElemnt), simpleVertElemnt);
     //--- CHANGE THE DEPTH STATE ALWAYS TO DRAW ON TOP OF GEOMETRY
-    m_TestSpherePSO.SetDepthStencilState(DepthStateDisabled);
-    //m_TestSpherePSO.SetDepthStencilState(DepthStateReadWrite);
+    //m_TestSpherePSO.SetDepthStencilState(DepthStateDisabled);
+    m_TestSpherePSO.SetDepthStencilState(DepthStateReadWrite);
     //--- THIS HAS TO BE SET TO UNKNOWN FORMAT TO CONFORM TO FRAMEWORK
-    m_TestSpherePSO.SetDepthTargetFormat(DXGI_FORMAT_UNKNOWN);
+    //m_TestSpherePSO.SetDepthTargetFormat(DXGI_FORMAT_UNKNOWN);
     //--- MAKE SURE THAT CULLING IS OFF AND BOTH SIDES ARE DRAWN
     m_TestSpherePSO.SetRasterizerState(RasterizerTwoSided);
 
@@ -812,29 +812,34 @@ void TestRenderer::RenderScene(
                 }
                 RenderObjects( gfxContext, camera.GetViewProjMatrix(), camera.GetPosition(), TestRenderer::kOpaque );
 
+
+                {
+                    ScopedTimer _prof3(L"Render Sphere", gfxContext);
+                    gfxContext.SetPipelineState(m_TestSpherePSO);
+                    gfxContext.SetRootSignature(m_TestSpherePSO.GetRootSignature());
+                    gfxContext.TransitionResource(g_SceneColorBuffer, D3D12_RESOURCE_STATE_RENDER_TARGET);
+                    gfxContext.TransitionResource(g_SceneNormalBuffer, D3D12_RESOURCE_STATE_RENDER_TARGET);
+                    gfxContext.TransitionResource(g_SceneDepthBuffer, D3D12_RESOURCE_STATE_DEPTH_READ);
+                    D3D12_CPU_DESCRIPTOR_HANDLE rtvs[]{ g_SceneColorBuffer.GetRTV(), g_SceneNormalBuffer.GetRTV() };
+                    gfxContext.SetRenderTargets(ARRAYSIZE(rtvs), rtvs, g_SceneDepthBuffer.GetDSV_DepthReadOnly());
+                    gfxContext.SetViewportAndScissor(viewport, scissor);
+					RenderSphereObject(gfxContext, camera.GetViewProjMatrix(), camera.GetPosition(), TestRenderer::kOpaque);
+					RenderSphereOnSurfels(gfxContext, camera.GetViewProjMatrix(), camera.GetPosition(), TestRenderer::kOpaque);
+                    int a = 3;
+                }
+
                 {
 					ScopedTimer _prof3(L"Render Triangle", gfxContext);
 					GridVisualization->SetupRenderStage(gfxContext, viewport, scissor,
 						TestRaytracing::GetOutputBuffer(),
 						camera);
+                    SurfelIllumination->SendParametersGraphics(gfxContext, camera);
 					RenderTriangleObject(gfxContext);
 
                 }
 
 
 
-                {
-                    ScopedTimer _prof3(L"Render Sphere", gfxContext);
-                    gfxContext.SetPipelineState(m_TestSpherePSO);
-                    gfxContext.SetRootSignature(m_TestSpherePSO.GetRootSignature());
-                    gfxContext.TransitionResource(g_SceneDepthBuffer, D3D12_RESOURCE_STATE_DEPTH_READ);
-                    //gfxContext.TransitionResource(g_SceneDepthBuffer, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
-                    D3D12_CPU_DESCRIPTOR_HANDLE rtvs[]{ g_SceneColorBuffer.GetRTV(), g_SceneNormalBuffer.GetRTV() };
-                    gfxContext.SetRenderTargets(ARRAYSIZE(rtvs), rtvs, g_SceneDepthBuffer.GetDSV_DepthReadOnly());
-                    gfxContext.SetViewportAndScissor(viewport, scissor);
-					RenderSphereObject(gfxContext, camera.GetViewProjMatrix(), camera.GetPosition(), TestRenderer::kOpaque);
-					RenderSphereOnSurfels(gfxContext, camera.GetViewProjMatrix(), camera.GetPosition(), TestRenderer::kOpaque);
-                }
 
 //                --- SKIP NORMAL CUTOUTS---
 //                gfxContext.SetPipelineState(m_CutoutModelPSO);

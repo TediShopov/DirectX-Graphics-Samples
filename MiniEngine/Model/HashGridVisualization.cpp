@@ -1,4 +1,5 @@
 #include "HashGridVisualization.h"
+#include "SurfelGI.h"
 
  void HashGridVisualization::Setup(GBufferPtrs gbuffer,ColorBuffer* rayTracingOutColor)
 {
@@ -35,7 +36,8 @@ void HashGridVisualization::InitializePSO(DXGI_FORMAT formats[2], DXGI_FORMAT de
 	m_TestPSO.SetDepthStencilState(Graphics::DepthStateTestEqual);
     m_TestPSO.SetPrimitiveTopologyType(D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE);
 	//m_TestPSO.SetRenderTargetFormats(2, formats, DepthFormat);
-	m_TestPSO.SetRenderTargetFormats(2, formats, depthFormat);
+	//m_TestPSO.SetRenderTargetFormats(2, formats, depthFormat);
+	m_TestPSO.SetRenderTargetFormats(1, &formats[0], DXGI_FORMAT_UNKNOWN);
 	m_TestPSO.SetInputLayout(_countof(colorElem), colorElem);
 	//--- CHANGE THE DEPTH STATE ALWAYS TO DRAW ON TOP OF GEOMETRY
 	m_TestPSO.SetDepthStencilState(Graphics::DepthStateDisabled);
@@ -54,25 +56,27 @@ void HashGridVisualization::InitializePSO(DXGI_FORMAT formats[2], DXGI_FORMAT de
 
  void HashGridVisualization::InitializeRootSignature()
 {
-	m_UHGRootSignature.Reset(2, 3);
+	 SamplerDesc DefaultSamplerDesc;
+	 DefaultSamplerDesc.MaxAnisotropy = 8;
+	 SamplerDesc CubeMapSamplerDesc = DefaultSamplerDesc;
 
-	SamplerDesc DefaultSamplerDesc;
-	DefaultSamplerDesc.MaxAnisotropy = 8;
-	SamplerDesc CubeMapSamplerDesc = DefaultSamplerDesc;
+	 m_UHGRootSignature.Reset(4, 3);
 
-	//---INIT THE STATIC SAMPLERS--
-	m_UHGRootSignature.InitStaticSampler(10, DefaultSamplerDesc, D3D12_SHADER_VISIBILITY_PIXEL);
-	m_UHGRootSignature.InitStaticSampler(11, Graphics::SamplerShadowDesc, D3D12_SHADER_VISIBILITY_PIXEL);
-	m_UHGRootSignature.InitStaticSampler(12, CubeMapSamplerDesc, D3D12_SHADER_VISIBILITY_PIXEL);
 
-	m_UHGRootSignature[kUHGRoot::kProjectionResources].InitAsConstantBuffer(0,
-		D3D12_SHADER_VISIBILITY_PIXEL);
+	 m_UHGRootSignature.InitStaticSampler(10, DefaultSamplerDesc);
+	 m_UHGRootSignature.InitStaticSampler(11, Graphics::SamplerShadowDesc);
+	 m_UHGRootSignature.InitStaticSampler(12, CubeMapSamplerDesc);
 
-	m_UHGRootSignature[kUHGRoot::kDepth].InitAsDescriptorRange(
-		D3D12_DESCRIPTOR_RANGE_TYPE_SRV,
-		0, 2, D3D12_SHADER_VISIBILITY_PIXEL);
-	//m_UHGRootSignature[kUHGRoot::kRayTracingOutput].InitAsBufferUAV(0, D3D12_SHADER_VISIBILITY_PIXEL);
-	m_UHGRootSignature.Finalize(L"UHG Root Signature", D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
+	 m_UHGRootSignature[0].InitAsConstantBuffer(0);
+	 m_UHGRootSignature[1].InitAsConstantBuffer(1);
+	 //SRVs: Position and Normal
+	 m_UHGRootSignature[2].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 2);
+	 //UAVs: 
+	 m_UHGRootSignature[3].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 0, 4);
+	 m_UHGRootSignature.Finalize(L"Hash Grid Visualiztion RT",D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
+
+
+
 }
 
 void HashGridVisualization::InitializeDescriptorHeap(ColorBuffer* rayTracingOutColor)
@@ -89,36 +93,7 @@ void HashGridVisualization::InitializeDescriptorHeap(ColorBuffer* rayTracingOutC
 	);
 }
 
-  void HashGridVisualization::SetRootParameters(GraphicsContext& gfxContext,  ColorBuffer& rayTracingOutColor, const Camera& camera)
-{
-	// --- TRANSITON THE DEPTH BUFFER TO BE READABLE BY THE SHADER
-	gfxContext.TransitionResource((*m_GBuffer.g_Depth), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, false);
-	gfxContext.TransitionResource(rayTracingOutColor, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, false);
 
-	//--- SET THE HEAP CONTAINING ALL THE TEXTURES
-	gfxContext.SetDescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, m_UHGTextures.GetHeapPointer());
-
-
-
-	//Correct way of obtraining the viewProjMatrix  as the math library used Column Major Order 
-	//m_ViewProjMatrix = m_ProjMatrix * m_ViewMatrix;
-	//		Matrix4 invViewProj = Invert(camera.GetViewProjMatrix());
-	//        //Need to inversly translate by the camera translation as well to get a real world position
-	//		Matrix4 invViewProj = Invert();
-	Matrix4 invViewProj = Invert(camera.GetViewProjMatrix());
-	Vector3 mathPos = camera.GetPosition();
-
-	m_projectionData.invViewProjeciton = invViewProj;
-	//projectionData.invViewProjeciton = Transpose(invViewProj);
-	m_projectionData.depthNear = camera.GetNearClip();
-	m_projectionData.depthFar = camera.GetFarClip();
-
-	m_projectionBuffer.Create(L"Projectoin Data Buffer", 1, sizeof(UHGProjectionResources), &m_projectionData);
-
-	gfxContext.SetConstantBuffer(kUHGRoot::kProjectionResources, m_projectionBuffer.GetGpuVirtualAddress());
-
-	gfxContext.SetDescriptorTable(kUHGRoot::kDepth, m_UHGTextures[0]);
-}
 
   void HashGridVisualization::SetupRenderStage(GraphicsContext& gfxContext, const D3D12_VIEWPORT& viewport, const D3D12_RECT& scissor, 
 	   ColorBuffer& rayTracingOutColor, const Math::Camera& camera)
@@ -127,7 +102,10 @@ void HashGridVisualization::InitializeDescriptorHeap(ColorBuffer* rayTracingOutC
 		gfxContext.SetPipelineState(m_TestPSO);
 		gfxContext.SetRootSignature(m_UHGRootSignature);
 
-		SetRootParameters(gfxContext, rayTracingOutColor, camera);
+
+		gfxContext.TransitionResource(*m_GBuffer.g_Depth, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, true);
+		gfxContext.TransitionResource(*m_GBuffer.g_Normal, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, true);
+
 
 		D3D12_CPU_DESCRIPTOR_HANDLE rtvs[]{ m_GBuffer.g_Color->GetRTV(), m_GBuffer.g_Normal->GetRTV() };
 

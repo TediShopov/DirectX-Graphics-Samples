@@ -37,6 +37,21 @@ __declspec(align(16)) struct SurfelData
 	UINT pixelPosY;
 	Vector4 randomFloats;
 };
+	__declspec(align(16)) struct SurfelGenCB
+	{
+		UINT   FrameIndex;
+		float  DepthThreshold;
+		float  NormalThreshold;
+		float  ViewDistThreshold;
+
+		UINT   MaxSurfels;
+		// Makes sure the struct after is properly aligned
+		UINT Padding0;
+		UINT Padding1;
+		UINT Padding2;
+
+		UniformGrid UniformGrid;
+	};
 
 
 class SurfelGI
@@ -58,21 +73,6 @@ public:
 	DescriptorHeap srvHeap;
 	DescriptorHeap uavHeap;
 
-	__declspec(align(16)) struct SurfelGenCB
-	{
-		UINT   FrameIndex;
-		float  DepthThreshold;
-		float  NormalThreshold;
-		float  ViewDistThreshold;
-
-		UINT   MaxSurfels;
-		// Makes sure the struct after is properly aligned
-		UINT Padding0;
-		UINT Padding1;
-		UINT Padding2;
-
-		UniformGrid UniformGrid;
-	};
 
 
 	__declspec(align(16)) struct ProjectionResources {
@@ -110,6 +110,8 @@ public:
 	void Setup(GBufferPtrs gBuff);
 
 	void SpawnSurfels(ComputeContext& gfxContext,const Camera& camera);
+	void SendParameters(ComputeContext& gfxContext,const Camera& camera);
+	void SendParametersGraphics(GraphicsContext& gfxContext, const Camera& camera);
 	void FillAccelerationStructures(ComputeContext& gfxContext);
 	void ReadbackSurfelData(GraphicsContext& gfx);
 	int GetClosestSurfelToPosition(Vector3 worldPos);

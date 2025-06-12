@@ -77,9 +77,9 @@ protected:
 
 	void InitializeDescriptorHeap(ColorBuffer* rayTracingOutColor);
 
-	void SetRootParameters(GraphicsContext& gfxContext,
-	ColorBuffer& rayTracingOutColor,
-		const Camera& camera);
+	//void SetRootParameters(GraphicsContext& gfxContext,
+	//ColorBuffer& rayTracingOutColor,
+	//	const Camera& camera);
 
 
 

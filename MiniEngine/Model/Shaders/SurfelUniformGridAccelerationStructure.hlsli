@@ -17,6 +17,48 @@ struct UniformGrid
     float4 dimensions;
 };
 
+uint Hash(uint x)
+{
+    x ^= x >> 17;
+    x *= 0xed5ad4bb;
+    x ^= x >> 11;
+    x *= 0xac4c1b51;
+    x ^= x >> 15;
+    x *= 0x31848bab;
+    x ^= x >> 14;
+    return x;
+}
+
+uint RandomUintInRange(inout uint seed, uint minVal, uint maxVal)
+{
+    uint range = maxVal - minVal;
+    seed += 100;
+    return minVal + (Hash(seed) % range);
+}
+float RandomFloat01(inout uint seed)
+{
+    seed += 100;
+    return (float)(Hash(seed) & 0xFFFFFF) / 16777216.0f; // 2^24
+}
+
+uint GetThreadTemporalSeed(uint3 dispatchThreadID,  uint frameIndex)
+{
+    uint seed = dispatchThreadID.x * 73856093 ^ dispatchThreadID.y * 19349663 ^ dispatchThreadID.z * 83492791;
+    seed ^= (frameIndex + 1) * 2654435761; // +1 prevents seed staying zero on frame 0
+    return seed;
+}
+
+float LinearizeDepth(float z, float nearZ, float farZ)
+{
+    return (nearZ * farZ) / (farZ - z * (farZ - nearZ));
+}
+
+float RemapFloat(float value, float inMin, float inMax, float outMin, float outMax)
+{
+    float normalized = (value - inMin) / (inMax - inMin);
+    normalized = saturate(normalized);
+    return outMin + normalized * (outMax - outMin);
+}
 
 uint3 ComputeGridIndex(float3 position,float3 gridOrigin,float3 cellSize) {
 
@@ -287,5 +329,18 @@ RWStructuredBuffer<uint> sgrid
         SurfelInsertion(i,surfels[i],grid,slist,sgrid);
     }
     
+}
+float3 ReconstructWorldPosition(float2 uv, float depth, float4x4 invViewProj)
+{
+    float4 ndc;
+    // Convert from UV to NDC [-1, 1]
+    ndc.xy = uv * 2.0 - 1.0;
+    // For some reason Y has to be flipped
+    ndc.y = -ndc.y;
+    // Using Raw Depth
+    ndc.z =  depth;
+    ndc.w = 1.0;
+    float4 worldPos = mul( invViewProj,ndc);
+    return worldPos.xyz / worldPos.w;
 }
 

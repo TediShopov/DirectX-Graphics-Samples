@@ -19,72 +19,17 @@
 	m_ProjectionData.depthNear = camera.GetNearClip();
 	m_ProjectionData.depthFar = camera.GetFarClip();
 
-	m_ProjectoinBuffer.Create(L"Projectoin Data Buffer", 1, sizeof(ProjectionResources), &m_ProjectionData);
+	//m_ProjectoinBuffer.Create(L"Projectoin Data Buffer", 1, sizeof(ProjectionResources), &m_ProjectionData);
 
 }
 
 
 
-UINT Hash(UINT x)
-{
-    x ^= x >> 17;
-    x *= 0xed5ad4bb;
-    x ^= x >> 11;
-    x *= 0xac4c1b51;
-    x ^= x >> 15;
-    x *= 0x31848bab;
-    x ^= x >> 14;
-    return x;
-}
-  UINT RandomUintInRange(UINT seed, UINT minVal, UINT maxVal)
-{
-    UINT range = maxVal - minVal;
-    seed += 100;
-    return minVal + (Hash(seed) % range);
-}
-float RandomFloat01( UINT seed)
-{
-    seed += 100;
-    return (float)(Hash(seed) & 0xFFFFFF) / 16777216.0f; // 2^24
-}
-
-UINT GetThreadTemporalSeed(UINT x,UINT y,UINT z, UINT frame)
-{
-    UINT seed = x * 73856093 ^ y * 19349663 ^ z * 83492791;
-    seed ^= (frame + 1) * 2654435761; // +1 prevents seed staying zero on frame 0
-    return seed;
-}
 
 
 
   void SurfelGI::Setup(GBufferPtrs gBuff)
 {
-	float a0 = RandomUintInRange(GetThreadTemporalSeed(0, 0, 0, 0),0,255);
-	float b0 = RandomUintInRange(GetThreadTemporalSeed(0, 0, 0, 1),0,255);
-	float c0 = RandomUintInRange(GetThreadTemporalSeed(0, 0, 0, 2),0,255);
-	float d0 = RandomUintInRange(GetThreadTemporalSeed(1, 1, 1, 0),0,255);
-	float e0 = RandomUintInRange(GetThreadTemporalSeed(1, 1, 0, 0),0,255);
-	float f0 = RandomUintInRange(GetThreadTemporalSeed(1, 1, 1, 1),0,255);
-	float g0 = RandomUintInRange(GetThreadTemporalSeed(1, 1, 0, 1),0,255);
-	float h0 = RandomUintInRange(GetThreadTemporalSeed(0, 0, 0, 0),0,255);
-	float i0 = RandomUintInRange(GetThreadTemporalSeed(0, 0, 0, 0),0,255);
-
-
-
-
-	float a = RandomFloat01(GetThreadTemporalSeed(0, 0, 0, 0)+200);
-	float b = RandomFloat01(GetThreadTemporalSeed(0, 0, 0, 1));
-	float c = RandomFloat01(GetThreadTemporalSeed(0, 0, 0, 2));
-	float d = RandomFloat01(GetThreadTemporalSeed(1, 1, 1, 0));
-	float e = RandomFloat01(GetThreadTemporalSeed(1, 1, 0, 0));
-	float f = RandomFloat01(GetThreadTemporalSeed(1, 1, 1, 1));
-	float g = RandomFloat01(GetThreadTemporalSeed(1, 1, 0, 1));
-	float h = RandomFloat01(GetThreadTemporalSeed(0, 0, 0, 0));
-	float i = RandomFloat01(GetThreadTemporalSeed(0, 0, 0, 0));
-
-
-
-
 	m_GBuffer = gBuff;
 
 	CreateRootSig();
@@ -185,7 +130,8 @@ UINT GetThreadTemporalSeed(UINT x,UINT y,UINT z, UINT frame)
 
 	  m_SurfelGen.UniformGrid.cellSize = Vector4(100, 100, 100, 100);
 	  m_SurfelGen.UniformGrid.gridOrigin = Vector4(-2000, -2000, -2000, -2000);
-	  m_SurfelGen.UniformGrid.dimensions = Vector4(+2000, +2000, +2000, +2000);
+	  //m_SurfelGen.UniformGrid.dimensions = Vector4(+2000, +2000, +2000, +2000);
+	  m_SurfelGen.UniformGrid.dimensions = Vector4(4000,4000,4000,4000);
 
 	UINT grdCells[3] = {
 		m_SurfelGen.UniformGrid.dimensions.GetX() / m_SurfelGen.UniformGrid.cellSize.GetX(),
@@ -252,13 +198,16 @@ void SurfelGI::FillCPUContainers()
 	//Switch to the appropriate PSO
 	gfxContext.SetPipelineState(m_SurfelGenerationPSO);
 	gfxContext.SetRootSignature(m_SurfelGenerationRT);
+	SendParameters(gfxContext, camera);
+	gfxContext.Dispatch2D(m_GBuffer.g_Normal->GetWidth(), m_GBuffer.g_Normal->GetHeight());
+}
 
+  void SurfelGI::SendParametersGraphics(GraphicsContext& gfxContext,const Camera& camera)
+  {
 
 	ID3D12DescriptorHeap* heaps[] = {
 		srvHeap.GetHeapPointer()
 	};
-
-
 	//TODO make use of dynamic upload buffers for per-frame data changes
 	ByteAddressBuffer uploadBuffer;
 	uploadBuffer.Create(L"Surfel GEN UPLAOD", 1, sizeof(SurfelGenCB), &m_SurfelGen);
@@ -266,22 +215,40 @@ void SurfelGI::FillCPUContainers()
 	CommandContext& context = CommandContext::Begin(L"Update Surfel Generation CB");
 	context.CopyBuffer(m_SufelSettingBuffer, uploadBuffer);
 	context.Finish(true);
-	//context.CopyBuffer(m_SurfelGen,)
-	 //m_SufelSettingBuffer.Create(L"Surfel Gen CBV", 1, sizeof(SurfelGenCB), &m_SurfelGen);
-	 //gfxContext.Finish(true);
-	//m_SufelSettingBuffer.Create(L"Surfel Generation Data", 1, sizeof(SurfelGenCB), &m_SurfelGen);
-
 	//Update the projection from camera
 	UpdateProjection(camera);
 
 	gfxContext.GetCommandList()->SetDescriptorHeaps(1, heaps);
 	gfxContext.SetConstantBuffer(0, m_SufelSettingBuffer.GetGpuVirtualAddress());
-	gfxContext.SetConstantBuffer(1, m_ProjectoinBuffer.GetGpuVirtualAddress());
+	gfxContext.SetDynamicConstantBufferView(1, sizeof(ProjectionResources),&m_ProjectionData);
+	//gfxContext.SetConstantBuffer(1, m_ProjectoinBuffer.GetGpuVirtualAddress());
 	gfxContext.SetDescriptorTable(2, srvHeap[0]);
 	gfxContext.SetDescriptorTable(3, srvHeap[2]);
-	gfxContext.Dispatch2D(m_GBuffer.g_Normal->GetWidth(), m_GBuffer.g_Normal->GetHeight());
+  }
 
-}
+  void SurfelGI::SendParameters(ComputeContext& gfxContext,const Camera& camera)
+  {
+
+	ID3D12DescriptorHeap* heaps[] = {
+		srvHeap.GetHeapPointer()
+	};
+	//TODO make use of dynamic upload buffers for per-frame data changes
+	ByteAddressBuffer uploadBuffer;
+	uploadBuffer.Create(L"Surfel GEN UPLAOD", 1, sizeof(SurfelGenCB), &m_SurfelGen);
+	// Update the surfel setting buffer with the new frame index
+	CommandContext& context = CommandContext::Begin(L"Update Surfel Generation CB");
+	context.CopyBuffer(m_SufelSettingBuffer, uploadBuffer);
+	context.Finish(true);
+	//Update the projection from camera
+	UpdateProjection(camera);
+
+	gfxContext.GetCommandList()->SetDescriptorHeaps(1, heaps);
+	gfxContext.SetConstantBuffer(0, m_SufelSettingBuffer.GetGpuVirtualAddress());
+	//gfxContext.SetConstantBuffer(1, m_ProjectoinBuffer.GetGpuVirtualAddress());
+	gfxContext.SetDynamicConstantBufferView(1, sizeof(ProjectionResources),&m_ProjectionData);
+	gfxContext.SetDescriptorTable(2, srvHeap[0]);
+	gfxContext.SetDescriptorTable(3, srvHeap[2]);
+  }
 
   void SurfelGI::FillAccelerationStructures(ComputeContext& gfxContext)
 {

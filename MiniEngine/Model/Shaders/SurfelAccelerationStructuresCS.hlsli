@@ -38,37 +38,37 @@ RWStructuredBuffer<uint> surfleStackUAV : register(u3); // Stored pointers (indi
 groupshared uint groupShareMinCoverage;
 groupshared uint groupShareMaxContribution;
 
-float3 ReconstructWorldPosition(float2 uv, float depth, float4x4 invViewProj)
-{
-    float4 ndc;
-    // Convert from UV to NDC [-1, 1]
-    ndc.xy = uv * 2.0 - 1.0;
-    // For some reason Y has to be flipped
-    ndc.y = -ndc.y;
-    // Using Raw Depth
-    ndc.z =  depth;
-    ndc.w = 1.0;
-    float4 worldPos = mul( invViewProj,ndc);
-    return worldPos.xyz / worldPos.w;
-}
+//float3 ReconstructWorldPosition(float2 uv, float depth, float4x4 invViewProj)
+//{
+//    float4 ndc;
+//    // Convert from UV to NDC [-1, 1]
+//    ndc.xy = uv * 2.0 - 1.0;
+//    // For some reason Y has to be flipped
+//    ndc.y = -ndc.y;
+//    // Using Raw Depth
+//    ndc.z =  depth;
+//    ndc.w = 1.0;
+//    float4 worldPos = mul( invViewProj,ndc);
+//    return worldPos.xyz / worldPos.w;
+//}
 
-uint Hash(uint x)
-{
-    x ^= x >> 17;
-    x *= 0xed5ad4bb;
-    x ^= x >> 11;
-    x *= 0xac4c1b51;
-    x ^= x >> 15;
-    x *= 0x31848bab;
-    x ^= x >> 14;
-    return x;
-}
+//uint Hash(uint x)
+//{
+//    x ^= x >> 17;
+//    x *= 0xed5ad4bb;
+//    x ^= x >> 11;
+//    x *= 0xac4c1b51;
+//    x ^= x >> 15;
+//    x *= 0x31848bab;
+//    x ^= x >> 14;
+//    return x;
+//}
 
-uint RandomUintInRange(uint seed, uint minVal, uint maxVal)
-{
-    uint range = maxVal - minVal;
-    return minVal + (Hash(seed) % range);
-}
+//uint RandomUintInRange(uint seed, uint minVal, uint maxVal)
+//{
+//    uint range = maxVal - minVal;
+//    return minVal + (Hash(seed) % range);
+//}
 
 
 [numthreads(1, 1, 1)]
