@@ -18,6 +18,7 @@
 	//projectionData.invViewProjeciton = Transpose(invViewProj);
 	m_ProjectionData.depthNear = camera.GetNearClip();
 	m_ProjectionData.depthFar = camera.GetFarClip();
+	m_ProjectionData.fovY = camera.GetFOV();
 
 	//m_ProjectoinBuffer.Create(L"Projectoin Data Buffer", 1, sizeof(ProjectionResources), &m_ProjectionData);
 

@@ -113,7 +113,7 @@ namespace TestRenderer
 		// Define the geometry for a triangle.
 		//const float m_triDepthValue = 1.0f;
 	const float m_triDepthValue = 0.1f;
-	 float _TRI_SCALE = 0.6f;
+	 float _TRI_SCALE = 0.1f;
 	ColorVertex triangleVertices[3] =
 	{
 		{ { 0.0f, _TRI_SCALE * m_aspectRatio, m_triDepthValue,1}, { 1.0f, 0.0f, 0.0f, 1.0f } },

@@ -80,6 +80,7 @@ public:
 		XMMATRIX invViewProjeciton;
 		float depthNear;
 		float depthFar;
+		float fovY;
 	};
 
 	ProjectionResources m_ProjectionData;

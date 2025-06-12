@@ -3,6 +3,8 @@
 //#include "SurfelUniformGridAccelerationStructure.hlsli"
 #include "SurfelASAsserts.hlsli"
 
+#define M_PI 3.1415926
+
 
 
 
@@ -22,6 +24,7 @@ cbuffer ProjectionData : register(b1)
     matrix invViewProjectionMatrix;
     float depthNear;
     float depthFar;
+    float fovY;
 }
 
 // G-buffer input textures
@@ -40,28 +43,28 @@ groupshared uint groupShareMaxContribution;
 
 
 
-//float calcProjectArea(float radius, float distance, float fovy, uint2 resolution)
-//{
-//    float projRadius = atan(radius / distance) * max(resolution.x, resolution.y) / fovy;
-//    return M_PI * projRadius * projRadius;
-//}
-//
-//float calcRadiusApprox(float area, float distance, float fovy, uint2 resolution)
-//{
-//    return distance * tan(sqrt(area / M_PI) * fovy / max(resolution.x, resolution.y));
-//}
-//
-//float calcRadius(float area, float distance, float fovy, uint2 resolution)
-//{
-//    float cosTheta = 1 - (area * (1 - cos(fovy / 2)) / M_PI) / (resolution.x * resolution.y);
-//    float sinTheta = sqrt(1 - pow(cosTheta, 2));
-//    return distance * sinTheta;
-//}
-//
-//float calcSurfelRadius(float distance, float fovy, uint2 resolution, float area, float cellUnit)
-//{
-//    return min(calcRadiusApprox(area, distance, fovy, resolution), cellUnit * 2);
-//}
+float calcProjectArea(float radius, float distance, float fovy, uint2 resolution)
+{
+    float projRadius = atan(radius / distance) * max(resolution.x, resolution.y) / fovy;
+    return M_PI * projRadius * projRadius;
+}
+
+float calcRadiusApprox(float area, float distance, float fovy, uint2 resolution)
+{
+    return distance * tan(sqrt(area / M_PI) * fovy / max(resolution.x, resolution.y));
+}
+
+float calcRadius(float area, float distance, float fovy, uint2 resolution)
+{
+    float cosTheta = 1 - (area * (1 - cos(fovy / 2)) / M_PI) / (resolution.x * resolution.y);
+    float sinTheta = sqrt(1 - pow(cosTheta, 2));
+    return distance * sinTheta;
+}
+
+float calcSurfelRadius(float distance, float fovy, uint2 resolution, float area, float cellUnit)
+{
+    return min(calcRadiusApprox(area, distance, fovy, resolution), cellUnit * 2);
+}
 
 
 [numthreads(16, 16, 1)]
@@ -83,17 +86,14 @@ void main(
 
     GroupMemoryBarrierWithGroupSync();
 
-//    bool results[8];
-//    runAsserts(results, surfelGridUAV);
-//    surfelGridUAV[0] = results[0];
-//    surfelGridUAV[1] = results[1];
-//    surfelGridUAV[2] = results[2];
-//    surfelGridUAV[3] = results[3];
 
     float3 gResolution;
     gDepth.GetDimensions(0, gResolution.x, gResolution.y, gResolution.z);
     if (dispatchThreadId.x >= gResolution.x || dispatchThreadId.y >= gResolution.y)
         return;
+
+
+    
 
     uint2 tilePos = groupdId.xy;
     uint2 pixelPos = dispatchThreadId.xy;
@@ -196,7 +196,7 @@ void main(
 //                        rayCountEx += surfel.rayCount * contribution;
 //
 //                        refCount = max(refCount, gSurfelRefCounter.Load(surfelIndex));
-//                        life = max(life, surfelRecycleInfo.life);
+//                        life = max(life, e);
 
                     
                     
@@ -266,8 +266,8 @@ void main(
     
     uint kPerCellSurfelLimit = 20;
     uint gPlacementThreshold = 2;
-    uint gRemovalThreshold = 0.1;
-    uint kTotalSurfelLimit = 100;
+    uint gRemovalThreshold = 0;
+    uint kTotalSurfelLimit = 20;
 
 
     
@@ -276,12 +276,11 @@ void main(
 
     
     
-    float gChancePower = 2;
+    float gChancePower = 1.1;
     float gChanceMultiply = 15;
-     gChanceMultiply = 50;
 
     
-    float linearDepth = LinearizeDepth(depthRaw, depthNear, depthFar);
+    float linearDepth = LinearizeDepth(depthRaw, depthFar, depthNear);
     float normalizedDepth = RemapFloat(LinearizeDepth(depthRaw, depthNear, depthFar), depthNear, depthFar, 0, 1);
     
     
@@ -308,19 +307,23 @@ void main(
                     if (surfelStackPointer <= 1000)
                     {
                         uint surfelID = surfleStackUAV[surfelStackPointer];
-                        float debugRad = 15;
                         SurfelData newSurfel;
+
+                        //float v = 1 - depthRaw;
+                        float v = linearDepth;
+                        float calcProjArea = calcProjectArea(10, 250, fovY, gResolution.xy);
+                        float varRadius = calcSurfelRadius(v, fovY, gResolution.xy, calcProjArea,100000);
+
                         newSurfel.position = float4(worldPos, 1);
                         newSurfel.normal = atNormal;
-                        newSurfel.radius = debugRad;
+                        newSurfel.radius = varRadius;
                         newSurfel.padding = float3(0, 0, 0);
                         newSurfel.tilePos = tilePos;
                         newSurfel.pixelPos = pixelPos;
-                        newSurfel.randomValues = float4(changeAgainst, chanceSpawn, changeAgainst, RandomUintInRange(threadRandomnessSeed, 0, 255));
+                        newSurfel.randomValues = float4(changeAgainst, chanceSpawn, changeAgainst, linearDepth);
                         newSurfel.randomValues.z = 5;
                         newSurfel.randomValues.w = RandomUintInRange(threadRandomnessSeed, 0, 255);
 
-                        //float varRadius = calcSurfelRadius(linearDepth,fo)I
 
                         //newSurfel.randomValues.z = threadRandomnessSeed;
                         surfelsUAV[surfelID] = newSurfel;
