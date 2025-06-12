@@ -23,8 +23,68 @@
 
 }
 
+
+
+UINT Hash(UINT x)
+{
+    x ^= x >> 17;
+    x *= 0xed5ad4bb;
+    x ^= x >> 11;
+    x *= 0xac4c1b51;
+    x ^= x >> 15;
+    x *= 0x31848bab;
+    x ^= x >> 14;
+    return x;
+}
+  UINT RandomUintInRange(UINT seed, UINT minVal, UINT maxVal)
+{
+    UINT range = maxVal - minVal;
+    seed += 100;
+    return minVal + (Hash(seed) % range);
+}
+float RandomFloat01( UINT seed)
+{
+    seed += 100;
+    return (float)(Hash(seed) & 0xFFFFFF) / 16777216.0f; // 2^24
+}
+
+UINT GetThreadTemporalSeed(UINT x,UINT y,UINT z, UINT frame)
+{
+    UINT seed = x * 73856093 ^ y * 19349663 ^ z * 83492791;
+    seed ^= (frame + 1) * 2654435761; // +1 prevents seed staying zero on frame 0
+    return seed;
+}
+
+
+
   void SurfelGI::Setup(GBufferPtrs gBuff)
 {
+	float a0 = RandomUintInRange(GetThreadTemporalSeed(0, 0, 0, 0),0,255);
+	float b0 = RandomUintInRange(GetThreadTemporalSeed(0, 0, 0, 1),0,255);
+	float c0 = RandomUintInRange(GetThreadTemporalSeed(0, 0, 0, 2),0,255);
+	float d0 = RandomUintInRange(GetThreadTemporalSeed(1, 1, 1, 0),0,255);
+	float e0 = RandomUintInRange(GetThreadTemporalSeed(1, 1, 0, 0),0,255);
+	float f0 = RandomUintInRange(GetThreadTemporalSeed(1, 1, 1, 1),0,255);
+	float g0 = RandomUintInRange(GetThreadTemporalSeed(1, 1, 0, 1),0,255);
+	float h0 = RandomUintInRange(GetThreadTemporalSeed(0, 0, 0, 0),0,255);
+	float i0 = RandomUintInRange(GetThreadTemporalSeed(0, 0, 0, 0),0,255);
+
+
+
+
+	float a = RandomFloat01(GetThreadTemporalSeed(0, 0, 0, 0)+200);
+	float b = RandomFloat01(GetThreadTemporalSeed(0, 0, 0, 1));
+	float c = RandomFloat01(GetThreadTemporalSeed(0, 0, 0, 2));
+	float d = RandomFloat01(GetThreadTemporalSeed(1, 1, 1, 0));
+	float e = RandomFloat01(GetThreadTemporalSeed(1, 1, 0, 0));
+	float f = RandomFloat01(GetThreadTemporalSeed(1, 1, 1, 1));
+	float g = RandomFloat01(GetThreadTemporalSeed(1, 1, 0, 1));
+	float h = RandomFloat01(GetThreadTemporalSeed(0, 0, 0, 0));
+	float i = RandomFloat01(GetThreadTemporalSeed(0, 0, 0, 0));
+
+
+
+
 	m_GBuffer = gBuff;
 
 	CreateRootSig();

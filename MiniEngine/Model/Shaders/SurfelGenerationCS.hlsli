@@ -64,10 +64,35 @@ uint Hash(uint x)
     return x;
 }
 
-uint RandomUintInRange(uint seed, uint minVal, uint maxVal)
+uint RandomUintInRange(inout uint seed, uint minVal, uint maxVal)
 {
     uint range = maxVal - minVal;
+    seed += 100;
     return minVal + (Hash(seed) % range);
+}
+float RandomFloat01(inout uint seed)
+{
+    seed += 100;
+    return (float)(Hash(seed) & 0xFFFFFF) / 16777216.0f; // 2^24
+}
+
+uint GetThreadTemporalSeed(uint3 dispatchThreadID)
+{
+    uint seed = dispatchThreadID.x * 73856093 ^ dispatchThreadID.y * 19349663 ^ dispatchThreadID.z * 83492791;
+    seed ^= (FrameIndex + 1) * 2654435761; // +1 prevents seed staying zero on frame 0
+    return seed;
+}
+
+float LinearizeDepth(float z, float nearZ, float farZ)
+{
+    return (nearZ * farZ) / (farZ - z * (farZ - nearZ));
+}
+
+float RemapFloat(float value, float inMin, float inMax, float outMin, float outMax)
+{
+    float normalized = (value - inMin) / (inMax - inMin);
+    normalized = saturate(normalized);
+    return outMin + normalized * (outMax - outMin);
 }
 
 
@@ -104,6 +129,8 @@ void main(
 
     uint2 tilePos = groupdId.xy;
     uint2 pixelPos = dispatchThreadId.xy;
+
+    uint threadRandomnessSeed = GetThreadTemporalSeed(dispatchThreadId);
 
 
     int index = pixelPos.x * gResolution.x + pixelPos.y;
@@ -148,13 +175,9 @@ void main(
 
         float maxVariance = 0.f;
         float maxContribution = 0.f;
-        //uint maxContributionSurfelIndex = randomState.next_uint(cellInfo.surfelCount);
-        //Maybe picks a random surfels contribution value to be the initial index ???
 
 
-        //FillAccelerationStructure(Grid, surfelsUAV, surlfeListUAV, surfelGridUAV);
-
-        uint maxContributionSurfelIndex = RandomUintInRange(1234, 0, surfelCount);
+        uint maxContributionSurfelIndex = RandomUintInRange(threadRandomnessSeed, 0, surfelCount);
 
         
 
@@ -241,7 +264,7 @@ void main(
         //coverageData is all packed in UINT 32-bits
         //coverage half-precision [0-16], random (0-255) [16-24], threadX [24-28], threadY [28-32]
             coverageData |= ((f32tof16(coverage) & 0x0000FFFF) << 16);
-            coverageData |= ((RandomUintInRange(1234, 0, 255) & 0x000000FF) << 8);
+            coverageData |= ((RandomUintInRange(threadRandomnessSeed, 0, 255) & 0x000000FF) << 8);
             coverageData |= ((groupThreadID.x & 0x0000000F) << 4);
             coverageData |= ((groupThreadID.y & 0x0000000F) << 0);
 
@@ -261,10 +284,18 @@ void main(
 
     }
 
+//    uint coverageData = groupShareMinCoverage;
+//    float coverage = f16tof32((coverageData & 0xFFFF0000) >> 16);
+//    uint rndThreshold = f16tof32((coverageData & 0xFF000000) >> 16);
+//    uint x = (coverageData & 0x0000000F) >> 4;
+//    uint y = (coverageData & 0x0000000F) >> 0;
+    
     uint coverageData = groupShareMinCoverage;
-    float coverage = f16tof32((coverageData & 0xFFFF0000) >> 16);
-    uint x = (coverageData & 0x000000F0) >> 4;
-    uint y = (coverageData & 0x0000000F) >> 0;
+    
+    uint x  =  coverageData & 0xF;            // bits 0–3
+    uint y = (coverageData >> 4) & 0xF; // bits 4–7
+    uint rndThreshold   = (coverageData >> 8) & 0xFF;     // bits 8–15
+    uint coverage = f16tof32((coverageData >> 16) & 0xFFFF); // bits 16–31
 
 
     
@@ -272,6 +303,21 @@ void main(
     uint gPlacementThreshold = 2;
     uint gRemovalThreshold = 0.1;
     uint kTotalSurfelLimit = 100;
+
+
+    
+    //float gChancePower = 2;
+    //float gChanceMultiply = 1.5;
+
+    
+    
+    float gChancePower = 2;
+    float gChanceMultiply = 15;
+
+    
+    float normalizedDepth = RemapFloat(LinearizeDepth(depthRaw, depthNear, depthFar), depthNear, depthFar, 0, 1);
+    
+    
     if (surfelCount < kPerCellSurfelLimit)
     {
         if (groupThreadID.x == x && groupThreadID.y == y)
@@ -280,27 +326,40 @@ void main(
             // genearte new surfel probabilistically.
             if (coverage <= gPlacementThreshold)
             {
+                float chanceSpawn = pow(depthRaw, gChancePower) * gChanceMultiply;
+                float changeAgainst = RandomFloat01(threadRandomnessSeed);
+
+                if(changeAgainst < chanceSpawn )
+                //if( chanceSpawn<  changeAgainst)
+                {
+                    
 //                //Write data to the surfel data as per the poitner in the surfel stack
                 //retrieve the stack poitner found at position 0
-                uint prevStackPointer;
-                InterlockedAdd(surfleStackUAV[0], 1, prevStackPointer);
-                uint surfelStackPointer = prevStackPointer + 2;
-                if(surfelStackPointer <= 1000)
-                {
-                    uint surfelID = surfleStackUAV[surfelStackPointer];
-                    float debugRad = 1;
-                    SurfelData newSurfel;
-                    newSurfel.position = float4(worldPos, 1);
-                    newSurfel.normal = atNormal;
-                    newSurfel.radius = debugRad;
-                    newSurfel.padding = float3(0, 0, 0);
-                    newSurfel.tilePos = tilePos;
-                    newSurfel.pixelPos = pixelPos;
-                    surfelsUAV[surfelID] = newSurfel;
-                }
-                else
-                {
-                    InterlockedAdd(surfleStackUAV[0], -1);
+                    uint prevStackPointer;
+                    InterlockedAdd(surfleStackUAV[0], 1, prevStackPointer);
+                    uint surfelStackPointer = prevStackPointer + 2;
+                    if (surfelStackPointer <= 1000)
+                    {
+                        uint surfelID = surfleStackUAV[surfelStackPointer];
+                        float debugRad = 1;
+                        SurfelData newSurfel;
+                        newSurfel.position = float4(worldPos, 1);
+                        newSurfel.normal = atNormal;
+                        newSurfel.radius = debugRad;
+                        newSurfel.padding = float3(0, 0, 0);
+                        newSurfel.tilePos = tilePos;
+                        newSurfel.pixelPos = pixelPos;
+                        newSurfel.randomValues = float4(changeAgainst, chanceSpawn, changeAgainst, RandomUintInRange(threadRandomnessSeed, 0, 255));
+                        newSurfel.randomValues.z = 5;
+                        newSurfel.randomValues.w = RandomUintInRange(threadRandomnessSeed, 0, 255);
+
+                        //newSurfel.randomValues.z = threadRandomnessSeed;
+                        surfelsUAV[surfelID] = newSurfel;
+                    }
+                    else
+                    {
+                        InterlockedAdd(surfleStackUAV[0], -1);
+                    }
                 }
 //                float varRadius = calcSurfelRadius(
 //                                distance(gScene.camera.getPosition(), v.posW),

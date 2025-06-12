@@ -7,6 +7,8 @@ struct SurfelData
     float3 padding;
     uint2 tilePos;
     uint2 pixelPos;
+    float4 randomValues;
+
 };
 struct UniformGrid
 {

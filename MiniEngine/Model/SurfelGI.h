@@ -35,6 +35,7 @@ __declspec(align(16)) struct SurfelData
 	UINT tilePosY;
 	UINT pixelPosX;
 	UINT pixelPosY;
+	Vector4 randomFloats;
 };
 
 
