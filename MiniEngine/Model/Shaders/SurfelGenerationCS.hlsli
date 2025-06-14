@@ -320,9 +320,8 @@ void main(
                         newSurfel.padding = float3(0, 0, 0);
                         newSurfel.tilePos = tilePos;
                         newSurfel.pixelPos = pixelPos;
-                        newSurfel.randomValues = float4(changeAgainst, chanceSpawn, changeAgainst, linearDepth);
-                        newSurfel.randomValues.z = 5;
-                        newSurfel.randomValues.w = RandomUintInRange(threadRandomnessSeed, 0, 255);
+                        newSurfel.randomValues = float4(changeAgainst, chanceSpawn, changeAgainst,1);
+                        newSurfel.color = (RandomFloat01(threadRandomnessSeed), RandomFloat01(threadRandomnessSeed), RandomFloat01(threadRandomnessSeed),1);
 
 
                         //newSurfel.randomValues.z = threadRandomnessSeed;

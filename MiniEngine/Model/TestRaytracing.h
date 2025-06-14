@@ -21,6 +21,7 @@ namespace Math
     class Camera;
     class Vector3;
 }
+class ModelH3D;
 
 namespace TestRaytracing
 {
@@ -35,6 +36,11 @@ namespace TestRaytracing
 		Transform transform,
 		D3D12_VERTEX_BUFFER_VIEW vertexBV,
 		D3D12_INDEX_BUFFER_VIEW indexBV,
+		ColorBuffer* outputBuffer
+	);
+	void CreateDeviceDependentResources(
+		Transform transform,
+		ModelH3D& model,
 		ColorBuffer* outputBuffer
 	);
 
@@ -62,6 +68,7 @@ namespace TestRaytracing
 
 
 	void BuildAccelerationStructures(Transform transform,D3D12_VERTEX_BUFFER_VIEW vertexBV, D3D12_INDEX_BUFFER_VIEW indexBV);
+	void BuildAccelerationStructures(Transform transform,ModelH3D& model, UINT numMeshes);
 
 	void BuildShaderTables();
 

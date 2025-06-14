@@ -113,7 +113,7 @@ namespace TestRenderer
 		// Define the geometry for a triangle.
 		//const float m_triDepthValue = 1.0f;
 	const float m_triDepthValue = 0.1f;
-	 float _TRI_SCALE = 0.1f;
+	 float _TRI_SCALE = 0.3f;
 	ColorVertex triangleVertices[3] =
 	{
 		{ { 0.0f, _TRI_SCALE * m_aspectRatio, m_triDepthValue,1}, { 1.0f, 0.0f, 0.0f, 1.0f } },
@@ -138,7 +138,7 @@ XMVECTOR GetRotationQuaternionFromUpToDirection(FXMVECTOR targetDirection)
     float dot = XMVectorGetX(XMVector3Dot(up, dir));
 
     // Case 1: Vectors are already aligned
-    if (dot > 0.9999f)
+    if (dot > 0.99f)
     {
         return XMQuaternionIdentity();
     }
@@ -197,7 +197,10 @@ void RenderSphereOnSurfels(GraphicsContext& gfxContext, const Matrix4& ViewProjM
     {
 
         Transform t;
-        t.setPosition(s.position);
+        Vector4 extrudedPossition = s.position + (s.normal * 1.0f);
+
+        t.setPosition(extrudedPossition);
+        
 //        Vector4 normalScaled = s.normal;
 //        normalScaled *= 5;
 //        
@@ -360,7 +363,10 @@ void TestRenderer::Startup( Camera& Camera )
     m_pMaterialIsCutout.resize(m_Model.GetMaterialCount());
     for (uint32_t i = 0; i < m_Model.GetMaterialCount(); ++i)
     {
+
         const ModelH3D::Material& mat = m_Model.GetMaterial(i);
+        XMVECTOR(mat.ambient).m128_f32[0] = 0;
+        XMVECTOR(mat.ambient).m128_f32[1] = 0;
         if (std::string(mat.texDiffusePath).find("thorn") != std::string::npos ||
             std::string(mat.texDiffusePath).find("plant") != std::string::npos ||
             std::string(mat.texDiffusePath).find("chain") != std::string::npos)
@@ -381,15 +387,30 @@ void TestRenderer::Startup( Camera& Camera )
     Camera.SetEyeAtUp( eye, Vector3(kZero), Vector3(kYUnitVector) );
 
 
-    //Create device dependent resource for ray tracing for the triangle 
+    uint32_t VertexStride = m_Model.GetVertexStride();
+
+
+
+
+
     TestRaytracing::CreateDeviceDependentResources(
         m_Transform,
-        m_Sphere->m_VertexBufferView,
-        m_Sphere->m_IndexBufferView,
-        //m_VertexBufferView,
-        //m_IndexBufferView,
+        m_Model,
         &Graphics::g_SceneColorBuffer
     );
+
+
+    //Create device dependent resource for ray tracing for the triangle 
+//    TestRaytracing::CreateDeviceDependentResources(
+//        m_Transform,
+//        //m_Sphere->m_VertexBufferView,
+//        //m_Sphere->m_IndexBufferView,
+//        m_Model.m_VertexBuffer,
+//        m_Model.m_IndexBuffer,
+//        //m_VertexBufferView,
+//        //m_IndexBufferView,
+//        &Graphics::g_SceneColorBuffer
+//    );
 
     //Allocate just and extra descriptor table entry
     uint32_t DestCount = 9;

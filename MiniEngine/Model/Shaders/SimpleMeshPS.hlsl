@@ -66,6 +66,7 @@ MRT main(VSOutput vsOutput)
 //		);
 //
 	mrt.Normal = vsOutput.normal;
-    mrt.Color = float4(1, 0, 0, 1);
+    //mrt.Color = float4(1, 0, 0, 1);
+    mrt.Color = AmbientColor;
 	return mrt;
 }

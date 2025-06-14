@@ -36,6 +36,7 @@ __declspec(align(16)) struct SurfelData
 	UINT pixelPosX;
 	UINT pixelPosY;
 	Vector4 randomFloats;
+	Vector4 color;
 };
 	__declspec(align(16)) struct SurfelGenCB
 	{
