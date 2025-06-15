@@ -27,7 +27,7 @@ class DescriptorHeapStack;
 
 namespace TestRaytracing
 {
-	//ByteAddressBuffer m_TestCB;
+	extern std::unique_ptr<DescriptorHeapStack> g_pRaytracingDescriptorHeap;
 
 	//---   RAY-TRACING RELATED
 #pragma region RAY-TRACING DEMO
@@ -46,18 +46,18 @@ namespace TestRaytracing
 		ColorBuffer* outputBuffer
 	);
 
+	void DoRaytracing(const Math::Camera& camera );
+
 // Update the application state with the new resolution.
 	void UpdateCBForSizeChange(UINT width, UINT height);
 
 
-	extern std::unique_ptr<DescriptorHeapStack> g_pRaytracingDescriptorHeap;
 
 
 	D3D12_GPU_DESCRIPTOR_HANDLE GetSrvGpuHandle();
 	D3D12_CPU_DESCRIPTOR_HANDLE GetSrvCpuHandle();
 	ColorBuffer GetOutputBuffer();
 
-	void DoRaytracing(const Math::Camera& camera );
 
 	void CreateRaytracingInterfaces();
 	inline void ThrowIfFailed(HRESULT hr, const wchar_t* msg);
@@ -73,7 +73,6 @@ namespace TestRaytracing
 
 
 	void BuildAccelerationStructures(Transform transform,D3D12_VERTEX_BUFFER_VIEW vertexBV, D3D12_INDEX_BUFFER_VIEW indexBV);
-	void BuildAccelerationStructures(Transform transform,ModelH3D& model);
 	void BuildAccelerationStructures(Transform transform,ModelH3D& model, UINT numMeshes);
 
 	void BuildShaderTables();
