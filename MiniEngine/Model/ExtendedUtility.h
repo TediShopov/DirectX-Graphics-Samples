@@ -17,6 +17,13 @@ class ExtendedUtility
 {
 public:
 
+	static void ExtendedUtility::CopyDescriptorsToHeap(
+		ID3D12DescriptorHeap* targetHeap,
+		std::initializer_list<D3D12_CPU_DESCRIPTOR_HANDLE> srcDescriptors,
+		D3D12_DESCRIPTOR_HEAP_TYPE heapType,
+		UINT& currentOffset,
+		UINT descriptorSize);
+
 	/// <summary>
 	/// Utility mehtod that copies initializer list of source descriptor to a given heap. Must specify the heap type as well.
 	/// </summary>

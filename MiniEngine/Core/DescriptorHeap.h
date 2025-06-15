@@ -108,7 +108,7 @@ public:
     DescriptorHeap(void) {}
     ~DescriptorHeap(void) { Destroy(); }
 
-    void Create( const std::wstring& DebugHeapName, D3D12_DESCRIPTOR_HEAP_TYPE Type, uint32_t MaxCount );
+    void Create( const std::wstring& DebugHeapName, D3D12_DESCRIPTOR_HEAP_TYPE Type, uint32_t MaxCount,bool shaderVisible=true);
     void Destroy(void) { m_Heap = nullptr; }
 
     bool HasAvailableSpace( uint32_t Count ) const { return Count <= m_NumFreeDescriptors; }

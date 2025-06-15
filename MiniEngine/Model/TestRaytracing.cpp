@@ -13,6 +13,7 @@
 #include "Model.h"
 #include "DescriptorHeapStack.h"
 #include "ModelH3D.h"
+#include "ExtendedUtility.h"
 
 struct RayGet3DBuffer {
 
@@ -108,7 +109,7 @@ namespace TestRaytracing
 		// This is a root signature that is shared across all raytracing shaders invoked during a DispatchRays() call.
 		{
 			CD3DX12_DESCRIPTOR_RANGE UAVDescriptor;
-			UAVDescriptor.Init(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 1, 0);
+			UAVDescriptor.Init(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 4, 0);
 			//CD3DX12_ROOT_PARAMETER rootParameters[GlobalRootSignatureParams::Count];
 			//rootParameters[GlobalRootSignatureParams::OutputViewSlot].InitAsDescriptorTable(1, &UAVDescriptor);
 			//rootParameters[GlobalRootSignatureParams::AccelerationStructureSlot].InitAsShaderResourceView(0);
@@ -603,26 +604,26 @@ namespace TestRaytracing
 		return 0;
 	}
 
-	void CreateRaytracingOutputResourceNew(ColorBuffer* outputBuffer)
-	{
+
+	void CreateOutputTextureUAV(ColorBuffer* outputBuffer) {
+
+
 		m_raytracingColorBuffer.Create(L"RayTracingOutput", outputBuffer->GetWidth(), outputBuffer->GetHeight(), 1, DXGI_FORMAT_R8G8B8A8_UNORM);
-		testHeap.Create(L"HeapName", D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 1);
 
-		uint32_t DestCount = 1;
-		// Allocate a descriptor table for the common textures
-		DescriptorHandle t = testHeap.Alloc(1);
+	}
 
-		uint32_t SourceCounts[] = { 1 };
+	void CreateRaytracingOutputResourceNew(ColorBuffer* outputBuffer, DescriptorHeap surfelUAVHeap)
+	{
+		testHeap.Create(L"HeapName", D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 4);
+		//testHeap.Create(L"HeapName", D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 1);
 
-		D3D12_CPU_DESCRIPTOR_HANDLE SourceTextures[] =
-		{
-			m_raytracingColorBuffer.GetUAV()
-		};
-
-		Graphics::g_Device->CopyDescriptors(1, &t, &DestCount, DestCount, SourceTextures, SourceCounts, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
-
-		m_raytracingOutputResourceUAVGpuDescriptor = testHeap[0];
-		m_raytracingOutputResourceUAVCpuDescriptor = testHeap[0];
+	  ExtendedUtility::CopyDescriptorsToHeap(testHeap, {
+			m_raytracingColorBuffer.GetUAV(),
+			surfelUAVHeap[2],
+			surfelUAVHeap[3],
+			surfelUAVHeap[4],
+		  }
+	  );
 
 
 
@@ -655,7 +656,7 @@ namespace TestRaytracing
 		}
 	}
 	// Create resources that depend on the device.
-	void CreateDeviceDependentResources(Transform transform, D3D12_VERTEX_BUFFER_VIEW vertexBV, D3D12_INDEX_BUFFER_VIEW indexBV, ColorBuffer* outputBuffer)
+	void CreateDeviceDependentResources(Transform transform, D3D12_VERTEX_BUFFER_VIEW vertexBV, D3D12_INDEX_BUFFER_VIEW indexBV, ColorBuffer* outputBuffer, DescriptorHeap surfelUAVHeap)
 	{
 		m_rayGenCB.viewport = { -1.0f, -1.0f, 1.0f, 1.0f };
 
@@ -684,10 +685,10 @@ namespace TestRaytracing
 		BuildShaderTables();
 		//	
 		//	    // Create an output 2D texture to store the raytracing result to.
-		CreateRaytracingOutputResourceNew(outputBuffer);
+		CreateRaytracingOutputResourceNew(outputBuffer,surfelUAVHeap);
 	}
 
-	void CreateDeviceDependentResources(Transform transform, ModelH3D& model, ColorBuffer* outputBuffer)
+	void CreateDeviceDependentResources(Transform transform, ModelH3D& model, ColorBuffer* outputBuffer, DescriptorHeap surfelSRVHeap)
 	{
 		m_rayGenCB.viewport = { -1.0f, -1.0f, 1.0f, 1.0f };
 
@@ -717,7 +718,7 @@ namespace TestRaytracing
 		BuildShaderTables();
 		//	
 		//	    // Create an output 2D texture to store the raytracing result to.
-		CreateRaytracingOutputResourceNew(outputBuffer);
+		CreateRaytracingOutputResourceNew(outputBuffer,surfelSRVHeap);
 	}
 
 	D3D12_GPU_DESCRIPTOR_HANDLE GetSrvGpuHandle()
@@ -736,7 +737,7 @@ namespace TestRaytracing
 		//return ColorBuffer();
 		return m_raytracingColorBuffer;
 	}
-	void DoRaytracing(const Math::Camera& camera)
+	void DoRaytracing(const Math::Camera& camera,DescriptorHeap surfelUAVHeap)
 	{
 
 		XMMATRIX viewMatrix = XMMatrixLookAtLH(camera.GetPosition(), camera.GetPosition() + camera.GetForwardVec(), camera.GetUpVec());
@@ -757,6 +758,7 @@ namespace TestRaytracing
 		auto commandList = pCmdList;
 
 		gfxContext.TransitionResource(TestRaytracing::GetOutputBuffer(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+
 
 		commandList->SetComputeRootSignature(m_rtGlobalRootSignature.Get());
 		auto DispatchRays = [&](auto* commandList, auto* stateObject, auto* dispatchDesc)
@@ -780,6 +782,7 @@ namespace TestRaytracing
 
 		D3D12_DISPATCH_RAYS_DESC dispatchDesc = {};
 		gfxContext.SetDescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, testHeap.GetHeapPointer());
+
 		commandList->SetComputeRootDescriptorTable(0, testHeap[0]);
 		commandList->SetComputeRootShaderResourceView(1, m_topLevelAccelerationStructure->GetGPUVirtualAddress());
 		commandList->SetComputeRootConstantBufferView(2, m_TestCB.GetGpuVirtualAddress());

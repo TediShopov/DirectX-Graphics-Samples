@@ -72,6 +72,8 @@ public:
 
 	//--- DESCRIPTOR HEAPS ---
 	DescriptorHeap srvHeap;
+	DescriptorHeap nonShaderVisibleHeap;
+	//ID3D12DescriptorHeap* nonShaderVisibleHeap;
 	DescriptorHeap uavHeap;
 
 

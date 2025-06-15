@@ -393,11 +393,6 @@ void TestRenderer::Startup( Camera& Camera )
 
 
 
-    TestRaytracing::CreateDeviceDependentResources(
-        m_Transform,
-        m_Model,
-        &Graphics::g_SceneColorBuffer
-    );
 
 
     //Create device dependent resource for ray tracing for the triangle 
@@ -418,6 +413,8 @@ void TestRenderer::Startup( Camera& Camera )
     Renderer::m_CommonTextures = Renderer::s_TextureHeap.Alloc(1);
 
     uint32_t SourceCounts[] = { 1, 1, 1, 1, 1, 1, 1, 1,1 };
+
+    TestRaytracing::CreateOutputTextureUAV(&g_SceneColorBuffer);
 
     D3D12_CPU_DESCRIPTOR_HANDLE SourceTextures[] =
     {
@@ -447,10 +444,22 @@ void TestRenderer::Startup( Camera& Camera )
     SurfelIllumination->Setup(
         gbuffer
     );
+
+    TestRaytracing::CreateDeviceDependentResources(
+        m_Transform,
+        m_Model,
+        &Graphics::g_SceneColorBuffer,
+        SurfelIllumination->nonShaderVisibleHeap
+        //SurfelIllumination->srvHeap
+    );
+
+
     GridVisualization->Setup(
         gbuffer,
         &TestRaytracing::GetOutputBuffer()
     );
+
+
 
 
 
@@ -684,7 +693,8 @@ void TestRenderer::RenderScene(
     bool skipDiffusePass,
     bool skipShadowMap)
 {
-    TestRaytracing::DoRaytracing(camera);
+
+    TestRaytracing::DoRaytracing(camera, SurfelIllumination->srvHeap);
     Renderer::UpdateGlobalDescriptors();
     Vector3 pos = camera.GetPosition();
 

@@ -59,6 +59,19 @@
 
   void SurfelGI::CreateHeaps()
   {
+	  nonShaderVisibleHeap.Create(L"SURFEL SRV HEAP", D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 6,false);
+	  ExtendedUtility::CopyDescriptorsToHeap(nonShaderVisibleHeap, {
+	      m_GBuffer.g_Depth->GetDepthSRV(),
+	      m_GBuffer.g_Normal->GetSRV(),
+	      m_SurfelData.GetUAV(),
+	      m_SurfelList.GetUAV(),
+	      m_SurfelGrid.GetUAV(),
+	      m_SurfelStack.GetUAV()
+	      }
+	  );
+
+
+
 	  srvHeap.Create(L"SURFEL SRV HEAP", D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 6);
 
 	  ExtendedUtility::CopyDescriptorsToHeap(srvHeap, {
@@ -209,18 +222,12 @@ void SurfelGI::FillCPUContainers()
 	ID3D12DescriptorHeap* heaps[] = {
 		srvHeap.GetHeapPointer()
 	};
-	//TODO make use of dynamic upload buffers for per-frame data changes
-	ByteAddressBuffer uploadBuffer;
-	uploadBuffer.Create(L"Surfel GEN UPLAOD", 1, sizeof(SurfelGenCB), &m_SurfelGen);
-	// Update the surfel setting buffer with the new frame index
-	CommandContext& context = CommandContext::Begin(L"Update Surfel Generation CB");
-	context.CopyBuffer(m_SufelSettingBuffer, uploadBuffer);
-	context.Finish(true);
 	//Update the projection from camera
 	UpdateProjection(camera);
 
 	gfxContext.GetCommandList()->SetDescriptorHeaps(1, heaps);
-	gfxContext.SetConstantBuffer(0, m_SufelSettingBuffer.GetGpuVirtualAddress());
+	//gfxContext.SetConstantBuffer(0, m_SufelSettingBuffer.GetGpuVirtualAddress());
+	gfxContext.SetDynamicConstantBufferView(0, sizeof(SurfelGenCB),&m_SurfelGen);
 	gfxContext.SetDynamicConstantBufferView(1, sizeof(ProjectionResources),&m_ProjectionData);
 	//gfxContext.SetConstantBuffer(1, m_ProjectoinBuffer.GetGpuVirtualAddress());
 	gfxContext.SetDescriptorTable(2, srvHeap[0]);
@@ -234,18 +241,19 @@ void SurfelGI::FillCPUContainers()
 		srvHeap.GetHeapPointer()
 	};
 	//TODO make use of dynamic upload buffers for per-frame data changes
-	ByteAddressBuffer uploadBuffer;
-	uploadBuffer.Create(L"Surfel GEN UPLAOD", 1, sizeof(SurfelGenCB), &m_SurfelGen);
-	// Update the surfel setting buffer with the new frame index
-	CommandContext& context = CommandContext::Begin(L"Update Surfel Generation CB");
-	context.CopyBuffer(m_SufelSettingBuffer, uploadBuffer);
-	context.Finish(true);
+//	ByteAddressBuffer uploadBuffer;
+//	uploadBuffer.Create(L"Surfel GEN UPLAOD", 1, sizeof(SurfelGenCB), &m_SurfelGen);
+//	// Update the surfel setting buffer with the new frame index
+//	CommandContext& context = CommandContext::Begin(L"Update Surfel Generation CB");
+	//context.CopyBuffer(m_SufelSettingBuffer, uploadBuffer);
+	//context.Finish(true);
 	//Update the projection from camera
 	UpdateProjection(camera);
 
 	gfxContext.GetCommandList()->SetDescriptorHeaps(1, heaps);
-	gfxContext.SetConstantBuffer(0, m_SufelSettingBuffer.GetGpuVirtualAddress());
+	//gfxContext.SetConstantBuffer(0, m_SufelSettingBuffer.GetGpuVirtualAddress());
 	//gfxContext.SetConstantBuffer(1, m_ProjectoinBuffer.GetGpuVirtualAddress());
+	gfxContext.SetDynamicConstantBufferView(0, sizeof(SurfelGenCB),&m_SurfelGen);
 	gfxContext.SetDynamicConstantBufferView(1, sizeof(ProjectionResources),&m_ProjectionData);
 	gfxContext.SetDescriptorTable(2, srvHeap[0]);
 	gfxContext.SetDescriptorTable(3, srvHeap[2]);

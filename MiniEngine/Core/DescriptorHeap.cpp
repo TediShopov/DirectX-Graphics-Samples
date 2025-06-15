@@ -67,11 +67,15 @@ D3D12_CPU_DESCRIPTOR_HANDLE DescriptorAllocator::Allocate( uint32_t Count )
 // DescriptorHeap implementation
 //
 
-void DescriptorHeap::Create( const std::wstring& Name, D3D12_DESCRIPTOR_HEAP_TYPE Type, uint32_t MaxCount )
+void DescriptorHeap::Create( const std::wstring& Name, D3D12_DESCRIPTOR_HEAP_TYPE Type, uint32_t MaxCount, bool shaderVisible)
 {
     m_HeapDesc.Type = Type;
     m_HeapDesc.NumDescriptors = MaxCount;
-    m_HeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
+    if(shaderVisible)
+		m_HeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
+    else
+		m_HeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
+        
     m_HeapDesc.NodeMask = 1;
 
     ASSERT_SUCCEEDED(g_Device->CreateDescriptorHeap(&m_HeapDesc, MY_IID_PPV_ARGS(m_Heap.ReleaseAndGetAddressOf())));

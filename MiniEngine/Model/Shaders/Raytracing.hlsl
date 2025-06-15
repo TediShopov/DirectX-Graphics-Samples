@@ -13,9 +13,18 @@
 #define RAYTRACING_HLSL
 
 #include "RaytracingHlslCompat.h"
+#include "SurfelASAsserts.hlsli"
+
 
 RaytracingAccelerationStructure Scene : register(t0, space0);
 RWTexture2D<float4> RenderTarget : register(u0);
+
+
+RWStructuredBuffer<SurfelData> surfelsUAV : register(u1); // world position
+RWStructuredBuffer<uint> surlfeListUAV : register(u2); // Stored pointers (indices) to the appropriate surfel data
+// Stored pointer to a range of surfle IDs 
+// SurfelList[from SurfelGrid[i] to SurfelGrid[i+1]] is all the surfel that occupy a cell with index I
+RWStructuredBuffer<uint> surfelGridUAV : register(u3); 
 
 
 cbuffer RayGen3DBuffer : register(b0)
@@ -66,6 +75,9 @@ void MyRaygenShader()
     // Ray origin is the camera position
     float4 originH = mul(float4(0, 0, 0, 1), viewToWorld);
     float3 origin = originH.xyz / originH.w;
+
+   // surfelGridUAV[0] = 0;
+   // surlfeListUAV[0] = 0;
 
     // Reconstruct world-space ray direction from NDC through inverse view-projection
     float4 target = mul(float4(ndc.x, ndc.y, 1.0f, 1.0f), invViewProj);

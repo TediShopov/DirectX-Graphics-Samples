@@ -366,6 +366,7 @@ void ModelViewer::RenderScene( void )
     TemporalEffects::ResolveImage(gfxContext);
 
     ParticleEffectManager::Render(gfxContext, m_Camera, g_SceneColorBuffer, g_SceneDepthBuffer,  g_LinearDepth[FrameIndex]);
+    
 
     // Until I work out how to couple these two, it's "either-or".
     if (DepthOfField::Enable)

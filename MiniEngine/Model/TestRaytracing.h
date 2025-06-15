@@ -38,15 +38,18 @@ namespace TestRaytracing
 		Transform transform,
 		D3D12_VERTEX_BUFFER_VIEW vertexBV,
 		D3D12_INDEX_BUFFER_VIEW indexBV,
-		ColorBuffer* outputBuffer
+		ColorBuffer* outputBuffer,
+		DescriptorHeap surfelUAVHeap
 	);
 	void CreateDeviceDependentResources(
 		Transform transform,
 		ModelH3D& model,
-		ColorBuffer* outputBuffer
+		ColorBuffer* outputBuffer,
+		DescriptorHeap surfelUAVHeap
 	);
 
-	void DoRaytracing(const Math::Camera& camera );
+	void CreateOutputTextureUAV(ColorBuffer* color);
+	void DoRaytracing(const Math::Camera& camera,DescriptorHeap surfelUAVHeap);
 
 // Update the application state with the new resolution.
 	void UpdateCBForSizeChange(UINT width, UINT height);
