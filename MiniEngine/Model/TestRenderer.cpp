@@ -201,10 +201,6 @@ void RenderSphereOnSurfels(GraphicsContext& gfxContext, const Matrix4& ViewProjM
 
         t.setPosition(extrudedPossition);
         
-//        Vector4 normalScaled = s.normal;
-//        normalScaled *= 5;
-//        
-//        t.setScale(normalScaled.GetX(),normalScaled.GetY(),normalScaled.GetZ());
         if (XMVector4Length(s.normal).m128_f32[0] > 0.001f)
         {
 			Vector4 quat = Vector4(GetRotationQuaternionFromUpToDirection(s.normal));
@@ -218,6 +214,9 @@ void RenderSphereOnSurfels(GraphicsContext& gfxContext, const Matrix4& ViewProjM
 			XMStoreFloat3(&vsConstants.viewerPos, viewerPos);
 
 			gfxContext.SetDynamicConstantBufferView(Renderer::kMeshConstants, sizeof(vsConstants), &vsConstants);
+            //Vector4 customColor = Vector4(0.2f, 0.3f, 1, 1.0f);
+            //Vector4 customColor = Vector4(1.0f, 0.3f, 0, 1.0f);
+			gfxContext.SetDynamicConstantBufferView(Renderer::kCommonCBV, sizeof(Vector4), &s.color);
 			//--- Draw three indices of the triangle
 			gfxContext.DrawIndexed(m_Disc->m_Indices.size(), 0, 0);
 

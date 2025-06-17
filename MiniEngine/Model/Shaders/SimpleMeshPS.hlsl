@@ -2,11 +2,19 @@
 #include "Common.hlsli"
 #include "Lighting.hlsli"
 
+cbuffer surfelColor : register(b1)
+{
+    float4 color;
+}
+
 //Texture2D<float3> texDiffuse		: register(t0);
 //Texture2D<float3> texSpecular		: register(t1);
 //Texture2D<float3> texNormal			: register(t3);
 //Texture2D<float> texSSAO			: register(t12);
 //Texture2D<float> texShadow			: register(t13);
+
+
+
 
 struct VSOutput
 {
@@ -31,42 +39,9 @@ MRT main(VSOutput vsOutput)
 {
 	MRT mrt;
 
-//	uint2 pixelPos = uint2(vsOutput.position.xy);
-//# define SAMPLE_TEX(texName) texName.Sample(defaultSampler, vsOutput.uv)
-//
-//    float3 diffuseAlbedo = SAMPLE_TEX(texDiffuse);
-//    float3 colorSum = 0;
-//    {
-//        float ao = texSSAO[pixelPos];
-//        colorSum += ApplyAmbientLight( diffuseAlbedo, ao, AmbientColor );
-//    }
-//
-//    float gloss = 128.0;
-//    float3 normal;
-//    {
-//        normal = SAMPLE_TEX(texNormal) * 2.0 - 1.0;
-//        AntiAliasSpecular(normal, gloss);
-//        float3x3 tbn = float3x3(normalize(vsOutput.tangent), normalize(vsOutput.bitangent), normalize(vsOutput.normal));
-//        normal = normalize(mul(normal, tbn));
-//    }
-//
-//    float3 specularAlbedo = float3( 0.56, 0.56, 0.56 );
-//    float specularMask = SAMPLE_TEX(texSpecular).g;
-//    float3 viewDir = normalize(vsOutput.viewDir);
-//    colorSum += ApplyDirectionalLight( diffuseAlbedo, specularAlbedo, specularMask, gloss, normal, viewDir, SunDirection, SunColor, vsOutput.shadowCoord, texShadow );
-//
-//	ShadeLights(colorSum, pixelPos,
-//		diffuseAlbedo,
-//		specularAlbedo,
-//		specularMask,
-//		gloss,
-//		normal,
-//		viewDir,
-//		vsOutput.worldPos
-//		);
-//
 	mrt.Normal = vsOutput.normal;
     //mrt.Color = float4(1, 0, 0, 1);
-    mrt.Color = AmbientColor;
+    //mrt.Color = AmbientColor;
+    mrt.Color = color;
 	return mrt;
 }
