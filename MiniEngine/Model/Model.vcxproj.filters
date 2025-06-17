@@ -185,6 +185,9 @@
       <Filter>Source Files\Geometry</Filter>
     </ClInclude>
     <ClInclude Include="DescriptorHeapStack.h" />
+    <ClInclude Include="UniformGrid.h">
+      <Filter>Source Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <None Include="Shaders\Common.hlsli">

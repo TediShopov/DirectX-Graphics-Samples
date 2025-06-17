@@ -94,6 +94,7 @@
     <ClInclude Include="ModelH3D.h" />
     <ClInclude Include="ParticleEffects.h" />
     <ClInclude Include="Renderer.h" />
+    <ClInclude Include="UniformGrid.h" />
     <FxCompile Include="Shaders\RaytracingHlslCompat.h">
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Library</ShaderType>
       <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">6.3</ShaderModel>

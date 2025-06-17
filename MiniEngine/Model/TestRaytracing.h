@@ -14,6 +14,7 @@
 #include "StepTimer.h"
 #include "RaytracingHlslCompat.h"
 #include "DirectXRaytracingHelper.h"
+#include "UniformGrid.h"
 
 
 namespace Math
@@ -49,7 +50,7 @@ namespace TestRaytracing
 	);
 
 	void CreateOutputTextureUAV(ColorBuffer* color);
-	void DoRaytracing(const Math::Camera& camera,DescriptorHeap surfelUAVHeap);
+	void DoRaytracing(const Math::Camera& camera,DescriptorHeap surfelUAVHeap,UniformGrid grid);
 
 // Update the application state with the new resolution.
 	void UpdateCBForSizeChange(UINT width, UINT height);

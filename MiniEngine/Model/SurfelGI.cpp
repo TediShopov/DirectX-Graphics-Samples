@@ -3,6 +3,7 @@
 #include "Renderer.h"
 #include "Math/Vector.h"
 #include <limits>
+#include "UniformGrid.h"
 
 
 #include "CompiledShaders/SurfelAccelerationStructuresCS.h"

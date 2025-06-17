@@ -694,7 +694,7 @@ void TestRenderer::RenderScene(
     bool skipShadowMap)
 {
 
-    TestRaytracing::DoRaytracing(camera, SurfelIllumination->srvHeap);
+    TestRaytracing::DoRaytracing(camera, SurfelIllumination->srvHeap,SurfelIllumination->m_SurfelGen.UniformGrid);
     Renderer::UpdateGlobalDescriptors();
     Vector3 pos = camera.GetPosition();
 

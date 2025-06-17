@@ -11,6 +11,7 @@
 #include "BufferManager.h"
 #include "ReadbackBuffer.h"
 #include "Camera.h"
+#include "UniformGrid.h"
 
 #include "ExtendedUtility.h"
 
@@ -19,12 +20,6 @@
 using namespace DirectX;
 using namespace Math;
 
-struct UniformGrid {
-
-	Vector4 gridOrigin;
-	Vector4 cellSize;
-	Vector4 dimensions;
-};
 
 __declspec(align(16)) struct SurfelData
 {

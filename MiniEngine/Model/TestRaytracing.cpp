@@ -113,10 +113,11 @@ namespace TestRaytracing
 			//CD3DX12_ROOT_PARAMETER rootParameters[GlobalRootSignatureParams::Count];
 			//rootParameters[GlobalRootSignatureParams::OutputViewSlot].InitAsDescriptorTable(1, &UAVDescriptor);
 			//rootParameters[GlobalRootSignatureParams::AccelerationStructureSlot].InitAsShaderResourceView(0);
-			CD3DX12_ROOT_PARAMETER rootParameters[3];
+			CD3DX12_ROOT_PARAMETER rootParameters[4];
 			rootParameters[0].InitAsDescriptorTable(1, &UAVDescriptor);
 			rootParameters[1].InitAsShaderResourceView(0);
 			rootParameters[2].InitAsConstantBufferView(0);
+			rootParameters[3].InitAsConstantBufferView(1);
 			CD3DX12_ROOT_SIGNATURE_DESC globalRootSignatureDesc(ARRAYSIZE(rootParameters), rootParameters);
 			SerializeAndCreateRaytracingRootSignature(globalRootSignatureDesc, &m_rtGlobalRootSignature);
 		}
@@ -737,7 +738,7 @@ namespace TestRaytracing
 		//return ColorBuffer();
 		return m_raytracingColorBuffer;
 	}
-	void DoRaytracing(const Math::Camera& camera,DescriptorHeap surfelUAVHeap)
+	void DoRaytracing(const Math::Camera& camera,DescriptorHeap surfelUAVHeap, UniformGrid grid)
 	{
 
 		XMMATRIX viewMatrix = XMMatrixLookAtLH(camera.GetPosition(), camera.GetPosition() + camera.GetForwardVec(), camera.GetUpVec());
@@ -786,6 +787,8 @@ namespace TestRaytracing
 		commandList->SetComputeRootDescriptorTable(0, testHeap[0]);
 		commandList->SetComputeRootShaderResourceView(1, m_topLevelAccelerationStructure->GetGPUVirtualAddress());
 		commandList->SetComputeRootConstantBufferView(2, m_TestCB.GetGpuVirtualAddress());
+		gfxContext.SetDynamicConstantBufferView(3, sizeof(UniformGrid), &grid);
+		//commandList->SetComputeRootConstantBufferView(3, m_));
 		DispatchRays(commandList, m_dxrStateObject.Get(), &dispatchDesc);
 		gfxContext.Finish(true);
 	}
