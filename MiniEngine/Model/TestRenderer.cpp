@@ -41,6 +41,7 @@
 #include <dxcapi.h>
 #include <vector>
 #include "TestRaytracing.h"
+#include "SurfelIrradianceAccumulation.h"
 
 
 
@@ -414,6 +415,7 @@ void TestRenderer::Startup( Camera& Camera )
     uint32_t SourceCounts[] = { 1, 1, 1, 1, 1, 1, 1, 1,1 };
 
     TestRaytracing::CreateOutputTextureUAV(&g_SceneColorBuffer);
+    SurfelIrradianceAccumulation::CreateOutputTextureUAV(&g_SceneColorBuffer);
 
     D3D12_CPU_DESCRIPTOR_HANDLE SourceTextures[] =
     {
@@ -450,6 +452,14 @@ void TestRenderer::Startup( Camera& Camera )
         &Graphics::g_SceneColorBuffer,
         SurfelIllumination->nonShaderVisibleHeap
         //SurfelIllumination->srvHeap
+    );
+    SurfelIrradianceAccumulation::CreateDeviceDependentResources(
+        m_Transform,
+        m_Model,
+        &Graphics::g_SceneColorBuffer,
+        SurfelIllumination->nonShaderVisibleHeap
+        //SurfelIllumination->srvHeap
+
     );
 
 
@@ -694,6 +704,7 @@ void TestRenderer::RenderScene(
 {
 
     TestRaytracing::DoRaytracing(camera, SurfelIllumination->srvHeap,SurfelIllumination->m_SurfelGen.UniformGrid);
+    SurfelIrradianceAccumulation::DoRaytracing(camera, SurfelIllumination->srvHeap,SurfelIllumination->m_SurfelGen.UniformGrid);
     Renderer::UpdateGlobalDescriptors();
     Vector3 pos = camera.GetPosition();
 

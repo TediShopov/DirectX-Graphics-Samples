@@ -94,6 +94,7 @@
     <ClInclude Include="ModelH3D.h" />
     <ClInclude Include="ParticleEffects.h" />
     <ClInclude Include="Renderer.h" />
+    <ClInclude Include="SurfelIrradianceAccumulation.h" />
     <ClInclude Include="UniformGrid.h" />
     <FxCompile Include="Shaders\RaytracingHlslCompat.h">
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Library</ShaderType>
@@ -133,6 +134,7 @@
     <ClCompile Include="Renderer.cpp" />
     <ClCompile Include="SponzaRenderer.cpp" />
     <ClCompile Include="SurfelGI.cpp" />
+    <ClCompile Include="SurfelIrradianceAccumulation.cpp" />
     <ClCompile Include="TestRaytracing.cpp" />
     <ClCompile Include="TestRenderer.cpp" />
     <ClCompile Include="TextureConvert.cpp" />
@@ -246,6 +248,10 @@
     </FxCompile>
     <FxCompile Include="Shaders\SkyboxVS.hlsl">
       <ShaderType>Vertex</ShaderType>
+    </FxCompile>
+    <FxCompile Include="Shaders\SurfelIrradianceRayTracing.hlsl">
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Library</ShaderType>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">6.3</ShaderModel>
     </FxCompile>
     <FxCompile Include="Shaders\TestRendererPS.hlsl">
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Pixel</ShaderType>
