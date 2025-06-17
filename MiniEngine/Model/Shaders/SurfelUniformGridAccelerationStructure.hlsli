@@ -9,6 +9,7 @@ struct SurfelData
     uint2 pixelPos;
     float4 randomValues;
     float4 color;
+    uint4 raySamples; 
 
 };
 struct UniformGrid
