@@ -26,6 +26,9 @@ RWStructuredBuffer<uint> surlfeListUAV : register(u2); // Stored pointers (indic
 // SurfelList[from SurfelGrid[i] to SurfelGrid[i+1]] is all the surfel that occupy a cell with index I
 RWStructuredBuffer<uint> surfelGridUAV : register(u3); 
 
+//Flatenned uvs
+//RWStructuredBuffer<float2> FlattenedUV : register(u4);
+
 
 cbuffer RayGen3DBuffer : register(b0)
 {
@@ -39,6 +42,10 @@ cbuffer RayGen3DBuffer : register(b0)
 cbuffer GridCB : register(b1)
 {
     UniformGrid Grid;
+};
+cbuffer LocalCB : register(b2)
+{
+    uint4 a;
 };
 
 
@@ -97,52 +104,27 @@ void MyRaygenShader()
     uint surfelCount = surfelIdTo - surfelIdFrom;
 
     float4 color = float4(0, 0, 0, 0);
+
     
     if(surfelCount > 0)
     {
         color = payload.color;
     }
+    //color = float4(FlattenedUV[0].x, FlattenedUV[0].y, 1, 1);
     RenderTarget[DispatchRaysIndex().xy] = color;
-
-    
-
-
-
-    
-
-
-
-//    if (IsInsideViewport(origin.xy, stencil))
-//    {
-//        // Trace the ray.
-//        // Set the ray's extents.
-//        RayDesc ray;
-//        ray.Origin = origin;
-//        ray.Direction = rayDir;
-//        // Set TMin to a non-zero small value to avoid aliasing issues due to floating - point errors.
-//        // TMin should be kept small to prevent missing geometry at close contact areas.
-//        ray.TMin = 0.001;
-//        ray.TMax = 10000.0;
-//        RayPayload payload = { float4(0, 0, 0, 0) };
-//        //TraceRay(Scene, RAY_FLAG_CULL_BACK_FACING_TRIANGLES, ~0, 0, 1, 0, ray, payload);
-//        TraceRay(Scene, RAY_FLAG_NONE, ~0, 0, 1, 0, ray, payload);
-//
-//        // Write the raytraced color to the output texture.
-//        RenderTarget[DispatchRaysIndex().xy] = payload.color;
-//    }
-//    else
-//    {
-//        // Render interpolated DispatchRaysIndex outside the stencil window
-//        RenderTarget[DispatchRaysIndex().xy] = float4(screenUV, 0, 1);
-//    }
 }
+
+//Use per-instance constant buffers to pass the uvs, diffuse/normal textures and material properties
 
 [shader("closesthit")]
 void MyClosestHitShader(inout RayPayload payload, in MyAttributes attr)
 {
     // Compute hit point in world space
     float3 hitPos = WorldRayOrigin() + RayTCurrent() * WorldRayDirection();
-    payload.color = float4(hitPos, 1);
+    payload.color = float4(a.x / 255.0f, a.y / 255.0f, a.z / 255.0f, 1.0f);
+
+
+    //payload.color = float4(hitPos, 1);
     
     //float3 barycentrics = float3(1 - attr.barycentrics.x - attr.barycentrics.y, attr.barycentrics.x, attr.barycentrics.y);
     //payload.color = float4(barycentrics, 1);

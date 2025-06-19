@@ -85,7 +85,9 @@
       <Filter>Source Files\Geometry</Filter>
     </ClCompile>
     <ClCompile Include="DescriptorHeapStack.cpp" />
-    <ClCompile Include="SurfelIrradianceAccumulation.cpp" />
+    <ClCompile Include="SurfelIrradianceAccumulation.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <Filter Include="Source Files">
@@ -189,7 +191,9 @@
     <ClInclude Include="UniformGrid.h">
       <Filter>Source Files</Filter>
     </ClInclude>
-    <ClInclude Include="SurfelIrradianceAccumulation.h" />
+    <ClInclude Include="SurfelIrradianceAccumulation.h">
+      <Filter>Source Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <None Include="Shaders\Common.hlsli">
