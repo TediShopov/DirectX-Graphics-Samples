@@ -182,6 +182,7 @@ void SurfelGI::FillCPUContainers()
 		m_SurfelDataArray[i].pixelPosY = 0;
 		m_SurfelDataArray[i].tilePosX = 0;
 		m_SurfelDataArray[i].tilePosY = 0;
+		m_SurfelDataArray[i].raySamples = 1;
 	}
 
 	//Fill the surfle stack buffer

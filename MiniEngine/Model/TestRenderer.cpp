@@ -704,7 +704,11 @@ void TestRenderer::RenderScene(
 {
 
     TestRaytracing::DoRaytracing(camera, SurfelIllumination->srvHeap,SurfelIllumination->m_SurfelGen.UniformGrid);
-    SurfelIrradianceAccumulation::DoRaytracing(camera, SurfelIllumination->srvHeap,SurfelIllumination->m_SurfelGen.UniformGrid);
+    SurfelIrradianceAccumulation::DoRaytracing(
+        camera,
+        SurfelIllumination->srvHeap,
+        SurfelIllumination->m_SurfelGen.UniformGrid,
+        SurfelIllumination->m_SurfelDataArray);
     Renderer::UpdateGlobalDescriptors();
     Vector3 pos = camera.GetPosition();
 

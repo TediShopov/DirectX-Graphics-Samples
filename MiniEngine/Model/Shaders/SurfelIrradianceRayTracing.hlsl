@@ -25,6 +25,7 @@ RWStructuredBuffer<uint> surlfeListUAV : register(u2); // Stored pointers (indic
 // Stored pointer to a range of surfle IDs 
 // SurfelList[from SurfelGrid[i] to SurfelGrid[i+1]] is all the surfel that occupy a cell with index I
 RWStructuredBuffer<uint> surfelGridUAV : register(u3); 
+RWStructuredBuffer<uint> rayDispatchUUAV : register(u4); 
 
 
 cbuffer RayGen3DBuffer : register(b0)
@@ -39,6 +40,7 @@ cbuffer RayGen3DBuffer : register(b0)
 cbuffer GridCB : register(b1)
 {
     UniformGrid Grid;
+    uint frameIndex;
 };
 
 
@@ -49,6 +51,32 @@ struct RayPayload
 {
     float4 color;
 };
+// Generates a direction in a hemisphere around a normal
+float3 SampleHemisphere(float2 rand, float3 normal)
+{
+    // Convert random [0,1]^2 to spherical coordinates
+    float phi = 2.0f * 3.14159265f * rand.x;
+    float cosTheta = rand.y;
+    float sinTheta = sqrt(1.0f - cosTheta * cosTheta);
+
+    // Cartesian coordinates in tangent space
+    float3 tangentSample = float3(cos(phi) * sinTheta, sin(phi) * sinTheta, cosTheta);
+
+    // Create orthonormal basis (TBN)
+    float3 up = abs(normal.z) < 0.999f ? float3(0, 0, 1) : float3(1, 0, 0);
+    float3 tangent = normalize(cross(up, normal));
+    float3 bitangent = cross(normal, tangent);
+
+    // Transform from tangent space to world space
+    float3 worldDir =
+        tangent * tangentSample.x +
+        bitangent * tangentSample.y +
+        normal * tangentSample.z;
+
+    return normalize(worldDir);
+}
+
+
 
 bool IsInsideViewport(float2 p, Viewport viewport)
 {
@@ -59,26 +87,25 @@ bool IsInsideViewport(float2 p, Viewport viewport)
 [shader("raygeneration")]
 void MyRaygenShader()
 {
-    float2 screenUV = (float2) DispatchRaysIndex() / (float2) DispatchRaysDimensions(); // [0,1]
+    //float2 screenUV = (float2) DispatchRaysIndex() / (float2) DispatchRaysDimensions(); // [0,1]
     // Map to NDC space [-1,1]
-    float2 ndc = screenUV * 2.0 - 1.0;
-    ndc.x = -ndc.x; // Flip Y if needed for DX convention
-    ndc.y = -ndc.y; // Flip Y if needed for DX convention
+    //float2 ndc = screenUV * 2.0 - 1.0;
+    //ndc.x = -ndc.x; // Flip Y if needed for DX convention
+    //ndc.y = -ndc.y; // Flip Y if needed for DX convention
 
-    // Ray origin is the camera position
-    float4 originH = mul(float4(0, 0, 0, 1), viewToWorld);
-    float3 origin = originH.xyz / originH.w;
+    //float4 target = mul(float4(ndc.x, ndc.y, 1.0f, 1.0f), invViewProj);
+    //float3 worldPos = target.xyz / target.w;
+     uint globalIndex = DispatchRaysIndex().x;
+    uint surfelIndex = rayDispatchUUAV[globalIndex];
+    uint seed = GetThreadTemporalSeed(DispatchRaysIndex(),frameIndex);
+    float2 rnd;
+    rnd.x = RandomFloat01(seed);
+    rnd.y = RandomFloat01(seed);
+    float3 rayDir = SampleHemisphere(rnd, surfelsUAV[surfelIndex].normal);
 
-    float4 target = mul(float4(ndc.x, ndc.y, 1.0f, 1.0f), invViewProj);
-    float3 worldPos = target.xyz / target.w;
-    float3 rayDir = normalize(worldPos - origin);
-
-
-    
-        // Trace the ray.
-        // Set the ray's extents.
+    // Trace the ray.
     RayDesc ray;
-    ray.Origin = origin;
+    ray.Origin = surfelsUAV[surfelIndex].position;
     ray.Direction = rayDir;
         // Set TMin to a non-zero small value to avoid aliasing issues due to floating - point errors.
         // TMin should be kept small to prevent missing geometry at close contact areas.
@@ -95,46 +122,7 @@ void MyRaygenShader()
     uint surfelIdTo = surfelGridUAV[flattenedIndex + 1];
 
     uint surfelCount = surfelIdTo - surfelIdFrom;
-
-    float4 color = float4(0, 0, 0, 0);
-    
-    if(surfelCount > 0)
-    {
-        color = payload.color;
-    }
-    RenderTarget[DispatchRaysIndex().xy] = color;
-
-    
-
-
-
-    
-
-
-
-//    if (IsInsideViewport(origin.xy, stencil))
-//    {
-//        // Trace the ray.
-//        // Set the ray's extents.
-//        RayDesc ray;
-//        ray.Origin = origin;
-//        ray.Direction = rayDir;
-//        // Set TMin to a non-zero small value to avoid aliasing issues due to floating - point errors.
-//        // TMin should be kept small to prevent missing geometry at close contact areas.
-//        ray.TMin = 0.001;
-//        ray.TMax = 10000.0;
-//        RayPayload payload = { float4(0, 0, 0, 0) };
-//        //TraceRay(Scene, RAY_FLAG_CULL_BACK_FACING_TRIANGLES, ~0, 0, 1, 0, ray, payload);
-//        TraceRay(Scene, RAY_FLAG_NONE, ~0, 0, 1, 0, ray, payload);
-//
-//        // Write the raytraced color to the output texture.
-//        RenderTarget[DispatchRaysIndex().xy] = payload.color;
-//    }
-//    else
-//    {
-//        // Render interpolated DispatchRaysIndex outside the stencil window
-//        RenderTarget[DispatchRaysIndex().xy] = float4(screenUV, 0, 1);
-//    }
+    RenderTarget[DispatchRaysIndex().xy] = payload.color;
 }
 
 [shader("closesthit")]

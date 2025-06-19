@@ -73,6 +73,51 @@ namespace SurfelIrradianceAccumulation
 	float aspectRatio;
 	UINT m_raytracingOutputResourceUAVDescriptorHeapIndex;
 
+	 const UINT _GLOBAL_RAY_IRRADIANCE_BUDGET_ = 10000;
+	 StructuredBuffer m_RayDispatchBuffer;
+	std::vector<UINT> m_RayDispatchData;
+	 UINT totalSamples = 0;
+	 __declspec(align(16)) struct GridCB
+	 {
+		 UniformGrid Grid;
+		 UINT frameIndex;
+	 };
+
+	void CreateRayDispatchData()
+	{
+		m_RayDispatchData.assign(_GLOBAL_RAY_IRRADIANCE_BUDGET_, 0);
+		m_RayDispatchBuffer.Create(
+			L"Ray Dispatch Data",
+			_GLOBAL_RAY_IRRADIANCE_BUDGET_,
+			sizeof(UINT),
+			m_RayDispatchData.data());
+	}
+
+	//Compute an array of surfel indices
+	//The array lenght would be corsesponding to the total number of ray budget
+	//-> Each ray can access this data to determine which surfel it would be casted from
+	void ComputeRayIndexing(std::vector<SurfelData>& data) {
+
+		 totalSamples = 0;
+		int surfelID = 0;
+		int rayDispatchIndex = 0;
+		for each (SurfelData s in data)
+		{
+
+			totalSamples += s.raySamples;
+			
+			for (size_t i = 0; i < s.raySamples; i++)
+			{
+				m_RayDispatchData[rayDispatchIndex] = surfelID;
+				rayDispatchIndex++;
+
+			}
+			surfelID++;
+
+		}
+		int a = 3;
+
+	}
 	void CreateRaytracingInterfaces()
 	{
 		auto device = Graphics::g_Device;
@@ -111,7 +156,7 @@ namespace SurfelIrradianceAccumulation
 		// This is a root signature that is shared across all raytracing shaders invoked during a DispatchRays() call.
 		{
 			CD3DX12_DESCRIPTOR_RANGE UAVDescriptor;
-			UAVDescriptor.Init(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 4, 0);
+			UAVDescriptor.Init(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 5, 0);
 			//CD3DX12_ROOT_PARAMETER rootParameters[GlobalRootSignatureParams::Count];
 			//rootParameters[GlobalRootSignatureParams::OutputViewSlot].InitAsDescriptorTable(1, &UAVDescriptor);
 			//rootParameters[GlobalRootSignatureParams::AccelerationStructureSlot].InitAsShaderResourceView(0);
@@ -617,7 +662,7 @@ namespace SurfelIrradianceAccumulation
 
 	void CreateRaytracingOutputResourceNew(ColorBuffer* outputBuffer, DescriptorHeap surfelUAVHeap)
 	{
-		testHeap.Create(L"HeapName", D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 4);
+		testHeap.Create(L"HeapName", D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 5);
 		//testHeap.Create(L"HeapName", D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 1);
 
 	  ExtendedUtility::CopyDescriptorsToHeap(testHeap, {
@@ -625,6 +670,7 @@ namespace SurfelIrradianceAccumulation
 			surfelUAVHeap[2],
 			surfelUAVHeap[3],
 			surfelUAVHeap[4],
+			m_RayDispatchBuffer.GetUAV()
 		  }
 	  );
 
@@ -686,6 +732,8 @@ namespace SurfelIrradianceAccumulation
 		//	
 		// Build shader tables, which define shaders and their local root arguments.
 		BuildShaderTables();
+
+		CreateRayDispatchData();
 		//	
 		//	    // Create an output 2D texture to store the raytracing result to.
 		CreateRaytracingOutputResourceNew(outputBuffer,surfelUAVHeap);
@@ -719,6 +767,8 @@ namespace SurfelIrradianceAccumulation
 		//	
 		// Build shader tables, which define shaders and their local root arguments.
 		BuildShaderTables();
+
+		CreateRayDispatchData();
 		//	
 		//	    // Create an output 2D texture to store the raytracing result to.
 		CreateRaytracingOutputResourceNew(outputBuffer,surfelSRVHeap);
@@ -740,7 +790,10 @@ namespace SurfelIrradianceAccumulation
 		//return ColorBuffer();
 		return m_raytracingColorBuffer;
 	}
-	void DoRaytracing(const Math::Camera& camera,DescriptorHeap surfelUAVHeap, UniformGrid grid)
+
+	UINT frameIndex;
+
+	void DoRaytracing(const Math::Camera& camera,DescriptorHeap surfelUAVHeap, UniformGrid grid,std::vector<SurfelData>& surfels)
 	{
 
 		XMMATRIX viewMatrix = XMMatrixLookAtLH(camera.GetPosition(), camera.GetPosition() + camera.GetForwardVec(), camera.GetUpVec());
@@ -748,17 +801,23 @@ namespace SurfelIrradianceAccumulation
 		XMMATRIX invViewProj = XMMatrixInverse(nullptr, viewMatrix * projMatrix);
 		XMMATRIX viewToWorld = XMMatrixInverse(nullptr, viewMatrix);
 
-		//	auto invViewProj = XMMatrixInverse(nullptr, camera.GetViewProjMatrix());
-		//	auto invView = XMMatrixInverse(nullptr, camera.GetViewMatrix());
 
 		m_rayGenCB.invViewProject = XMMatrixTranspose(invViewProj);
 		m_rayGenCB.viewToWorld = XMMatrixTranspose(viewToWorld);
 
-		m_TestCB.Create(L"Ray Tracing CBV", 1, static_cast<uint32_t>(sizeof(m_rayGenCB)), &m_rayGenCB);
+		//m_TestCB.Create(L"Ray Tracing CBV", 1, static_cast<uint32_t>(sizeof(m_rayGenCB)), &m_rayGenCB);
 
 		ComputeContext& gfxContext = ComputeContext::Begin(L"Surfel Irradiance Ray Tracing");
 		ID3D12GraphicsCommandList4* pCmdList = static_cast<ID3D12GraphicsCommandList4*>(gfxContext.GetCommandList());
 		auto commandList = pCmdList;
+
+		//Update the m_RayDispatch data
+		ComputeRayIndexing(surfels);
+
+		gfxContext.WriteBuffer(m_RayDispatchBuffer, 0, m_RayDispatchData.data(), sizeof(UINT) * m_RayDispatchData.size());
+
+
+
 
 		gfxContext.TransitionResource(TestRaytracing::GetOutputBuffer(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 
@@ -775,8 +834,8 @@ namespace SurfelIrradianceAccumulation
 				dispatchDesc->MissShaderTable.StrideInBytes = dispatchDesc->MissShaderTable.SizeInBytes;
 				dispatchDesc->RayGenerationShaderRecord.StartAddress = m_rayGenShaderTable->GetGPUVirtualAddress();
 				dispatchDesc->RayGenerationShaderRecord.SizeInBytes = m_rayGenShaderTable->GetDesc().Width;
-				dispatchDesc->Width = Graphics::g_SceneColorBuffer.GetWidth();
-				dispatchDesc->Height = Graphics::g_SceneColorBuffer.GetHeight();
+				dispatchDesc->Width = totalSamples;
+				dispatchDesc->Height = 1;
 				dispatchDesc->Depth = 1;
 				//commandList->SetPipelineState1(stateObject);
 				commandList->SetPipelineState1(stateObject);
@@ -789,7 +848,16 @@ namespace SurfelIrradianceAccumulation
 		commandList->SetComputeRootDescriptorTable(0, testHeap[0]);
 		commandList->SetComputeRootShaderResourceView(1, m_topLevelAccelerationStructure->GetGPUVirtualAddress());
 		commandList->SetComputeRootConstantBufferView(2, m_TestCB.GetGpuVirtualAddress());
-		gfxContext.SetDynamicConstantBufferView(3, sizeof(UniformGrid), &grid);
+		//gfxContext.SetDynamicConstantBufferView(3, sizeof(UniformGrid), &grid);
+		GridCB cb = {
+			grid,
+			frameIndex
+		};
+
+		frameIndex++;
+		commandList->SetComputeRootConstantBufferView(2, m_TestCB.GetGpuVirtualAddress());
+		gfxContext.SetDynamicConstantBufferView(2, sizeof(RayGet3DBuffer), &m_rayGenCB);
+		gfxContext.SetDynamicConstantBufferView(3, sizeof(GridCB), &cb);
 		//commandList->SetComputeRootConstantBufferView(3, m_));
 		DispatchRays(commandList, m_dxrStateObject.Get(), &dispatchDesc);
 		gfxContext.Finish(true);

@@ -16,6 +16,7 @@
 #include "RaytracingHlslCompat.h"
 #include "DirectXRaytracingHelper.h"
 #include "UniformGrid.h"
+#include "SurfelGI.h"
 
 
 namespace Math
@@ -51,7 +52,7 @@ namespace SurfelIrradianceAccumulation
 	);
 
 	void CreateOutputTextureUAV(ColorBuffer* color);
-	void DoRaytracing(const Math::Camera& camera,DescriptorHeap surfelUAVHeap,UniformGrid grid);
+	void DoRaytracing(const Math::Camera& camera,DescriptorHeap surfelUAVHeap, UniformGrid grid,std::vector<SurfelData>& surfels);
 
 // Update the application state with the new resolution.
 	void UpdateCBForSizeChange(UINT width, UINT height);
