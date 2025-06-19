@@ -15,6 +15,14 @@
 #include "ModelH3D.h"
 #include "ExtendedUtility.h"
 
+	__declspec(align(16)) 
+		struct LocalCB {
+		UINT a;
+		UINT b;
+		UINT c;
+		UINT d;
+
+	};
 struct RayGet3DBuffer {
 
 	XMMATRIX invViewProject;
@@ -49,7 +57,9 @@ namespace TestRaytracing
 	//Used for all the ray shaders
 	ComPtr<ID3D12RootSignature> m_rtGlobalRootSignature;
 	//Used by each individual shader and could be overwritten
-	ComPtr<ID3D12RootSignature> m_rtLocalRootSignature;
+	ComPtr<ID3D12RootSignature> m_rtLocalRayGenRB;
+	//A different locla root signature for the hit shader
+	ComPtr<ID3D12RootSignature> m_rtLocalHitRB;
 
 	ComPtr<ID3D12Resource> m_accelerationStructure;
 	ComPtr<ID3D12Resource> m_bottomLevelAccelerationStructure;
@@ -66,10 +76,19 @@ namespace TestRaytracing
 	ColorBuffer m_raytracingColorBuffer;
 
 
+
 	DescriptorHeap testHeap;
 
 	float aspectRatio;
 	UINT m_raytracingOutputResourceUAVDescriptorHeapIndex;
+
+
+
+	//Stores the actual flattened UV indices of the geometry
+	//std::vector<std::vector<float>> m_perInstanceData;
+
+	//Stores the flattened indices as Buffer that can be passed on the GPU
+	std::vector<StructuredBuffer> m_perInstanceCBs;
 
 	void CreateRaytracingInterfaces()
 	{
@@ -125,19 +144,23 @@ namespace TestRaytracing
 		// Local Root Signature
 		// This is a root signature that enables a shader to have unique arguments that come from shader tables.
 		{
-			//CD3DX12_ROOT_PARAMETER rootParameters[LocalRootSignatureParams::Count];
-			//rootParameters[LocalRootSignatureParams::ViewportConstantSlot].InitAsConstants(SizeOfInUint32(m_rayGenCB), 0, 0);
 			//CD3DX12_ROOT_PARAMETER rootParameters[1];
-			//rootParameters[0].InitAsConstants(SizeOfInUint32(m_rayGenCB), 0, 0);
-			//rootParameters[0].InitAsConstantBufferView(0,sizeof(m_rayGenCB), D3D12_SHADER_VISIBILITY_ALL);
-			//rootParameters[0].InitAsConstantBufferView(0);
-			//---TODO TEST IF CORRECT SIZE IF SUPPLIED
-
+			//rootParameters[0].InitAsConstantBufferView(2);
+			//rootParameters[0].InitAsUnorderedAccessView(4);
 			//CD3DX12_ROOT_SIGNATURE_DESC localRootSignatureDesc(ARRAYSIZE(rootParameters), rootParameters);
 			//--- ATTEMPT TO CREATE AND EMMPTY LOCAL ROOT SIGNATURE ---
-			CD3DX12_ROOT_SIGNATURE_DESC localRootSignatureDesc(0, 0);
+			CD3DX12_ROOT_SIGNATURE_DESC localRootSignatureDesc(0,0);
 			localRootSignatureDesc.Flags = D3D12_ROOT_SIGNATURE_FLAG_LOCAL_ROOT_SIGNATURE;
-			SerializeAndCreateRaytracingRootSignature(localRootSignatureDesc, &m_rtLocalRootSignature);
+			SerializeAndCreateRaytracingRootSignature(localRootSignatureDesc, &m_rtLocalRayGenRB);
+		}
+		// HIT SHADER - Local Root Signature
+		// This is a root signature that enables a shader to have unique arguments that come from shader tables.
+		{
+			CD3DX12_ROOT_PARAMETER rootParameters[1];
+			rootParameters[0].InitAsConstantBufferView(2);
+			CD3DX12_ROOT_SIGNATURE_DESC localRootSignatureDesc(ARRAYSIZE(rootParameters), rootParameters);
+			localRootSignatureDesc.Flags = D3D12_ROOT_SIGNATURE_FLAG_LOCAL_ROOT_SIGNATURE;
+			SerializeAndCreateRaytracingRootSignature(localRootSignatureDesc, &m_rtLocalHitRB);
 		}
 	}
 
@@ -150,11 +173,20 @@ namespace TestRaytracing
 		// Local root signature to be used in a ray gen shader.
 		{
 			auto localRootSignature = raytracingPipeline->CreateSubobject<CD3DX12_LOCAL_ROOT_SIGNATURE_SUBOBJECT>();
-			localRootSignature->SetRootSignature(m_rtLocalRootSignature.Get());
+			localRootSignature->SetRootSignature(m_rtLocalRayGenRB.Get());
 			// Shader association
 			auto rootSignatureAssociation = raytracingPipeline->CreateSubobject<CD3DX12_SUBOBJECT_TO_EXPORTS_ASSOCIATION_SUBOBJECT>();
 			rootSignatureAssociation->SetSubobjectToAssociate(*localRootSignature);
 			rootSignatureAssociation->AddExport(c_raygenShaderName);
+		}
+		// Local root signature to be used in a ray gen shader.
+		{
+			auto localRootSignature = raytracingPipeline->CreateSubobject<CD3DX12_LOCAL_ROOT_SIGNATURE_SUBOBJECT>();
+			localRootSignature->SetRootSignature(m_rtLocalHitRB.Get());
+			// Shader association
+			auto rootSignatureAssociation = raytracingPipeline->CreateSubobject<CD3DX12_SUBOBJECT_TO_EXPORTS_ASSOCIATION_SUBOBJECT>();
+			rootSignatureAssociation->SetSubobjectToAssociate(*localRootSignature);
+			rootSignatureAssociation->AddExport(c_hitGroupName);
 		}
 	}
 	void CreateRaytracingPipelineStateObject()
@@ -439,6 +471,8 @@ namespace TestRaytracing
 			desc.Type = D3D12_RAYTRACING_GEOMETRY_TYPE_TRIANGLES;
 			desc.Flags = D3D12_RAYTRACING_GEOMETRY_FLAG_OPAQUE;
 
+
+
 			D3D12_RAYTRACING_GEOMETRY_TRIANGLES_DESC& trianglesDesc = desc.Triangles;
 			trianglesDesc.VertexFormat = DXGI_FORMAT_R32G32B32_FLOAT;
 			trianglesDesc.VertexCount = mesh.vertexCount;
@@ -494,7 +528,7 @@ namespace TestRaytracing
 
 			instanceDesc.AccelerationStructure = blas->GetGPUVirtualAddress();
 			instanceDesc.Flags = 0;
-			instanceDesc.InstanceID = 0;
+			instanceDesc.InstanceID = i;
 			instanceDesc.InstanceMask = 1;
 			//instanceDesc.InstanceContributionToHitGroupIndex = i;
 			instanceDesc.InstanceContributionToHitGroupIndex = 0;
@@ -585,14 +619,72 @@ namespace TestRaytracing
 		}
 
 		// Hit group shader table
+//		{
+//			UINT numShaderRecords = 1;
+//			UINT shaderRecordSize = shaderIdentifierSize;
+//			ShaderTable hitGroupShaderTable(device, numShaderRecords, shaderRecordSize, L"HitGroupShaderTable");
+//			hitGroupShaderTable.push_back(ShaderRecord(hitGroupShaderIdentifier, shaderIdentifierSize));
+//
+//			m_hitGroupShaderTable = hitGroupShaderTable.GetResource();
+//		}
+
+
+
 		{
-			UINT numShaderRecords = 1;
-			UINT shaderRecordSize = shaderIdentifierSize;
-			ShaderTable hitGroupShaderTable(device, numShaderRecords, shaderRecordSize, L"HitGroupShaderTable");
-			hitGroupShaderTable.push_back(ShaderRecord(hitGroupShaderIdentifier, shaderIdentifierSize));
+			// Assume you have:
+			// - A constant buffer per BLAS instance (e.g., one per mesh)
+			// - An array or vector of UploadBuffers or GPU virtual addresses:
+			//   std::vector<D3D12_GPU_VIRTUAL_ADDRESS> materialCBAddresses;
+			struct LocalCBRootArgument {
+				//RayGenConstantBuffer cb;
+				LocalCB cb;
+			} rootArguments;
+			rootArguments.cb = { 1,1,1,1 };
+
+			//auto rootArgSize = sizeof(rootArguments);
+			auto rootArgSize = sizeof(D3D12_GPU_VIRTUAL_ADDRESS);
+
+			UINT numShaderRecords = static_cast<UINT>(m_perInstanceCBs.size());
+			UINT shaderIdentifierSize = D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES;
+
+			// Each shader record must contain the shader identifier + local root arguments
+			UINT shaderRecordSize = AlignUp(shaderIdentifierSize + rootArgSize, D3D12_RAYTRACING_SHADER_RECORD_BYTE_ALIGNMENT);
+			//UINT shaderRecordSize = AlignUp(shaderIdentifierSize + sizeof(D3D12_GPU_VIRTUAL_ADDRESS), D3D12_RAYTRACING_SHADER_RECORD_BYTE_ALIGNMENT);
+
+
+			ShaderTable hitGroupShaderTable(Graphics::g_Device, numShaderRecords, shaderRecordSize, L"HitGroupShaderTable");
+
+			for (UINT i = 0; i < numShaderRecords; ++i)
+			{
+				//LocalCB a = {10,10,10,10};
+
+//				ShaderRecord record(
+//					hitGroupShaderIdentifier,             // Pointer to the shader identifier
+//					shaderIdentifierSize,                 // Size of the shader identifier
+//					&rootArguments,                           // Pointer to root arguments (e.g., CBV GPU VA)
+//					 rootArgSize
+//
+//				);
+
+				auto cbAdress = m_perInstanceCBs[i].GetGpuVirtualAddress();
+
+				ShaderRecord record(
+					hitGroupShaderIdentifier,             // Pointer to the shader identifier
+					shaderIdentifierSize,                 // Size of the shader identifier
+					&cbAdress,                           // Pointer to root arguments (e.g., CBV GPU VA)
+					 sizeof(D3D12_GPU_VIRTUAL_ADDRESS)  //  Always 8 bytes
+
+				);
+				hitGroupShaderTable.push_back(record);
+			}
+
+			// Store the resource for later use in DispatchRays
 			m_hitGroupShaderTable = hitGroupShaderTable.GetResource();
 		}
 	}
+
+
+
 	UINT AllocateDescriptor(D3D12_CPU_DESCRIPTOR_HANDLE* cpuDescriptor, UINT descriptorIndexToUse)
 	{
 		//	auto descriptorHeapCpuBase = m_descriptorHeap->GetCPUDescriptorHandleForHeapStart();
@@ -604,6 +696,8 @@ namespace TestRaytracing
 		//	return descriptorIndexToUse;
 		return 0;
 	}
+
+
 
 
 	void CreateOutputTextureUAV(ColorBuffer* outputBuffer) {
@@ -654,6 +748,50 @@ namespace TestRaytracing
 				 1 - border / aspectRatio, 1.0f - border
 			};
 
+		}
+	}
+
+
+
+
+	void CreatePerInstanceCB(ModelH3D& model,UINT numMeshes) {
+		m_perInstanceCBs.resize(numMeshes);
+
+		for (UINT i = 0; i < numMeshes; i++)
+		{
+			auto& mesh = model.m_pMesh[i];
+			auto uvAttribOffset = (UINT)mesh.attrib[ModelH3D::attrib_texcoord0].offset;
+			D3D12_GPU_VIRTUAL_ADDRESS uvStartAddress =
+				model.GetVertexBuffer().BufferLocation +
+				mesh.vertexDataByteOffset +
+				uvAttribOffset;
+
+
+
+			//How to generate a buffer from starting location, num, mesh index, uv offset
+
+
+			//model.GetVertexBuffer().BufferLocation;
+			//uint8_t* basePtr = reinterpret_cast<uint8_t*>(model.GetSysMemBuffer());
+			uint8_t* basePtr = reinterpret_cast<uint8_t*>(model.m_pVertexData);
+			basePtr += mesh.vertexDataByteOffset;
+
+			std::vector<XMFLOAT2> uvData(mesh.vertexCount);
+
+			//For loop to extract all the UV coordinates
+			for (UINT j = 0; j < mesh.vertexCount; ++j)
+			{
+				//Append to an array
+				float* uvPtr = reinterpret_cast<float*>(basePtr + j * mesh.vertexStride + uvAttribOffset);
+				uvData[j] = XMFLOAT2(uvPtr[0], uvPtr[1]);
+			}
+
+			LocalCB cb;
+			cb.a = uvData.size();
+			//Create in the appropriate per instance buffer
+			//m_perInstanceCBs[i].Create(L"Uv Buffer", 1, sizeof(UINT), &uvData.size());
+			m_perInstanceCBs[i].Create(L"Uv Buffer", 1, sizeof(LocalCB), &cb);
+			//m_perInstanceCBs[i].Create(L"Uv Buffer", mesh.vertexCount, sizeof(XMFLOAT2), uvData.data());
 		}
 	}
 	// Create resources that depend on the device.
@@ -710,6 +848,10 @@ namespace TestRaytracing
 
 		// Create a raytracing pipeline state object which defines the binding of shaders, state and resources to be used during raytracing.
 		CreateRaytracingPipelineStateObject();
+
+		//Extract fllatened UV for per instance parameters
+		CreatePerInstanceCB(model, 20);
+
 		//	
 		// Build raytracing acceleration structures from the generated geometry.
 		BuildAccelerationStructures(transform, model, 20);
@@ -720,7 +862,12 @@ namespace TestRaytracing
 		//	
 		//	    // Create an output 2D texture to store the raytracing result to.
 		CreateRaytracingOutputResourceNew(outputBuffer,surfelSRVHeap);
+
+
 	}
+
+
+
 
 	D3D12_GPU_DESCRIPTOR_HANDLE GetSrvGpuHandle()
 	{
@@ -752,7 +899,7 @@ namespace TestRaytracing
 		m_rayGenCB.invViewProject = XMMatrixTranspose(invViewProj);
 		m_rayGenCB.viewToWorld = XMMatrixTranspose(viewToWorld);
 
-		m_TestCB.Create(L"Ray Tracing CBV", 1, static_cast<uint32_t>(sizeof(m_rayGenCB)), &m_rayGenCB);
+		//m_TestCB.Create(L"Ray Tracing CBV", 1, static_cast<uint32_t>(sizeof(m_rayGenCB)), &m_rayGenCB);
 
 		ComputeContext& gfxContext = ComputeContext::Begin(L"RayTracing");
 		ID3D12GraphicsCommandList4* pCmdList = static_cast<ID3D12GraphicsCommandList4*>(gfxContext.GetCommandList());
@@ -786,7 +933,8 @@ namespace TestRaytracing
 
 		commandList->SetComputeRootDescriptorTable(0, testHeap[0]);
 		commandList->SetComputeRootShaderResourceView(1, m_topLevelAccelerationStructure->GetGPUVirtualAddress());
-		commandList->SetComputeRootConstantBufferView(2, m_TestCB.GetGpuVirtualAddress());
+		//commandList->SetComputeRootConstantBufferView(2, m_TestCB.GetGpuVirtualAddress());
+		gfxContext.SetDynamicConstantBufferView(2, sizeof(RayGet3DBuffer), &m_rayGenCB);
 		gfxContext.SetDynamicConstantBufferView(3, sizeof(UniformGrid), &grid);
 		//commandList->SetComputeRootConstantBufferView(3, m_));
 		DispatchRays(commandList, m_dxrStateObject.Get(), &dispatchDesc);

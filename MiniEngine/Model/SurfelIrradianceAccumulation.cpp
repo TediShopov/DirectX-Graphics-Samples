@@ -819,7 +819,7 @@ namespace SurfelIrradianceAccumulation
 
 
 
-		gfxContext.TransitionResource(TestRaytracing::GetOutputBuffer(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+		//gfxContext.TransitionResource(TestRaytracing::GetOutputBuffer(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 
 
 		commandList->SetComputeRootSignature(m_rtGlobalRootSignature.Get());
@@ -847,7 +847,7 @@ namespace SurfelIrradianceAccumulation
 
 		commandList->SetComputeRootDescriptorTable(0, testHeap[0]);
 		commandList->SetComputeRootShaderResourceView(1, m_topLevelAccelerationStructure->GetGPUVirtualAddress());
-		commandList->SetComputeRootConstantBufferView(2, m_TestCB.GetGpuVirtualAddress());
+		//commandList->SetComputeRootConstantBufferView(2, m_TestCB.GetGpuVirtualAddress());
 		//gfxContext.SetDynamicConstantBufferView(3, sizeof(UniformGrid), &grid);
 		GridCB cb = {
 			grid,
@@ -855,7 +855,7 @@ namespace SurfelIrradianceAccumulation
 		};
 
 		frameIndex++;
-		commandList->SetComputeRootConstantBufferView(2, m_TestCB.GetGpuVirtualAddress());
+		//commandList->SetComputeRootConstantBufferView(2, m_TestCB.GetGpuVirtualAddress());
 		gfxContext.SetDynamicConstantBufferView(2, sizeof(RayGet3DBuffer), &m_rayGenCB);
 		gfxContext.SetDynamicConstantBufferView(3, sizeof(GridCB), &cb);
 		//commandList->SetComputeRootConstantBufferView(3, m_));

@@ -704,11 +704,11 @@ void TestRenderer::RenderScene(
 {
 
     TestRaytracing::DoRaytracing(camera, SurfelIllumination->srvHeap,SurfelIllumination->m_SurfelGen.UniformGrid);
-    SurfelIrradianceAccumulation::DoRaytracing(
-        camera,
-        SurfelIllumination->srvHeap,
-        SurfelIllumination->m_SurfelGen.UniformGrid,
-        SurfelIllumination->m_SurfelDataArray);
+//    SurfelIrradianceAccumulation::DoRaytracing(
+//        camera,
+//        SurfelIllumination->srvHeap,
+//        SurfelIllumination->m_SurfelGen.UniformGrid,
+//        SurfelIllumination->m_SurfelDataArray);
     Renderer::UpdateGlobalDescriptors();
     Vector3 pos = camera.GetPosition();
 
@@ -873,15 +873,15 @@ void TestRenderer::RenderScene(
                     int a = 3;
                 }
 
-                {
-					ScopedTimer _prof3(L"Render Triangle", gfxContext);
-					GridVisualization->SetupRenderStage(gfxContext, viewport, scissor,
-						TestRaytracing::GetOutputBuffer(),
-						camera);
-                    SurfelIllumination->SendParametersGraphics(gfxContext, camera);
-					RenderTriangleObject(gfxContext);
+                //{
+				//	ScopedTimer _prof3(L"Render Triangle", gfxContext);
+				//	GridVisualization->SetupRenderStage(gfxContext, viewport, scissor,
+				//		TestRaytracing::GetOutputBuffer(),
+				//		camera);
+                //    SurfelIllumination->SendParametersGraphics(gfxContext, camera);
+				//	RenderTriangleObject(gfxContext);
 
-                }
+                //}
 
 
 
@@ -899,12 +899,12 @@ void TestRenderer::RenderScene(
 
     frameIndex++;
     //Set the frame index
-    SurfelIllumination->m_SurfelGen.FrameIndex = frameIndex;
-
-    SurfelIllumination->FillAccelerationStructures(cfx);
-
-    SurfelIllumination->SpawnSurfels(cfx,camera);
-
-    SurfelIllumination->ReadbackSurfelData(gfxContext);
+//    SurfelIllumination->m_SurfelGen.FrameIndex = frameIndex;
+//
+//    SurfelIllumination->FillAccelerationStructures(cfx);
+//
+//    SurfelIllumination->SpawnSurfels(cfx,camera);
+//
+//    SurfelIllumination->ReadbackSurfelData(gfxContext);
 }
 

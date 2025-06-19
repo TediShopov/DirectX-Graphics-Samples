@@ -159,6 +159,31 @@ namespace Graphics
         return featureSupport.RaytracingTier != D3D12_RAYTRACING_TIER_NOT_SUPPORTED;
 	}
 }
+void DumpDREDInfo(ID3D12Device* device)
+{
+    Microsoft::WRL::ComPtr<ID3D12DeviceRemovedExtendedData> dred;
+    if (SUCCEEDED(device->QueryInterface(IID_PPV_ARGS(&dred))))
+    {
+        D3D12_DRED_AUTO_BREADCRUMBS_OUTPUT breadcrumbs = {};
+        dred->GetAutoBreadcrumbsOutput(&breadcrumbs);
+
+        if (breadcrumbs.pHeadAutoBreadcrumbNode)
+        {
+            OutputDebugString(L"[DRED] AutoBreadcrumbs captured.\n");
+            // Optionally, walk the breadcrumb linked list and print command list call traces
+        }
+
+        D3D12_DRED_PAGE_FAULT_OUTPUT pageFault = {};
+        dred->GetPageFaultAllocationOutput(&pageFault);
+
+        if (pageFault.PageFaultVA)
+        {
+            wchar_t buffer[256];
+            swprintf_s(buffer, L"[DRED] Page fault at GPU VA: 0x%llx\n", pageFault.PageFaultVA);
+            OutputDebugString(buffer);
+        }
+    }
+}
 
 // Initialize the DirectX resources required to run.
 void Graphics::Initialize(bool RequireDXRSupport)
@@ -183,6 +208,7 @@ void Graphics::Initialize(bool RequireDXRSupport)
 
             uint32_t useGPUBasedValidation = 0;
             CommandLineArgs::GetInteger(L"gpu_debug", useGPUBasedValidation);
+
             if (useGPUBasedValidation)
             {
                 Microsoft::WRL::ComPtr<ID3D12Debug1> debugInterface1;
@@ -191,6 +217,8 @@ void Graphics::Initialize(bool RequireDXRSupport)
                     debugInterface1->SetEnableGPUBasedValidation(true);
                 }
             }
+
+
         }
         else
         {
@@ -402,7 +430,23 @@ void Graphics::Initialize(bool RequireDXRSupport)
         }
     }
 
+
+
+    #if _DEBUG
+    {
+        // Enable DRED (Device Removed Extended Data)
+        Microsoft::WRL::ComPtr<ID3D12DeviceRemovedExtendedDataSettings> dredSettings;
+        if (SUCCEEDED(D3D12GetDebugInterface(IID_PPV_ARGS(&dredSettings))))
+        {
+            dredSettings->SetAutoBreadcrumbsEnablement(D3D12_DRED_ENABLEMENT_FORCED_ON);
+            dredSettings->SetPageFaultEnablement(D3D12_DRED_ENABLEMENT_FORCED_ON);
+        }
+    }
+#endif
+
+
     g_CommandManager.Create(g_Device);
+    DumpDREDInfo(g_Device);
 
     // Common state was moved to GraphicsCommon.*
     InitializeCommonState();
@@ -417,6 +461,7 @@ void Graphics::Initialize(bool RequireDXRSupport)
     GraphRenderer::Initialize();
     ParticleEffectManager::Initialize(3840, 2160);
 }
+
 
 void Graphics::Shutdown( void )
 {
