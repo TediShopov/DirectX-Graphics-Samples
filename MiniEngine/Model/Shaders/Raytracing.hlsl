@@ -17,6 +17,7 @@
 
 
 RaytracingAccelerationStructure Scene : register(t0, space0);
+Texture2D<float4> diffuseTextures[] : register(t1, space1);
 RWTexture2D<float4> RenderTarget : register(u0);
 
 
@@ -26,8 +27,12 @@ RWStructuredBuffer<uint> surlfeListUAV : register(u2); // Stored pointers (indic
 // SurfelList[from SurfelGrid[i] to SurfelGrid[i+1]] is all the surfel that occupy a cell with index I
 RWStructuredBuffer<uint> surfelGridUAV : register(u3); 
 
+//  --PER INSTANCE DATA--
 //Flatenned uvs
 RWStructuredBuffer<float2> FlattenedUV : register(u4);
+
+SamplerState defaultSampler : register(s0);
+
 
 
 cbuffer RayGen3DBuffer : register(b0)
@@ -122,6 +127,10 @@ void MyClosestHitShader(inout RayPayload payload, in MyAttributes attr)
     // Compute hit point in world space
     float3 hitPos = WorldRayOrigin() + RayTCurrent() * WorldRayDirection();
     uint primitiveIndex = PrimitiveIndex();
+    uint instanceID = InstanceID();
+
+    
+
     
     //For now is just the flattened UV one after the other
     uint uvAttribOffset = 0;
@@ -132,7 +141,15 @@ void MyClosestHitShader(inout RayPayload payload, in MyAttributes attr)
     float3 barycentrics = float3(1 - attr.barycentrics.x - attr.barycentrics.y, attr.barycentrics.x, attr.barycentrics.y);
     float2 interpolatedUV = barycentrics.x * uv0 + barycentrics.y * uv1 + barycentrics.z * uv2;
 
-    payload.color = float4(interpolatedUV, 0, 1);
+    uint diffuseID = instanceID * 3;
+    float4 diffuseColor = diffuseTextures[diffuseID].SampleLevel(defaultSampler, interpolatedUV, 0);
+    //float4 diffuseColor =  diffuseTex.Sample(defaultSampler, interpolatedUV);
+    //float4 diffuseColor =  diffuseTex.Sampl(defaultSampler, interpolatedUV);
+    //float4 diffuseColor = diffuseTex.SampleLevel(defaultSampler, interpolatedUV, 0);
+
+    payload.color = diffuseColor;
+    //payload.color = float4(interpolatedUV, 0, 1);
+    //payload.color = float4(interpolatedUV, saturate(diffuseTex[primitiveIndex]).x, 1);
 
     
 }

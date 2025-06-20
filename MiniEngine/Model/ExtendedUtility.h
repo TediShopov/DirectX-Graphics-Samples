@@ -31,5 +31,9 @@ public:
 		DescriptorHeap& targetHeap,
 		std::initializer_list<D3D12_CPU_DESCRIPTOR_HANDLE> srcDescriptors,
 		D3D12_DESCRIPTOR_HEAP_TYPE heapType = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+
+	static void CopyDescriptorsToHeap(DescriptorHeap& targetHeap,
+		std::vector<D3D12_CPU_DESCRIPTOR_HANDLE> srcDescriptors,
+		D3D12_DESCRIPTOR_HEAP_TYPE heapType = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 };
 

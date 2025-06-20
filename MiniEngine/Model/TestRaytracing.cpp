@@ -13,6 +13,7 @@
 #include "Model.h"
 #include "DescriptorHeapStack.h"
 #include "ModelH3D.h"
+#include "Renderer.h"
 #include "ExtendedUtility.h"
 
 	__declspec(align(16)) 
@@ -88,7 +89,9 @@ namespace TestRaytracing
 	//std::vector<std::vector<float>> m_perInstanceData;
 
 	//Stores the flattened indices as Buffer that can be passed on the GPU
-	std::vector<StructuredBuffer> m_perInstanceCBs;
+	std::vector<StructuredBuffer> m_perInstanceUVs;
+	//Store the per-intance diffuse textures
+	std::vector<D3D12_GPU_VIRTUAL_ADDRESS> m_perInstanceMaterialIndex;
 
 	void CreateRaytracingInterfaces()
 	{
@@ -129,15 +132,31 @@ namespace TestRaytracing
 		{
 			CD3DX12_DESCRIPTOR_RANGE UAVDescriptor;
 			UAVDescriptor.Init(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 4, 0);
+			
+			CD3DX12_DESCRIPTOR_RANGE MaterialDescriptor;
+			MaterialDescriptor.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 85, 0,1);
+			
 			//CD3DX12_ROOT_PARAMETER rootParameters[GlobalRootSignatureParams::Count];
 			//rootParameters[GlobalRootSignatureParams::OutputViewSlot].InitAsDescriptorTable(1, &UAVDescriptor);
 			//rootParameters[GlobalRootSignatureParams::AccelerationStructureSlot].InitAsShaderResourceView(0);
-			CD3DX12_ROOT_PARAMETER rootParameters[4];
+			CD3DX12_ROOT_PARAMETER rootParameters[5];
 			rootParameters[0].InitAsDescriptorTable(1, &UAVDescriptor);
 			rootParameters[1].InitAsShaderResourceView(0);
 			rootParameters[2].InitAsConstantBufferView(0);
 			rootParameters[3].InitAsConstantBufferView(1);
-			CD3DX12_ROOT_SIGNATURE_DESC globalRootSignatureDesc(ARRAYSIZE(rootParameters), rootParameters);
+			rootParameters[4].InitAsDescriptorTable(1, &MaterialDescriptor);
+
+
+			CD3DX12_STATIC_SAMPLER_DESC staticSampler(
+				0, // Shader Register (s0)
+				D3D12_FILTER_MIN_MAG_MIP_LINEAR, // Filter
+				D3D12_TEXTURE_ADDRESS_MODE_WRAP,  // AddressU
+				D3D12_TEXTURE_ADDRESS_MODE_WRAP,  // AddressV
+				D3D12_TEXTURE_ADDRESS_MODE_WRAP   // AddressW
+			);
+
+
+			CD3DX12_ROOT_SIGNATURE_DESC globalRootSignatureDesc(ARRAYSIZE(rootParameters), rootParameters, 1, &staticSampler);
 			SerializeAndCreateRaytracingRootSignature(globalRootSignatureDesc, &m_rtGlobalRootSignature);
 		}
 
@@ -156,9 +175,11 @@ namespace TestRaytracing
 		// HIT SHADER - Local Root Signature
 		// This is a root signature that enables a shader to have unique arguments that come from shader tables.
 		{
-			CD3DX12_ROOT_PARAMETER rootParameters[1];
+			CD3DX12_ROOT_PARAMETER rootParameters[2];
 			//rootParameters[0].InitAsConstantBufferView(2);
 			rootParameters[0].InitAsUnorderedAccessView(4);
+			rootParameters[1].InitAsShaderResourceView(1);
+			//rootParameters[1].InitAsShaderResourceView(5);
 			CD3DX12_ROOT_SIGNATURE_DESC localRootSignatureDesc(ARRAYSIZE(rootParameters), rootParameters);
 			localRootSignatureDesc.Flags = D3D12_ROOT_SIGNATURE_FLAG_LOCAL_ROOT_SIGNATURE;
 			SerializeAndCreateRaytracingRootSignature(localRootSignatureDesc, &m_rtLocalHitRB);
@@ -632,20 +653,15 @@ namespace TestRaytracing
 
 
 		{
-			// Assume you have:
-			// - A constant buffer per BLAS instance (e.g., one per mesh)
-			// - An array or vector of UploadBuffers or GPU virtual addresses:
-			//   std::vector<D3D12_GPU_VIRTUAL_ADDRESS> materialCBAddresses;
-			struct LocalCBRootArgument {
-				//RayGenConstantBuffer cb;
-				LocalCB cb;
-			} rootArguments;
-			rootArguments.cb = { 1,1,1,1 };
-
-			//auto rootArgSize = sizeof(rootArguments);
-			auto rootArgSize = sizeof(D3D12_GPU_VIRTUAL_ADDRESS);
-
-			UINT numShaderRecords = static_cast<UINT>(m_perInstanceCBs.size());
+			struct RootArgs
+			{
+				D3D12_GPU_VIRTUAL_ADDRESS uav0;
+				//D3D12_GPU_DESCRIPTOR_HANDLE tex1;
+				D3D12_GPU_VIRTUAL_ADDRESS uav1;
+			};
+			//auto rootArgSize = sizeof(D3D12_GPU_VIRTUAL_ADDRESS) * 2;
+			auto rootArgSize = sizeof(RootArgs);
+			UINT numShaderRecords = static_cast<UINT>(m_perInstanceUVs.size());
 			UINT shaderIdentifierSize = D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES;
 
 			// Each shader record must contain the shader identifier + local root arguments
@@ -657,13 +673,19 @@ namespace TestRaytracing
 
 			for (UINT i = 0; i < numShaderRecords; ++i)
 			{
-				auto cbAdress = m_perInstanceCBs[i].GetGpuVirtualAddress();
+				auto uav0Address = m_perInstanceUVs[i].GetGpuVirtualAddress();
+				auto uav1Address = m_perInstanceMaterialIndex[i];
+
+
+				// Root arguments are packed together
+				RootArgs rootArgs = { uav0Address, uav1Address };
+				//RootArgs rootArgs = { uav0Address};
+
 				ShaderRecord record(
 					hitGroupShaderIdentifier,             // Pointer to the shader identifier
 					shaderIdentifierSize,                 // Size of the shader identifier
-					&cbAdress,                           // Pointer to root arguments (e.g., CBV GPU VA)
-					 sizeof(D3D12_GPU_VIRTUAL_ADDRESS)  //  Always 8 bytes
-
+					&rootArgs,                           // Pointer to root arguments (e.g., CBV GPU VA)
+					rootArgSize
 				);
 				hitGroupShaderTable.push_back(record);
 			}
@@ -697,24 +719,31 @@ namespace TestRaytracing
 
 	}
 
-	void CreateRaytracingOutputResourceNew(ColorBuffer* outputBuffer, DescriptorHeap surfelUAVHeap)
+	void CreateRaytracingOutputResourceNew(ColorBuffer* outputBuffer, DescriptorHeap surfelUAVHeap, ModelH3D& model)
 	{
-		testHeap.Create(L"HeapName", D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 4);
-		//testHeap.Create(L"HeapName", D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 1);
+		UINT textureCount = model.GetMaterialCount() * 6;
+		UINT b = model.m_TextureReferences.size();
 
-	  ExtendedUtility::CopyDescriptorsToHeap(testHeap, {
-			m_raytracingColorBuffer.GetUAV(),
-			surfelUAVHeap[2],
-			surfelUAVHeap[3],
-			surfelUAVHeap[4],
-		  }
-	  );
+		//Foreach texture referene found in the model
+		std::vector<D3D12_CPU_DESCRIPTOR_HANDLE> handles;
+		handles.push_back(m_raytracingColorBuffer.GetUAV());
+		handles.push_back(surfelUAVHeap[2]);
+		handles.push_back(surfelUAVHeap[3]);
+		handles.push_back(surfelUAVHeap[4]);
+		for each (TextureRef t in model.m_TextureReferences)
+		{
+			handles.push_back(t.GetSRV());
+		}
+
+
+		UINT textureCountFromHeap = Renderer::s_TextureHeap.GetDescriptorSize();
 
 
 
 
 
-
+		testHeap.Create(L"HeapName", D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 85);
+		ExtendedUtility::CopyDescriptorsToHeap(testHeap, handles);
 
 	}
 
@@ -745,7 +774,9 @@ namespace TestRaytracing
 
 
 	void CreatePerInstanceCB(ModelH3D& model,UINT numMeshes) {
-		m_perInstanceCBs.resize(numMeshes);
+
+		m_perInstanceUVs.resize(numMeshes);
+		m_perInstanceMaterialIndex.resize(numMeshes);
 
 		for (UINT i = 0; i < numMeshes; i++)
 		{
@@ -755,6 +786,7 @@ namespace TestRaytracing
 				model.GetVertexBuffer().BufferLocation +
 				mesh.vertexDataByteOffset +
 				uvAttribOffset;
+
 
 
 
@@ -781,40 +813,12 @@ namespace TestRaytracing
 			//Create in the appropriate per instance buffer
 			//m_perInstanceCBs[i].Create(L"Uv Buffer", 1, sizeof(UINT), &uvData.size());
 			//m_perInstanceCBs[i].Create(L"Uv Buffer", 1, sizeof(LocalCB), &cb);
-			m_perInstanceCBs[i].Create(L"Uv Buffer", mesh.vertexCount, sizeof(XMFLOAT2), uvData.data());
+			m_perInstanceUVs[i].Create(L"Uv Buffer", mesh.vertexCount, sizeof(XMFLOAT2), uvData.data());
+			//m_perInstanceMaterialIndex[i] = model.GetSRVs(mesh.materialIndex, 0).GetGpuPtr();
+			m_perInstanceMaterialIndex[i] = model.GetSRVs(mesh.materialIndex, 0).GetGpuPtr();
+			//m_perInstanceMaterialIndex[i] = model.GetMaterialTextures(mesh.materialIndex)->GetSRV();
+
 		}
-	}
-	// Create resources that depend on the device.
-	void CreateDeviceDependentResources(Transform transform, D3D12_VERTEX_BUFFER_VIEW vertexBV, D3D12_INDEX_BUFFER_VIEW indexBV, ColorBuffer* outputBuffer, DescriptorHeap surfelUAVHeap)
-	{
-		m_rayGenCB.viewport = { -1.0f, -1.0f, 1.0f, 1.0f };
-
-		m_TestCB.Create(L"Ray Tracing CBV", 1, static_cast<uint32_t>(sizeof(m_rayGenCB)));
-
-
-
-
-
-		UpdateCBForSizeChange(outputBuffer->GetWidth(), outputBuffer->GetHeight());
-		// Initialize raytracing pipeline.
-
-		// Create raytracing interfaces: raytracing device and commandlist.
-		CreateRaytracingInterfaces();
-
-		// Create root signatures for the shaders.
-		CreateRootSignatures();
-
-		// Create a raytracing pipeline state object which defines the binding of shaders, state and resources to be used during raytracing.
-		CreateRaytracingPipelineStateObject();
-		//	
-		// Build raytracing acceleration structures from the generated geometry.
-		BuildAccelerationStructures(transform, vertexBV, indexBV);
-		//	
-		// Build shader tables, which define shaders and their local root arguments.
-		BuildShaderTables();
-		//	
-		//	    // Create an output 2D texture to store the raytracing result to.
-		CreateRaytracingOutputResourceNew(outputBuffer,surfelUAVHeap);
 	}
 
 	void CreateDeviceDependentResources(Transform transform, ModelH3D& model, ColorBuffer* outputBuffer, DescriptorHeap surfelSRVHeap)
@@ -825,6 +829,7 @@ namespace TestRaytracing
 
 
 
+		CreateRaytracingOutputResourceNew(outputBuffer,surfelSRVHeap,model);
 
 
 		UpdateCBForSizeChange(outputBuffer->GetWidth(), outputBuffer->GetHeight());
@@ -851,7 +856,6 @@ namespace TestRaytracing
 		BuildShaderTables();
 		//	
 		//	    // Create an output 2D texture to store the raytracing result to.
-		CreateRaytracingOutputResourceNew(outputBuffer,surfelSRVHeap);
 
 
 	}
@@ -922,6 +926,7 @@ namespace TestRaytracing
 		gfxContext.SetDescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, testHeap.GetHeapPointer());
 
 		commandList->SetComputeRootDescriptorTable(0, testHeap[0]);
+		commandList->SetComputeRootDescriptorTable(4, testHeap[4]);
 		commandList->SetComputeRootShaderResourceView(1, m_topLevelAccelerationStructure->GetGPUVirtualAddress());
 		//commandList->SetComputeRootConstantBufferView(2, m_TestCB.GetGpuVirtualAddress());
 		gfxContext.SetDynamicConstantBufferView(2, sizeof(RayGet3DBuffer), &m_rayGenCB);
