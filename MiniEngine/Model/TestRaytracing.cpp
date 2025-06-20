@@ -657,18 +657,7 @@ namespace TestRaytracing
 
 			for (UINT i = 0; i < numShaderRecords; ++i)
 			{
-				//LocalCB a = {10,10,10,10};
-
-//				ShaderRecord record(
-//					hitGroupShaderIdentifier,             // Pointer to the shader identifier
-//					shaderIdentifierSize,                 // Size of the shader identifier
-//					&rootArguments,                           // Pointer to root arguments (e.g., CBV GPU VA)
-//					 rootArgSize
-//
-//				);
-
 				auto cbAdress = m_perInstanceCBs[i].GetGpuVirtualAddress();
-
 				ShaderRecord record(
 					hitGroupShaderIdentifier,             // Pointer to the shader identifier
 					shaderIdentifierSize,                 // Size of the shader identifier

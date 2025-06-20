@@ -121,16 +121,20 @@ void MyClosestHitShader(inout RayPayload payload, in MyAttributes attr)
 {
     // Compute hit point in world space
     float3 hitPos = WorldRayOrigin() + RayTCurrent() * WorldRayDirection();
-    //uint instanceIndex = InstanceID;
+    uint primitiveIndex = PrimitiveIndex();
     
-    //payload.color = float4(a.x / 255.0f, a.y / 255.0f, a.z / 255.0f, 1.0f);
-    payload.color = float4(FlattenedUV[1].x,FlattenedUV[2].x,FlattenedUV[3].x,1);
+    //For now is just the flattened UV one after the other
+    uint uvAttribOffset = 0;
+    float2 uv0 = FlattenedUV[primitiveIndex*3 + 0];
+    float2 uv1 = FlattenedUV[primitiveIndex*3 + 1];
+    float2 uv2 = FlattenedUV[primitiveIndex*3 + 2];
 
+    float3 barycentrics = float3(1 - attr.barycentrics.x - attr.barycentrics.y, attr.barycentrics.x, attr.barycentrics.y);
+    float2 interpolatedUV = barycentrics.x * uv0 + barycentrics.y * uv1 + barycentrics.z * uv2;
 
-    //payload.color = float4(hitPos, 1);
+    payload.color = float4(interpolatedUV, 0, 1);
+
     
-    //float3 barycentrics = float3(1 - attr.barycentrics.x - attr.barycentrics.y, attr.barycentrics.x, attr.barycentrics.y);
-    //payload.color = float4(barycentrics, 1);
 }
 
 [shader("miss")]
