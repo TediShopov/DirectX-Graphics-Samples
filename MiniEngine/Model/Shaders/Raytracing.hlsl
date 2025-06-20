@@ -27,7 +27,7 @@ RWStructuredBuffer<uint> surlfeListUAV : register(u2); // Stored pointers (indic
 RWStructuredBuffer<uint> surfelGridUAV : register(u3); 
 
 //Flatenned uvs
-//RWStructuredBuffer<float2> FlattenedUV : register(u4);
+RWStructuredBuffer<float2> FlattenedUV : register(u4);
 
 
 cbuffer RayGen3DBuffer : register(b0)
@@ -43,10 +43,10 @@ cbuffer GridCB : register(b1)
 {
     UniformGrid Grid;
 };
-cbuffer LocalCB : register(b2)
-{
-    uint4 a;
-};
+//cbuffer LocalCB : register(b2)
+//{
+//    uint4 a;
+//};
 
 
 //ConstantBuffer<RayGenConstantBuffer> g_rayGenCB : register(b0);
@@ -121,7 +121,10 @@ void MyClosestHitShader(inout RayPayload payload, in MyAttributes attr)
 {
     // Compute hit point in world space
     float3 hitPos = WorldRayOrigin() + RayTCurrent() * WorldRayDirection();
-    payload.color = float4(a.x / 255.0f, a.y / 255.0f, a.z / 255.0f, 1.0f);
+    //uint instanceIndex = InstanceID;
+    
+    //payload.color = float4(a.x / 255.0f, a.y / 255.0f, a.z / 255.0f, 1.0f);
+    payload.color = float4(FlattenedUV[1].x,FlattenedUV[2].x,FlattenedUV[3].x,1);
 
 
     //payload.color = float4(hitPos, 1);

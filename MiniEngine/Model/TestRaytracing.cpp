@@ -157,7 +157,8 @@ namespace TestRaytracing
 		// This is a root signature that enables a shader to have unique arguments that come from shader tables.
 		{
 			CD3DX12_ROOT_PARAMETER rootParameters[1];
-			rootParameters[0].InitAsConstantBufferView(2);
+			//rootParameters[0].InitAsConstantBufferView(2);
+			rootParameters[0].InitAsUnorderedAccessView(4);
 			CD3DX12_ROOT_SIGNATURE_DESC localRootSignatureDesc(ARRAYSIZE(rootParameters), rootParameters);
 			localRootSignatureDesc.Flags = D3D12_ROOT_SIGNATURE_FLAG_LOCAL_ROOT_SIGNATURE;
 			SerializeAndCreateRaytracingRootSignature(localRootSignatureDesc, &m_rtLocalHitRB);
@@ -786,12 +787,12 @@ namespace TestRaytracing
 				uvData[j] = XMFLOAT2(uvPtr[0], uvPtr[1]);
 			}
 
-			LocalCB cb;
-			cb.a = uvData.size();
+			//LocalCB cb;
+			//cb.a = uvData.size();
 			//Create in the appropriate per instance buffer
 			//m_perInstanceCBs[i].Create(L"Uv Buffer", 1, sizeof(UINT), &uvData.size());
-			m_perInstanceCBs[i].Create(L"Uv Buffer", 1, sizeof(LocalCB), &cb);
-			//m_perInstanceCBs[i].Create(L"Uv Buffer", mesh.vertexCount, sizeof(XMFLOAT2), uvData.data());
+			//m_perInstanceCBs[i].Create(L"Uv Buffer", 1, sizeof(LocalCB), &cb);
+			m_perInstanceCBs[i].Create(L"Uv Buffer", mesh.vertexCount, sizeof(XMFLOAT2), uvData.data());
 		}
 	}
 	// Create resources that depend on the device.

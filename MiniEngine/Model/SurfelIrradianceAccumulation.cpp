@@ -51,7 +51,13 @@ namespace SurfelIrradianceAccumulation
 	//Used for all the ray shaders
 	ComPtr<ID3D12RootSignature> m_rtGlobalRootSignature;
 	//Used by each individual shader and could be overwritten
-	ComPtr<ID3D12RootSignature> m_rtLocalRootSignature;
+	ComPtr<ID3D12RootSignature> m_rtRayGenLocalRootSignature;
+	//Used specifically by the ray hit shader to pass flattened UVs and other material realated properties.
+	ComPtr<ID3D12RootSignature> m_rtRayHitLocalRootSignate;
+
+	//Stores the flattened indices as Buffer that can be passed on the GPU
+	std::vector<StructuredBuffer> m_perInstanceFlattendUVs;
+
 
 	ComPtr<ID3D12Resource> m_accelerationStructure;
 	ComPtr<ID3D12Resource> m_bottomLevelAccelerationStructure;
@@ -82,6 +88,35 @@ namespace SurfelIrradianceAccumulation
 		 UniformGrid Grid;
 		 UINT frameIndex;
 	 };
+
+
+	void CreatePerInstanceCB(ModelH3D& model,UINT numMeshes) {
+		m_perInstanceFlattendUVs.resize(numMeshes);
+
+		for (UINT i = 0; i < numMeshes; i++)
+		{
+			auto& mesh = model.m_pMesh[i];
+			auto uvAttribOffset = (UINT)mesh.attrib[ModelH3D::attrib_texcoord0].offset;
+			D3D12_GPU_VIRTUAL_ADDRESS uvStartAddress =
+				model.GetVertexBuffer().BufferLocation +
+				mesh.vertexDataByteOffset +
+				uvAttribOffset;
+
+			uint8_t* basePtr = reinterpret_cast<uint8_t*>(model.m_pVertexData);
+			basePtr += mesh.vertexDataByteOffset;
+			std::vector<XMFLOAT2> uvData(mesh.vertexCount);
+
+			//For loop to extract all the UV coordinates
+			for (UINT j = 0; j < mesh.vertexCount; ++j)
+			{
+				//Append to an array
+				float* uvPtr = reinterpret_cast<float*>(basePtr + j * mesh.vertexStride + uvAttribOffset);
+				uvData[j] = XMFLOAT2(uvPtr[0], uvPtr[1]);
+			}
+			//Create in the appropriate per instance buffer
+			m_perInstanceFlattendUVs[i].Create(L"Uv Buffer", mesh.vertexCount, sizeof(XMFLOAT2), uvData.data());
+		}
+	}
 
 	void CreateRayDispatchData()
 	{
@@ -169,22 +204,20 @@ namespace SurfelIrradianceAccumulation
 			SerializeAndCreateRaytracingRootSignature(globalRootSignatureDesc, &m_rtGlobalRootSignature);
 		}
 
-		// Local Root Signature
-		// This is a root signature that enables a shader to have unique arguments that come from shader tables.
+		//Empty Ray Gen Local Root Signature
 		{
-			//CD3DX12_ROOT_PARAMETER rootParameters[LocalRootSignatureParams::Count];
-			//rootParameters[LocalRootSignatureParams::ViewportConstantSlot].InitAsConstants(SizeOfInUint32(m_rayGenCB), 0, 0);
-			//CD3DX12_ROOT_PARAMETER rootParameters[1];
-			//rootParameters[0].InitAsConstants(SizeOfInUint32(m_rayGenCB), 0, 0);
-			//rootParameters[0].InitAsConstantBufferView(0,sizeof(m_rayGenCB), D3D12_SHADER_VISIBILITY_ALL);
-			//rootParameters[0].InitAsConstantBufferView(0);
-			//---TODO TEST IF CORRECT SIZE IF SUPPLIED
 
-			//CD3DX12_ROOT_SIGNATURE_DESC localRootSignatureDesc(ARRAYSIZE(rootParameters), rootParameters);
-			//--- ATTEMPT TO CREATE AND EMMPTY LOCAL ROOT SIGNATURE ---
 			CD3DX12_ROOT_SIGNATURE_DESC localRootSignatureDesc(0, 0);
 			localRootSignatureDesc.Flags = D3D12_ROOT_SIGNATURE_FLAG_LOCAL_ROOT_SIGNATURE;
-			SerializeAndCreateRaytracingRootSignature(localRootSignatureDesc, &m_rtLocalRootSignature);
+			SerializeAndCreateRaytracingRootSignature(localRootSignatureDesc, &m_rtRayGenLocalRootSignature);
+		}
+		//Ray Hit Local Root Signature
+		{
+			CD3DX12_ROOT_PARAMETER rootParameters[1];
+			rootParameters[0].InitAsUnorderedAccessView(5);
+			CD3DX12_ROOT_SIGNATURE_DESC localRootSignatureDesc(ARRAYSIZE(rootParameters), rootParameters);
+			localRootSignatureDesc.Flags = D3D12_ROOT_SIGNATURE_FLAG_LOCAL_ROOT_SIGNATURE;
+			SerializeAndCreateRaytracingRootSignature(localRootSignatureDesc, &m_rtRayHitLocalRootSignate);
 		}
 	}
 
@@ -197,11 +230,19 @@ namespace SurfelIrradianceAccumulation
 		// Local root signature to be used in a ray gen shader.
 		{
 			auto localRootSignature = raytracingPipeline->CreateSubobject<CD3DX12_LOCAL_ROOT_SIGNATURE_SUBOBJECT>();
-			localRootSignature->SetRootSignature(m_rtLocalRootSignature.Get());
+			localRootSignature->SetRootSignature(m_rtRayGenLocalRootSignature.Get());
 			// Shader association
 			auto rootSignatureAssociation = raytracingPipeline->CreateSubobject<CD3DX12_SUBOBJECT_TO_EXPORTS_ASSOCIATION_SUBOBJECT>();
 			rootSignatureAssociation->SetSubobjectToAssociate(*localRootSignature);
 			rootSignatureAssociation->AddExport(c_raygenShaderName);
+		}
+		{
+			auto localRootSignature = raytracingPipeline->CreateSubobject<CD3DX12_LOCAL_ROOT_SIGNATURE_SUBOBJECT>();
+			localRootSignature->SetRootSignature(m_rtRayHitLocalRootSignate.Get());
+			// Shader association
+			auto rootSignatureAssociation = raytracingPipeline->CreateSubobject<CD3DX12_SUBOBJECT_TO_EXPORTS_ASSOCIATION_SUBOBJECT>();
+			rootSignatureAssociation->SetSubobjectToAssociate(*localRootSignature);
+			rootSignatureAssociation->AddExport(c_closestHitShaderName);
 		}
 	}
 	void CreateRaytracingPipelineStateObject()
@@ -541,7 +582,8 @@ namespace SurfelIrradianceAccumulation
 
 			instanceDesc.AccelerationStructure = blas->GetGPUVirtualAddress();
 			instanceDesc.Flags = 0;
-			instanceDesc.InstanceID = 0;
+			//instanceDesc.InstanceID = 0;
+			instanceDesc.InstanceID = i;
 			instanceDesc.InstanceMask = 1;
 			//instanceDesc.InstanceContributionToHitGroupIndex = i;
 			instanceDesc.InstanceContributionToHitGroupIndex = 0;
@@ -632,11 +674,37 @@ namespace SurfelIrradianceAccumulation
 		}
 
 		// Hit group shader table
+		//{
+		//	UINT numShaderRecords = 1;
+		//	UINT shaderRecordSize = shaderIdentifierSize;
+		//	ShaderTable hitGroupShaderTable(device, numShaderRecords, shaderRecordSize, L"HitGroupShaderTable");
+		//	hitGroupShaderTable.push_back(ShaderRecord(hitGroupShaderIdentifier, shaderIdentifierSize));
+		//	m_hitGroupShaderTable = hitGroupShaderTable.GetResource();
+		//}
+
+
 		{
-			UINT numShaderRecords = 1;
-			UINT shaderRecordSize = shaderIdentifierSize;
-			ShaderTable hitGroupShaderTable(device, numShaderRecords, shaderRecordSize, L"HitGroupShaderTable");
-			hitGroupShaderTable.push_back(ShaderRecord(hitGroupShaderIdentifier, shaderIdentifierSize));
+
+			auto rootArgSize = sizeof(D3D12_GPU_VIRTUAL_ADDRESS);
+
+			UINT numShaderRecords = static_cast<UINT>(m_perInstanceFlattendUVs.size());
+			UINT shaderIdentifierSize = D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES;
+			// Each shader record must contain the shader identifier + local root arguments
+			UINT shaderRecordSize = AlignUp(shaderIdentifierSize + rootArgSize, D3D12_RAYTRACING_SHADER_RECORD_BYTE_ALIGNMENT);
+			ShaderTable hitGroupShaderTable(Graphics::g_Device, numShaderRecords, shaderRecordSize, L"HitGroupShaderTable");
+			for (UINT i = 0; i < numShaderRecords; ++i)
+			{
+				auto cbAdress = m_perInstanceFlattendUVs[i].GetGpuVirtualAddress();
+				ShaderRecord record(
+					hitGroupShaderIdentifier,             // Pointer to the shader identifier
+					shaderIdentifierSize,                 // Size of the shader identifier
+					&cbAdress,                           // Pointer to root arguments (e.g., CBV GPU VA)
+					 sizeof(D3D12_GPU_VIRTUAL_ADDRESS)  //  Always 8 bytes
+
+				);
+				hitGroupShaderTable.push_back(record);
+			}
+			// Store the resource for later use in DispatchRays
 			m_hitGroupShaderTable = hitGroupShaderTable.GetResource();
 		}
 	}
@@ -724,6 +792,7 @@ namespace SurfelIrradianceAccumulation
 		// Create root signatures for the shaders.
 		CreateRootSignatures();
 
+
 		// Create a raytracing pipeline state object which defines the binding of shaders, state and resources to be used during raytracing.
 		CreateRaytracingPipelineStateObject();
 		//	
@@ -760,6 +829,8 @@ namespace SurfelIrradianceAccumulation
 
 		// Create a raytracing pipeline state object which defines the binding of shaders, state and resources to be used during raytracing.
 		CreateRaytracingPipelineStateObject();
+
+		CreatePerInstanceCB(model,20);
 		//	
 		// Build raytracing acceleration structures from the generated geometry.
 		BuildAccelerationStructures(transform, model, 20);
