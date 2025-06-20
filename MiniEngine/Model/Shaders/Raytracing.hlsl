@@ -29,7 +29,7 @@ RWStructuredBuffer<uint> surfelGridUAV : register(u3);
 
 //  --PER INSTANCE DATA--
 //Flatenned uvs
-RWStructuredBuffer<float2> FlattenedUV : register(u4);
+//RWStructuredBuffer<float2> FlattenedUV : register(u4);
 
 SamplerState defaultSampler : register(s0);
 
@@ -48,10 +48,10 @@ cbuffer GridCB : register(b1)
 {
     UniformGrid Grid;
 };
-//cbuffer LocalCB : register(b2)
-//{
-//    uint4 a;
-//};
+cbuffer LocalCB : register(b2)
+{
+    uint4 materialIndex;
+};
 
 
 //ConstantBuffer<RayGenConstantBuffer> g_rayGenCB : register(b0);
@@ -99,24 +99,24 @@ void MyRaygenShader()
     RayPayload payload = { float4(0, 0, 0, 0) };
         //TraceRay(Scene, RAY_FLAG_CULL_BACK_FACING_TRIANGLES, ~0, 0, 1, 0, ray, payload);
     TraceRay(Scene, RAY_FLAG_NONE, ~0, 0, 1, 0, ray, payload);
-    float3 rayHitWorldPos = payload.color;
-
-    uint3 cellIndex = ComputeGridIndex(rayHitWorldPos, Grid.gridOrigin, Grid.cellSize);
-    uint flattenedIndex = HashGridIndex(cellIndex, Grid);
-    uint surfelIdFrom = surfelGridUAV[flattenedIndex];
-    uint surfelIdTo = surfelGridUAV[flattenedIndex + 1];
-
-    uint surfelCount = surfelIdTo - surfelIdFrom;
-
-    float4 color = float4(0, 0, 0, 0);
-
-    
-    if(surfelCount > 0)
-    {
-        color = payload.color;
-    }
-    //color = float4(FlattenedUV[0].x, FlattenedUV[0].y, 1, 1);
-    RenderTarget[DispatchRaysIndex().xy] = color;
+    RenderTarget[DispatchRaysIndex().xy] = payload.color;
+//    float3 rayHitWorldPos = payload.color;
+//
+//    uint3 cellIndex = ComputeGridIndex(rayHitWorldPos, Grid.gridOrigin, Grid.cellSize);
+//    uint flattenedIndex = HashGridIndex(cellIndex, Grid);
+//    uint surfelIdFrom = surfelGridUAV[flattenedIndex];
+//    uint surfelIdTo = surfelGridUAV[flattenedIndex + 1];
+//
+//    uint surfelCount = surfelIdTo - surfelIdFrom;
+//
+//    float4 color = float4(0, 0, 0, 0);
+//
+//    
+//    if(surfelCount > 0)
+//    {
+//        color = payload.color;
+//    }
+//    //color = float4(FlattenedUV[0].x, FlattenedUV[0].y, 1, 1);
 }
 
 //Use per-instance constant buffers to pass the uvs, diffuse/normal textures and material properties
@@ -133,21 +133,29 @@ void MyClosestHitShader(inout RayPayload payload, in MyAttributes attr)
 
     
     //For now is just the flattened UV one after the other
-    uint uvAttribOffset = 0;
-    float2 uv0 = FlattenedUV[primitiveIndex*3 + 0];
-    float2 uv1 = FlattenedUV[primitiveIndex*3 + 1];
-    float2 uv2 = FlattenedUV[primitiveIndex*3 + 2];
+//    uint uvAttribOffset = 0;
+//    float2 uv0 = FlattenedUV[primitiveIndex*3 + 0];
+//    float2 uv1 = FlattenedUV[primitiveIndex*3 + 1];
+//    float2 uv2 = FlattenedUV[primitiveIndex*3 + 2];
+//
+//    float3 barycentrics = float3(1 - attr.barycentrics.x - attr.barycentrics.y, attr.barycentrics.x, attr.barycentrics.y);
+//    float2 interpolatedUV = barycentrics.x * uv0 + barycentrics.y * uv1 + barycentrics.z * uv2;
+//
+//    //uint diffuseID = materialIndex*5;
+//    uint diffuseID = materialIndex+4;
+//    float4 diffuseColor = diffuseTextures[diffuseID].SampleLevel(defaultSampler, interpolatedUV, 0);
+//    //float4 diffuseColor =  diffuseTex.Sample(defaultSampler, interpolatedUV);
+//    //float4 diffuseColor =  diffuseTex.Sampl(defaultSampler, interpolatedUV);
+//    //float4 diffuseColor = diffuseTex.SampleLevel(defaultSampler, interpolatedUV, 0);
+//
+//    //payload.color = diffuseColor* a.x;
+//    float4 materiaxIndexF = float4(materialIndex.x,materialIndex.x,materialIndex.x,1);
+    //payload.color = materiaxIndexF / 15.0f;
 
-    float3 barycentrics = float3(1 - attr.barycentrics.x - attr.barycentrics.y, attr.barycentrics.x, attr.barycentrics.y);
-    float2 interpolatedUV = barycentrics.x * uv0 + barycentrics.y * uv1 + barycentrics.z * uv2;
+    //payload.color = float4((float)instanceID / 100.0f, 0, 0, 1);
+    //payload.color = float4((float)materialIndex.x / 100.0f, 0, 0, 1);
+    payload.color = float4((float)materialIndex.x / 10.0f,(float)materialIndex.y / 10.0f,(float)materialIndex.z / 10.0f,1 );
 
-    uint diffuseID = instanceID * 3;
-    float4 diffuseColor = diffuseTextures[diffuseID].SampleLevel(defaultSampler, interpolatedUV, 0);
-    //float4 diffuseColor =  diffuseTex.Sample(defaultSampler, interpolatedUV);
-    //float4 diffuseColor =  diffuseTex.Sampl(defaultSampler, interpolatedUV);
-    //float4 diffuseColor = diffuseTex.SampleLevel(defaultSampler, interpolatedUV, 0);
-
-    payload.color = diffuseColor;
     //payload.color = float4(interpolatedUV, 0, 1);
     //payload.color = float4(interpolatedUV, saturate(diffuseTex[primitiveIndex]).x, 1);
 

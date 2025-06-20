@@ -17,8 +17,8 @@
 #include "ExtendedUtility.h"
 
 	__declspec(align(16)) 
-		struct LocalCB {
-		UINT a;
+		struct PerInstanceCB {
+		UINT materialIndex;
 		UINT b;
 		UINT c;
 		UINT d;
@@ -77,6 +77,8 @@ namespace TestRaytracing
 	ColorBuffer m_raytracingColorBuffer;
 
 
+	StructuredBuffer mockData;
+	PerInstanceCB mock = { 1,2,3,4 };
 
 	DescriptorHeap testHeap;
 
@@ -91,7 +93,9 @@ namespace TestRaytracing
 	//Stores the flattened indices as Buffer that can be passed on the GPU
 	std::vector<StructuredBuffer> m_perInstanceUVs;
 	//Store the per-intance diffuse textures
-	std::vector<D3D12_GPU_VIRTUAL_ADDRESS> m_perInstanceMaterialIndex;
+	std::vector<StructuredBuffer> m_perInstanceCB;
+	std::vector<D3D12_GPU_VIRTUAL_ADDRESS> m_perInstanceVirtualAdress;
+	std::vector<PerInstanceCB> m_perInstanceData;
 
 	void CreateRaytracingInterfaces()
 	{
@@ -175,10 +179,11 @@ namespace TestRaytracing
 		// HIT SHADER - Local Root Signature
 		// This is a root signature that enables a shader to have unique arguments that come from shader tables.
 		{
-			CD3DX12_ROOT_PARAMETER rootParameters[2];
-			//rootParameters[0].InitAsConstantBufferView(2);
-			rootParameters[0].InitAsUnorderedAccessView(4);
-			rootParameters[1].InitAsShaderResourceView(1);
+			//CD3DX12_ROOT_PARAMETER rootParameters[2];
+			CD3DX12_ROOT_PARAMETER rootParameters[1];
+			rootParameters[0].InitAsConstantBufferView(2);
+			//rootParameters[0].InitAsUnorderedAccessView(4);
+			//rootParameters[0].InitAsConstantBufferView(0,1);
 			//rootParameters[1].InitAsShaderResourceView(5);
 			CD3DX12_ROOT_SIGNATURE_DESC localRootSignatureDesc(ARRAYSIZE(rootParameters), rootParameters);
 			localRootSignatureDesc.Flags = D3D12_ROOT_SIGNATURE_FLAG_LOCAL_ROOT_SIGNATURE;
@@ -552,8 +557,8 @@ namespace TestRaytracing
 			instanceDesc.Flags = 0;
 			instanceDesc.InstanceID = i;
 			instanceDesc.InstanceMask = 1;
-			//instanceDesc.InstanceContributionToHitGroupIndex = i;
-			instanceDesc.InstanceContributionToHitGroupIndex = 0;
+			instanceDesc.InstanceContributionToHitGroupIndex = i;
+			//instanceDesc.InstanceContributionToHitGroupIndex = 0;
 		}
 
 		//
@@ -655,12 +660,12 @@ namespace TestRaytracing
 		{
 			struct RootArgs
 			{
-				D3D12_GPU_VIRTUAL_ADDRESS uav0;
-				//D3D12_GPU_DESCRIPTOR_HANDLE tex1;
-				D3D12_GPU_VIRTUAL_ADDRESS uav1;
+				//D3D12_GPU_VIRTUAL_ADDRESS uav0;
+				//D3D12_GPU_DESCRIPTOR_HANDLE teax1;
+				D3D12_GPU_VIRTUAL_ADDRESS cb1;
 			};
-			//auto rootArgSize = sizeof(D3D12_GPU_VIRTUAL_ADDRESS) * 2;
-			auto rootArgSize = sizeof(RootArgs);
+			auto rootArgSize = sizeof(D3D12_GPU_VIRTUAL_ADDRESS);
+			//auto rootArgSize = sizeof(RootArgs);
 			UINT numShaderRecords = static_cast<UINT>(m_perInstanceUVs.size());
 			UINT shaderIdentifierSize = D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES;
 
@@ -673,18 +678,20 @@ namespace TestRaytracing
 
 			for (UINT i = 0; i < numShaderRecords; ++i)
 			{
-				auto uav0Address = m_perInstanceUVs[i].GetGpuVirtualAddress();
-				auto uav1Address = m_perInstanceMaterialIndex[i];
+				//auto uav0Address = m_perInstanceUVs[i].GetGpuVirtualAddress();
+				//auto cb1Adress = mockData.GetGpuVirtualAddress();
 
+				m_perInstanceVirtualAdress[i] = m_perInstanceCB[i].GetGpuVirtualAddress();
 
 				// Root arguments are packed together
-				RootArgs rootArgs = { uav0Address, uav1Address };
-				//RootArgs rootArgs = { uav0Address};
+				//RootArgs rootArgs = { uav0Address, cb1Adress };
+				//RootArgs rootArgs = { cb1Adress};
+				printf("Instance %u CBVA = 0x%llX\n", i, m_perInstanceVirtualAdress[i]);
 
 				ShaderRecord record(
 					hitGroupShaderIdentifier,             // Pointer to the shader identifier
 					shaderIdentifierSize,                 // Size of the shader identifier
-					&rootArgs,                           // Pointer to root arguments (e.g., CBV GPU VA)
+					&m_perInstanceVirtualAdress[i],                           // Pointer to root arguments (e.g., CBV GPU VA)
 					rootArgSize
 				);
 				hitGroupShaderTable.push_back(record);
@@ -730,10 +737,22 @@ namespace TestRaytracing
 		handles.push_back(surfelUAVHeap[2]);
 		handles.push_back(surfelUAVHeap[3]);
 		handles.push_back(surfelUAVHeap[4]);
-		for each (TextureRef t in model.m_TextureReferences)
+
+
+
+		//Only diffuse textures 
+		UINT diffuseTextureSize = model.m_TextureReferences.size() / 3;
+		for (size_t i = 0; i < model.m_TextureReferences.size(); i+=3 )
 		{
+			auto t = model.m_TextureReferences[i];
 			handles.push_back(t.GetSRV());
+
 		}
+
+//		for each (TextureRef t in model.m_TextureReferences)
+//		{
+//			handles.push_back(t.GetSRV());
+//		}
 
 
 		UINT textureCountFromHeap = Renderer::s_TextureHeap.GetDescriptorSize();
@@ -742,7 +761,7 @@ namespace TestRaytracing
 
 
 
-		testHeap.Create(L"HeapName", D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 85);
+		testHeap.Create(L"HeapName", D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, diffuseTextureSize+4);
 		ExtendedUtility::CopyDescriptorsToHeap(testHeap, handles);
 
 	}
@@ -776,7 +795,9 @@ namespace TestRaytracing
 	void CreatePerInstanceCB(ModelH3D& model,UINT numMeshes) {
 
 		m_perInstanceUVs.resize(numMeshes);
-		m_perInstanceMaterialIndex.resize(numMeshes);
+		m_perInstanceCB.resize(numMeshes);
+		m_perInstanceData.resize(numMeshes);
+		m_perInstanceVirtualAdress.resize(numMeshes);
 
 		for (UINT i = 0; i < numMeshes; i++)
 		{
@@ -815,7 +836,13 @@ namespace TestRaytracing
 			//m_perInstanceCBs[i].Create(L"Uv Buffer", 1, sizeof(LocalCB), &cb);
 			m_perInstanceUVs[i].Create(L"Uv Buffer", mesh.vertexCount, sizeof(XMFLOAT2), uvData.data());
 			//m_perInstanceMaterialIndex[i] = model.GetSRVs(mesh.materialIndex, 0).GetGpuPtr();
-			m_perInstanceMaterialIndex[i] = model.GetSRVs(mesh.materialIndex, 0).GetGpuPtr();
+			//m_perInstanceCB[i] = model.GetSRVs(mesh.materialIndex, 0).GetGpuPtr();
+			PerInstanceCB a = { mesh.materialIndex,mesh.materialIndex,mesh.materialIndex,mesh.materialIndex};
+//			m_perInstanceData[i].materialIndex = i+7;
+//			m_perInstanceData[i].b = i+7;
+//			m_perInstanceData[i].c = i+7;
+//			m_perInstanceData[i].d = i+7;
+			m_perInstanceCB[i].Create(L"PerInstance CB", 1,sizeof(PerInstanceCB),&a);
 			//m_perInstanceMaterialIndex[i] = model.GetMaterialTextures(mesh.materialIndex)->GetSRV();
 
 		}
@@ -823,6 +850,7 @@ namespace TestRaytracing
 
 	void CreateDeviceDependentResources(Transform transform, ModelH3D& model, ColorBuffer* outputBuffer, DescriptorHeap surfelSRVHeap)
 	{
+		mockData.Create(L"MOck", 1, sizeof(PerInstanceCB), &mock);
 		m_rayGenCB.viewport = { -1.0f, -1.0f, 1.0f, 1.0f };
 
 		m_TestCB.Create(L"Ray Tracing CBV", 1, static_cast<uint32_t>(sizeof(m_rayGenCB)));
@@ -830,6 +858,8 @@ namespace TestRaytracing
 
 
 		CreateRaytracingOutputResourceNew(outputBuffer,surfelSRVHeap,model);
+		//Extract fllatened UV for per instance parameters
+		CreatePerInstanceCB(model, 20);
 
 
 		UpdateCBForSizeChange(outputBuffer->GetWidth(), outputBuffer->GetHeight());
@@ -844,8 +874,6 @@ namespace TestRaytracing
 		// Create a raytracing pipeline state object which defines the binding of shaders, state and resources to be used during raytracing.
 		CreateRaytracingPipelineStateObject();
 
-		//Extract fllatened UV for per instance parameters
-		CreatePerInstanceCB(model, 20);
 
 		//	
 		// Build raytracing acceleration structures from the generated geometry.
@@ -907,8 +935,10 @@ namespace TestRaytracing
 			{
 				// Since each shader table has only one shader record, the stride is same as the size.
 				dispatchDesc->HitGroupTable.StartAddress = m_hitGroupShaderTable->GetGPUVirtualAddress();
-				dispatchDesc->HitGroupTable.SizeInBytes = m_hitGroupShaderTable->GetDesc().Width;
-				dispatchDesc->HitGroupTable.StrideInBytes = dispatchDesc->HitGroupTable.SizeInBytes;
+				//dispatchDesc->HitGroupTable.SizeInBytes = m_hitGroupShaderTable->GetDesc().Width;
+				dispatchDesc->HitGroupTable.SizeInBytes = 20*64;
+				//dispatchDesc->HitGroupTable.StrideInBytes = dispatchDesc->HitGroupTable.SizeInBytes;
+				dispatchDesc->HitGroupTable.StrideInBytes = 64;
 				dispatchDesc->MissShaderTable.StartAddress = m_missShaderTable->GetGPUVirtualAddress();
 				dispatchDesc->MissShaderTable.SizeInBytes = m_missShaderTable->GetDesc().Width;
 				dispatchDesc->MissShaderTable.StrideInBytes = dispatchDesc->MissShaderTable.SizeInBytes;
