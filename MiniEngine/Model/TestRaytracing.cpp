@@ -710,13 +710,28 @@ namespace TestRaytracing
 
 
 		//Only diffuse textures 
-		UINT diffuseTextureSize = model.m_TextureReferences.size() / 3;
-		for (size_t i = 0; i < model.m_TextureReferences.size(); i+=3 )
+		//UINT diffuseTextureSize = model.m_TextureReferences.size() / 3;
+		UINT diffuseTextureSize = model.GetMaterialCount();
+		auto mat0=model.GetMaterial(0);
+		auto mat1=model.GetMaterial(1);
+		auto mat2=model.GetMaterial(2);
+		auto mat3=model.GetMaterial(3);
+		auto mat4=model.GetMaterial(4);
+
+		for (size_t i = 0; i < model.GetMaterialCount(); i++ )
 		{
-			auto t = model.m_TextureReferences[i];
-			handles.push_back(t.GetSRV());
+			//auto t = model.m_TextureReferences[i];
+
+			auto tex0 = model.GetMaterialTextures(0);
+			handles.push_back(model.GetMaterialTextures(i)->GetSRV());
 
 		}
+//		for (size_t i = 0; i < model.m_TextureReferences.size(); i+=3 )
+//		{
+//			auto t = model.m_TextureReferences[i];
+//			handles.push_back(t.GetSRV());
+//
+//		}
 
 //		for each (TextureRef t in model.m_TextureReferences)
 //		{
@@ -808,8 +823,10 @@ namespace TestRaytracing
 			//For loop to extract all the UV coordinates
 			for (UINT j = 0; j < mesh.indexCount; ++j)
 			{
-				//UINT* index = reinterpret_cast<UINT*>(meshIndexBufferPtr + j * sizeof(UINT));
-				indexTemps[j] = meshIndexBufferPtr[j];
+				USHORT* index = reinterpret_cast<USHORT*>(meshIndexBufferPtr + j * sizeof(USHORT));
+
+				indexTemps[j] = static_cast<UINT>(*index);
+				//indexTemps[j] = meshIndexBufferPtr[j];
 			}
 
 
