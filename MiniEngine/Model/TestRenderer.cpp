@@ -734,6 +734,8 @@ void TestRenderer::RenderScene(
 		uint32_t FrameIndexMod2;
     } psConstants;
 
+    //TestRaytracing::directionalLightData.sunDirection = XMFLOAT4(m_SunDirection[0], m_SunDirection.GetY(), m_SunDirection.GetZ(), 1);
+
     psConstants.sunDirection = m_SunDirection;
     psConstants.sunLight = Vector3(1.0f, 1.0f, 1.0f) * m_SunLightIntensity;
     psConstants.ambientLight = Vector3(1.0f, 1.0f, 1.0f) * m_AmbientIntensity;
@@ -745,6 +747,10 @@ void TestRenderer::RenderScene(
     psConstants.FirstLightIndex[0] = Lighting::m_FirstConeLight;
     psConstants.FirstLightIndex[1] = Lighting::m_FirstConeShadowedLight;
 	psConstants.FrameIndexMod2 = FrameIndex;
+
+    TestRaytracing::directionalLightData.sunDirection =Vector4(m_SunDirection,1);
+    TestRaytracing::directionalLightData.sunColor = Vector4(1.0f, 1.0f, 1.0f,1.0f) * m_SunLightIntensity;
+    TestRaytracing::directionalLightData.ambientColor = Vector4(1.0f, 1.0f, 1.0f,1.0f) * m_AmbientIntensity;
 
     // Set the default state for command lists
     auto& pfnSetupGraphicsState = [&](void)

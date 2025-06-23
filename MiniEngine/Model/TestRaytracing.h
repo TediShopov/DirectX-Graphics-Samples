@@ -25,10 +25,17 @@ namespace Math
 class ModelH3D;
 
 class DescriptorHeapStack;
+__declspec(align(16)) struct SunDirectionalLight 
+{
+    Vector4 sunDirection;
+    Vector4 sunColor;
+    Vector4 ambientColor;
+};
 
 namespace TestRaytracing
 {
 	extern std::unique_ptr<DescriptorHeapStack> g_pRaytracingDescriptorHeap;
+	extern SunDirectionalLight directionalLightData;
 
 	//---   RAY-TRACING RELATED
 #pragma region RAY-TRACING DEMO

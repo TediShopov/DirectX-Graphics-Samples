@@ -45,6 +45,7 @@ SamplerState defaultSampler : register(s0);
 
 
 
+
 cbuffer RayGen3DBuffer : register(b0)
 {
     matrix invViewProj;
@@ -58,7 +59,13 @@ cbuffer GridCB : register(b1)
 {
     UniformGrid Grid;
 };
-cbuffer LocalCB : register(b2)
+cbuffer SunDirectionalLight : register(b2)
+{
+    float4 sunDirection;
+    float4 sunColor;
+    float4 sunAbmientColor;
+};
+cbuffer LocalCB : register(b3)
 {
     uint4 materialIndex;
     float4 diffuse;
@@ -123,9 +130,7 @@ float3 ApplyDirectionalLight(
     float3	normal,			// World-space normal
     float3	viewDir,		// World-space vector from eye to point
     float3	lightDir,		// World-space vector from point to light
-    float3	lightColor,		// Radiance of directional light
-    float3	shadowCoord,	// Shadow coordinate (Shadow map UV & light-relative Z)
-	Texture2D<float> ShadowMap
+    float3	lightColor		// Radiance of directional light
     )
 {
 
@@ -196,6 +201,11 @@ bool IsInsideViewport(float2 p, Viewport viewport)
     return (p.x >= viewport.left && p.x <= viewport.right)
         && (p.y >= viewport.top && p.y <= viewport.bottom);
 }
+struct ShadowPayload
+{
+    bool hit;
+};
+
 
 [shader("raygeneration")]
 void MyRaygenShader()
@@ -216,6 +226,9 @@ void MyRaygenShader()
 
 
     
+
+
+    
         // Trace the ray.
         // Set the ray's extents.
     RayDesc ray;
@@ -225,27 +238,12 @@ void MyRaygenShader()
         // TMin should be kept small to prevent missing geometry at close contact areas.
     ray.TMin = 0.001;
     ray.TMax = 10000.0;
-    RayPayload payload = { float4(0, 0, 0, 0) };
+    //RayPayload payload = { float4(0, 0, 0, 0) };
+    //Payload is now carying view directoin
+    RayPayload payload = { float4(-rayDir.xyz,0) };
         //TraceRay(Scene, RAY_FLAG_CULL_BACK_FACING_TRIANGLES, ~0, 0, 1, 0, ray, payload);
     TraceRay(Scene, RAY_FLAG_NONE, ~0, 0, 1, 0, ray, payload);
     RenderTarget[DispatchRaysIndex().xy] = payload.color;
-//    float3 rayHitWorldPos = payload.color;
-//
-//    uint3 cellIndex = ComputeGridIndex(rayHitWorldPos, Grid.gridOrigin, Grid.cellSize);
-//    uint flattenedIndex = HashGridIndex(cellIndex, Grid);
-//    uint surfelIdFrom = surfelGridUAV[flattenedIndex];
-//    uint surfelIdTo = surfelGridUAV[flattenedIndex + 1];
-//
-//    uint surfelCount = surfelIdTo - surfelIdFrom;
-//
-//    float4 color = float4(0, 0, 0, 0);
-//
-//    
-//    if(surfelCount > 0)
-//    {
-//        color = payload.color;
-//    }
-//    //color = float4(FlattenedUV[0].x, FlattenedUV[0].y, 1, 1);
 }
 
 //Use per-instance constant buffers to pass the uvs, diffuse/normal textures and material properties
@@ -297,29 +295,48 @@ void MyClosestHitShader(inout RayPayload payload, in MyAttributes attr)
         float3x3 tbn = float3x3(normalize(interpolated.tangent).xyz, normalize(interpolated.bitangent).xyz, normalize(interpolated.normal).xyz);
         normal = normalize(mul(normal, tbn));
     }
-    
-
-    //payload.color = float4(normalColor, 1);
-    //payload.color = float4(normal, 1);
-    payload.color = float4(specularColor, 1);
     float3 specularAlbedo = float3( 0.56, 0.56, 0.56 );
-    //float specularMask = SAMPLE_TEX(texSpecular).g;
-    float specularMask = 0.2f;
-    //float3 viewDir = normalize(vsOutput.viewDir);
-    
-    
-    
-    //ApplyDirectionalLight(diffuseColor,float3(0,0,0),specularAlbedo,specularMask,normal,)
-    //ApplyPointLight(diffuseColor,float3(0,0,0),specularAlbedo,specularMask,normal,)
-    //ApplyPointLight()
+    float specularMask = specularColor;
+    float3 dirColor = ApplyDirectionalLight(diffuseColor, float3(0, 0, 0), specularAlbedo, specularMask, normal,payload.color, sunDirection, sunColor);
+    payload.color = float4(dirColor, 1);
 
+    
+    //Cast Shadow Ray
+    RayDesc shadowRay;
+    shadowRay.Origin = hitPos + normal * 0.001;
+    shadowRay.Direction = normalize(sunDirection);
+    shadowRay.TMin = 0.001;
+    shadowRay.TMax = 1e6;
+    ShadowPayload shadowPayload = { true };
+
+    TraceRay(Scene, RAY_FLAG_ACCEPT_FIRST_HIT_AND_END_SEARCH | RAY_FLAG_SKIP_CLOSEST_HIT_SHADER, ~0, 0, 1, 1, shadowRay, shadowPayload);
+    if(shadowPayload.hit == true)
+    {
+        payload.color = float4(diffuseColor,1) * sunAbmientColor;
+    }
+
+
+
+    
     
 }
+//[shader("closesthit")]
+//void ShadowClosestHitShader(inout ShadowPayload payload, in MyAttributes attr)
+//{
+//    payload.hit = true;
+//}
 
 [shader("miss")]
 void MyMissShader(inout RayPayload payload)
 {
     payload.color = float4(0, 0, 0, 1);
 }
+[shader("miss")]
+void ShadowMissShader(inout ShadowPayload payload)
+{
+    payload.hit = false;
+}
+
+
 
 #endif // RAYTRACING_HLSL

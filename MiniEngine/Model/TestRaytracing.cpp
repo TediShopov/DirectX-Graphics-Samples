@@ -36,6 +36,8 @@
 
 
 	};
+
+
 struct RayGet3DBuffer {
 
 	XMMATRIX invViewProject;
@@ -49,12 +51,15 @@ namespace TestRaytracing
 	ByteAddressBuffer	m_TestCB;
 
 	std::unique_ptr<DescriptorHeapStack> g_pRaytracingDescriptorHeap = nullptr;
+	SunDirectionalLight directionalLightData;
 
 	// The names of the shaders. The actual shader code is found in the Raytracing.hlsl
 	const wchar_t* c_hitGroupName = L"MyHitGroup";
 	const wchar_t* c_raygenShaderName = L"MyRaygenShader";
 	const wchar_t* c_closestHitShaderName = L"MyClosestHitShader";
+	//const wchar_t* c_shadowHitShaderName = L"ShadowClosestHitShader";
 	const wchar_t* c_missShaderName = L"MyMissShader";
+	const wchar_t* c_shadowMissShaderName = L"ShadowMissShader";
 
 
 	UINT m_descriptorSize;
@@ -158,12 +163,13 @@ namespace TestRaytracing
 			CD3DX12_DESCRIPTOR_RANGE MaterialDescriptor;
 			MaterialDescriptor.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 85, 0, 1);
 
-			CD3DX12_ROOT_PARAMETER rootParameters[5];
+			CD3DX12_ROOT_PARAMETER rootParameters[6];
 			rootParameters[0].InitAsDescriptorTable(1, &UAVDescriptor);
 			rootParameters[1].InitAsShaderResourceView(0);
 			rootParameters[2].InitAsConstantBufferView(0);
 			rootParameters[3].InitAsConstantBufferView(1);
 			rootParameters[4].InitAsDescriptorTable(1, &MaterialDescriptor);
+			rootParameters[5].InitAsConstantBufferView(2);
 
 
 			CD3DX12_STATIC_SAMPLER_DESC staticSampler(
@@ -208,7 +214,7 @@ namespace TestRaytracing
 		// This is a root signature that enables a shader to have unique arguments that come from shader tables.
 		{
 			CD3DX12_ROOT_PARAMETER rootParameters[3];
-			rootParameters[0].InitAsConstantBufferView(2);
+			rootParameters[0].InitAsConstantBufferView(3);
 			rootParameters[1].InitAsUnorderedAccessView(4);
 			rootParameters[2].InitAsUnorderedAccessView(5);
 			CD3DX12_ROOT_SIGNATURE_DESC localRootSignatureDesc(ARRAYSIZE(rootParameters), rootParameters);
@@ -270,7 +276,9 @@ namespace TestRaytracing
 		{
 			lib->DefineExport(c_raygenShaderName);
 			lib->DefineExport(c_closestHitShaderName);
+			//lib->DefineExport(c_shadowHitShaderName);
 			lib->DefineExport(c_missShaderName);
+			lib->DefineExport(c_shadowMissShaderName);
 		}
 
 		// Triangle hit group
@@ -302,7 +310,7 @@ namespace TestRaytracing
 		auto pipelineConfig = raytracingPipeline.CreateSubobject<CD3DX12_RAYTRACING_PIPELINE_CONFIG_SUBOBJECT>();
 		// PERFOMANCE TIP: Set max recursion depth as low as needed 
 		// as drivers may apply optimization strategies for low recursion depths. 
-		UINT maxRecursionDepth = 1; // ~ primary rays only. 
+		UINT maxRecursionDepth = 2; // ~ primary rays only. 
 		pipelineConfig->Config(maxRecursionDepth);
 
 #if _DEBUG
@@ -613,13 +621,17 @@ namespace TestRaytracing
 
 		void* rayGenShaderIdentifier;
 		void* missShaderIdentifier;
+		void* shadowMissShaderIdentifier;
 		void* hitGroupShaderIdentifier;
+		void* shadowHitShaderIdentifier;
 
 		auto GetShaderIdentifiers = [&](auto* stateObjectProperties)
 			{
 				rayGenShaderIdentifier = stateObjectProperties->GetShaderIdentifier(c_raygenShaderName);
 				missShaderIdentifier = stateObjectProperties->GetShaderIdentifier(c_missShaderName);
+				shadowMissShaderIdentifier = stateObjectProperties->GetShaderIdentifier(c_shadowMissShaderName);
 				hitGroupShaderIdentifier = stateObjectProperties->GetShaderIdentifier(c_hitGroupName);
+				//shadowHitShaderIdentifier = stateObjectProperties->GetShaderIdentifier(c_shadowHitShaderName);
 			};
 
 		// Get shader identifiers.
@@ -648,10 +660,11 @@ namespace TestRaytracing
 
 		// Miss shader table
 		{
-			UINT numShaderRecords = 1;
+			UINT numShaderRecords = 2;
 			UINT shaderRecordSize = shaderIdentifierSize;
 			ShaderTable missShaderTable(device, numShaderRecords, shaderRecordSize, L"MissShaderTable");
 			missShaderTable.push_back(ShaderRecord(missShaderIdentifier, shaderIdentifierSize));
+			missShaderTable.push_back(ShaderRecord(shadowMissShaderIdentifier, shaderIdentifierSize));
 			m_missShaderTable = missShaderTable.GetResource();
 		}
 
@@ -665,7 +678,7 @@ namespace TestRaytracing
 			};
 			//auto rootArgSize = sizeof(D3D12_GPU_VIRTUAL_ADDRESS) * 2;
 			auto rootArgSize = sizeof(RootArgs);
-			UINT numShaderRecords = static_cast<UINT>(m_perInstanceVertexData.size());
+			UINT numShaderRecords = static_cast<UINT>(m_perInstanceVertexData.size()) ;
 			UINT shaderIdentifierSize = D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES;
 
 			// Each shader record must contain the shader identifier + local root arguments
@@ -675,7 +688,7 @@ namespace TestRaytracing
 
 			ShaderTable hitGroupShaderTable(Graphics::g_Device, numShaderRecords, shaderRecordSize, L"HitGroupShaderTable");
 
-			for (UINT i = 0; i < numShaderRecords; ++i)
+			for (UINT i = 0; i < m_perInstanceVertexData.size(); ++i)
 			{
 				// Root arguments are packed together
 				struct RootArgs rootArgs;
@@ -968,8 +981,10 @@ namespace TestRaytracing
 				dispatchDesc->HitGroupTable.SizeInBytes = 20*64;
 				dispatchDesc->HitGroupTable.StrideInBytes = 64;
 				dispatchDesc->MissShaderTable.StartAddress = m_missShaderTable->GetGPUVirtualAddress();
-				dispatchDesc->MissShaderTable.SizeInBytes = m_missShaderTable->GetDesc().Width;
-				dispatchDesc->MissShaderTable.StrideInBytes = dispatchDesc->MissShaderTable.SizeInBytes;
+				//dispatchDesc->MissShaderTable.SizeInBytes = 2* D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES;
+				//dispatchDesc->MissShaderTable.StrideInBytes = D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES;
+				dispatchDesc->MissShaderTable.SizeInBytes = 64;
+				dispatchDesc->MissShaderTable.StrideInBytes = D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES;
 				dispatchDesc->RayGenerationShaderRecord.StartAddress = m_rayGenShaderTable->GetGPUVirtualAddress();
 				dispatchDesc->RayGenerationShaderRecord.SizeInBytes = m_rayGenShaderTable->GetDesc().Width;
 				dispatchDesc->Width = Graphics::g_SceneColorBuffer.GetWidth();
@@ -987,6 +1002,7 @@ namespace TestRaytracing
 		commandList->SetComputeRootShaderResourceView(1, m_topLevelAccelerationStructure->GetGPUVirtualAddress());
 		gfxContext.SetDynamicConstantBufferView(2, sizeof(RayGet3DBuffer), &m_rayGenCB);
 		gfxContext.SetDynamicConstantBufferView(3, sizeof(UniformGrid), &grid);
+		gfxContext.SetDynamicConstantBufferView(5, sizeof(SunDirectionalLight), &directionalLightData);
 		DispatchRays(commandList, m_dxrStateObject.Get(), &dispatchDesc);
 		gfxContext.Finish(true);
 	}
