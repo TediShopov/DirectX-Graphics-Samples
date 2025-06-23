@@ -18,10 +18,22 @@
 
 	__declspec(align(16)) 
 		struct PerInstanceCB {
+
 		UINT materialIndex;
 		UINT b;
 		UINT c;
 		UINT d;
+
+        Color diffuse;
+        Color specular;
+        Color ambient;
+        Color emissive;
+        Color transparent; // light passing through a transparent surface is multiplied by this filter color
+        float opacity;
+        float shininess; // specular exponent
+        float specularStrength; // multiplier on top of specular color
+		float padding;
+
 
 	};
 struct RayGet3DBuffer {
@@ -836,10 +848,33 @@ namespace TestRaytracing
 			m_perInstanceIndices[i].Create(L"Index Buffer", mesh.indexCount, sizeof(UINT), indexTemps.data());
 
 
+			auto mat =model.GetMaterial(mesh.materialIndex);
 
 
-			PerInstanceCB a = { mesh.materialIndex,mesh.materialIndex,mesh.materialIndex,mesh.materialIndex};
-			m_perInstanceCB[i].Create(L"PerInstance CB", 1,sizeof(PerInstanceCB),&a);
+//        Color diffuse;
+//        Color specular;
+//        Color ambient;
+//        Color emissive;
+//        Color transparent; // light passing through a transparent surface is multiplied by this filter color
+//        float opacity;
+//        float shininess; // specular exponent
+//        float specularStrength; // multiplier on top of specular color
+//		float padding;
+
+			//PerInstanceCB a = { mesh.materialIndex,mesh.materialIndex,mesh.materialIndex,mesh.materialIndex};
+			PerInstanceCB materialTemp;
+			materialTemp.materialIndex = mesh.materialIndex;
+			materialTemp.diffuse = mat.diffuse;
+			materialTemp.specular = mat.specular;
+			materialTemp.ambient = mat.ambient;
+			materialTemp.emissive = mat.emissive;
+			materialTemp.transparent = mat.transparent;
+			materialTemp.opacity = mat.opacity;
+			materialTemp.shininess = mat.shininess;
+			materialTemp.specularStrength = mat.specularStrength;
+			materialTemp.padding = 5;
+
+			m_perInstanceCB[i].Create(L"PerInstance CB", 1,sizeof(PerInstanceCB),&materialTemp);
 		}
 	}
 

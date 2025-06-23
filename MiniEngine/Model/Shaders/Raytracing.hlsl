@@ -35,6 +35,9 @@ SamplerState defaultSampler : register(s0);
 
 
 
+
+
+
 cbuffer RayGen3DBuffer : register(b0)
 {
     matrix invViewProj;
@@ -51,10 +54,120 @@ cbuffer GridCB : register(b1)
 cbuffer LocalCB : register(b2)
 {
     uint4 materialIndex;
+    float4 diffuse;
+    float4 specular;
+    float4 ambient;
+    float4 emissive;
+    float4 transparent; 
+    float opacity;
+    float shininess; 
+    float specularStrength; 
+    float padding;
 };
 
 
 //ConstantBuffer<RayGenConstantBuffer> g_rayGenCB : register(b0);
+void FSchlick( inout float3 specular, inout float3 diffuse, float3 lightDir, float3 halfVec )
+{
+    float fresnel = pow(1.0 - saturate(dot(lightDir, halfVec)), 5.0);
+    specular = lerp(specular, 1, fresnel);
+    diffuse = lerp(diffuse, 0, fresnel);
+}
+
+float3 ApplyAmbientLight(
+    float3	diffuse,	// Diffuse albedo
+    float	ao,			// Pre-computed ambient-occlusion
+    float3	lightColor	// Radiance of ambient light
+    )
+{
+    return ao * diffuse * lightColor;
+}
+
+
+
+float3 ApplyLightCommon(
+    float3	diffuseColor,	// Diffuse albedo
+    float3	specularColor,	// Specular albedo
+    float	specularMask,	// Where is it shiny or dingy?
+    float	gloss,			// Specular power
+    float3	normal,			// World-space normal
+    float3	viewDir,		// World-space vector from eye to point
+    float3	lightDir,		// World-space vector from point to light
+    float3	lightColor		// Radiance of directional light
+    )
+{
+    float3 halfVec = normalize(lightDir - viewDir);
+    float nDotH = saturate(dot(halfVec, normal));
+
+    FSchlick( diffuseColor, specularColor, lightDir, halfVec );
+
+    float specularFactor = specularMask * pow(nDotH, gloss) * (gloss + 2) / 8;
+
+    float nDotL = saturate(dot(normal, lightDir));
+
+    return nDotL * lightColor * (diffuseColor + specularFactor * specularColor);
+}
+
+float3 ApplyDirectionalLight(
+    float3	diffuseColor,	// Diffuse albedo
+    float3	specularColor,	// Specular albedo
+    float	specularMask,	// Where is it shiny or dingy?
+    float	gloss,			// Specular power
+    float3	normal,			// World-space normal
+    float3	viewDir,		// World-space vector from eye to point
+    float3	lightDir,		// World-space vector from point to light
+    float3	lightColor,		// Radiance of directional light
+    float3	shadowCoord,	// Shadow coordinate (Shadow map UV & light-relative Z)
+	Texture2D<float> ShadowMap
+    )
+{
+
+    return  ApplyLightCommon(
+        diffuseColor,
+        specularColor,
+        specularMask,
+        gloss,
+        normal,
+        viewDir,
+        lightDir,
+        lightColor
+        );
+}
+
+float3 ApplyPointLight(
+    float3	diffuseColor,	// Diffuse albedo
+    float3	specularColor,	// Specular albedo
+    float	specularMask,	// Where is it shiny or dingy?
+    float	gloss,			// Specular power
+    float3	normal,			// World-space normal
+    float3	viewDir,		// World-space vector from eye to point
+    float3	worldPos,		// World-space fragment position
+    float3	lightPos,		// World-space light position
+    float	lightRadiusSq,
+    float3	lightColor		// Radiance of directional light
+    )
+{
+    float3 lightDir = lightPos - worldPos;
+    float lightDistSq = dot(lightDir, lightDir);
+    float invLightDist = rsqrt(lightDistSq);
+    lightDir *= invLightDist;
+
+    // modify 1/d^2 * R^2 to fall off at a fixed radius
+    // (R/d)^2 - d/R = [(1/d^2) - (1/R^2)*(d/R)] * R^2
+    float distanceFalloff = lightRadiusSq * (invLightDist * invLightDist);
+    distanceFalloff = max(0, distanceFalloff - rsqrt(distanceFalloff));
+
+    return distanceFalloff * ApplyLightCommon(
+        diffuseColor,
+        specularColor,
+        specularMask,
+        gloss,
+        normal,
+        viewDir,
+        lightDir,
+        lightColor
+        );
+}
 
 typedef BuiltInTriangleIntersectionAttributes MyAttributes;
 struct RayPayload
@@ -142,7 +255,28 @@ void MyClosestHitShader(inout RayPayload payload, in MyAttributes attr)
     uint diffuseID = materialIndex-1;
     float4 diffuseColor = diffuseTextures[diffuseID].SampleLevel(defaultSampler, interpolatedUV, 0);
     //payload.color = float4(interpolatedUV, 1, 1);
-    payload.color = diffuseColor;
+    payload.color = diffuseColor * diffuse;
+
+    float gloss = 128.0;
+
+    float3 normal = float3(0, 0, 1);
+    //{
+    //    normal = SAMPLE_TEX(texNormal) * 2.0 - 1.0;
+    //    AntiAliasSpecular(normal, gloss);
+    //    float3x3 tbn = float3x3(normalize(vsOutput.tangent), normalize(vsOutput.bitangent), normalize(vsOutput.normal));
+    //    normal = normalize(mul(normal, tbn));
+    //}
+
+    float3 specularAlbedo = float3( 0.56, 0.56, 0.56 );
+    //float specularMask = SAMPLE_TEX(texSpecular).g;
+    float specularMask = 0.2f;
+    //float3 viewDir = normalize(vsOutput.viewDir);
+    
+    
+    
+    //ApplyDirectionalLight(diffuseColor,float3(0,0,0),specularAlbedo,specularMask,normal,)
+    //ApplyPointLight(diffuseColor,float3(0,0,0),specularAlbedo,specularMask,normal,)
+    //ApplyPointLight()
 
     
 }
