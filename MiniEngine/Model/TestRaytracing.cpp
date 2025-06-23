@@ -737,7 +737,7 @@ namespace TestRaytracing
 
 		//Only diffuse textures 
 		//UINT diffuseTextureSize = model.m_TextureReferences.size() / 3;
-		UINT diffuseTextureSize = model.GetMaterialCount();
+		UINT texturesSize = model.GetMaterialCount() * 3;
 		auto mat0=model.GetMaterial(0);
 		auto mat1=model.GetMaterial(1);
 		auto mat2=model.GetMaterial(2);
@@ -748,30 +748,16 @@ namespace TestRaytracing
 		{
 			//auto t = model.m_TextureReferences[i];
 
-			auto tex0 = model.GetMaterialTextures(0);
-			handles.push_back(model.GetMaterialTextures(i)->GetSRV());
+			TextureRef* diffuseRef =  model.m_TextureReferences.data() + i * 3;
+			TextureRef* specularRef =  model.m_TextureReferences.data() + i * 3 +1;
+			TextureRef* normalRef =  model.m_TextureReferences.data() + i * 3+2;
+			handles.push_back(diffuseRef->GetSRV());
+			handles.push_back(specularRef->GetSRV());
+			handles.push_back(normalRef->GetSRV());
 
 		}
-//		for (size_t i = 0; i < model.m_TextureReferences.size(); i+=3 )
-//		{
-//			auto t = model.m_TextureReferences[i];
-//			handles.push_back(t.GetSRV());
-//
-//		}
-
-//		for each (TextureRef t in model.m_TextureReferences)
-//		{
-//			handles.push_back(t.GetSRV());
-//		}
-
-
 		UINT textureCountFromHeap = Renderer::s_TextureHeap.GetDescriptorSize();
-
-
-
-
-
-		m_materialDescriptorHeap.Create(L"HeapName", D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, diffuseTextureSize+4);
+		m_materialDescriptorHeap.Create(L"HeapName", D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, texturesSize+4);
 		ExtendedUtility::CopyDescriptorsToHeap(m_materialDescriptorHeap, handles);
 
 	}

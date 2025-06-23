@@ -20,11 +20,11 @@ struct AdditionalVertexData
     float4 uv;
     float4 normal;
     float4 tangent;
-    float4 bitanget;
+    float4 bitangent;
 };
 
 RaytracingAccelerationStructure Scene : register(t0, space0);
-Texture2D<float4> diffuseTextures[] : register(t1, space1);
+Texture2D<float3> instanceTextures[] : register(t1, space1);
 RWTexture2D<float4> RenderTarget : register(u0);
 
 
@@ -182,6 +182,15 @@ struct RayPayload
     float4 color;
 };
 
+void AntiAliasSpecular( inout float3 texNormal, inout float gloss )
+{
+    float normalLenSq = dot(texNormal, texNormal);
+    float invNormalLen = rsqrt(normalLenSq);
+    texNormal *= invNormalLen;
+    float normalLen = normalLenSq * invNormalLen;
+	float flatness = saturate(1 - abs(ddx(normalLen)) - abs(ddy(normalLen)));
+	gloss = exp2(lerp(0, log2(gloss), flatness));
+}
 bool IsInsideViewport(float2 p, Viewport viewport)
 {
     return (p.x >= viewport.left && p.x <= viewport.right)
@@ -254,27 +263,45 @@ void MyClosestHitShader(inout RayPayload payload, in MyAttributes attr)
     uint i0 = IndexBuffer[primitiveIndex * 3 + 0];
     uint i1 = IndexBuffer[primitiveIndex * 3 + 1];
     uint i2 = IndexBuffer[primitiveIndex * 3 + 2];
-    float2 uv0 = AdditionalVertexDataBuffer[i0].uv;
-    float2 uv1 = AdditionalVertexDataBuffer[i1].uv;
-    float2 uv2 = AdditionalVertexDataBuffer[i2].uv;
+
+    AdditionalVertexData v0 = AdditionalVertexDataBuffer[i0];
+    AdditionalVertexData v1 = AdditionalVertexDataBuffer[i1];
+    AdditionalVertexData v2 = AdditionalVertexDataBuffer[i2];
+    
+    
+    
     float3 barycentrics = float3(1 - attr.barycentrics.x - attr.barycentrics.y, attr.barycentrics.x, attr.barycentrics.y);
-    float2 interpolatedUV = barycentrics.x * uv0 + barycentrics.y * uv1 + barycentrics.z * uv2;
-    uint diffuseID = materialIndex.x-1;
-    //uint diffuseID = materialIndex.x;
-    float4 diffuseColor = diffuseTextures[diffuseID].SampleLevel(defaultSampler, interpolatedUV, 0);
-    //payload.color = float4(interpolatedUV, 1, 1);
-    payload.color = diffuseColor * diffuse;
+
+    //Interpolated all the vertex data
+    AdditionalVertexData interpolated;
+    interpolated.uv = barycentrics.x * v0.uv + barycentrics.y * v1.uv + barycentrics.z * v2.uv;
+    interpolated.normal= barycentrics.x * v0.normal + barycentrics.y * v1.normal + barycentrics.z * v2.normal;
+    interpolated.tangent= barycentrics.x * v0.tangent + barycentrics.y * v1.tangent + barycentrics.z * v2.tangent;
+    interpolated.bitangent= barycentrics.x * v0.bitangent + barycentrics.y * v1.bitangent + barycentrics.z * v2.bitangent;
+
+    uint instanceId = (materialIndex.x);
+    uint specularID = instanceId * 3;
+    uint normalID = instanceId * 3 +1;
+    uint diffuseID = instanceId * 3+ 2;
+    float3 diffuseColor = instanceTextures[diffuseID].SampleLevel(defaultSampler, interpolated.uv, 0);
+    float3 specularColor = instanceTextures[specularID].SampleLevel(defaultSampler, interpolated.uv, 0);
+    float3 normalColor = instanceTextures[normalID].SampleLevel(defaultSampler, interpolated.uv, 0);
+
 
     float gloss = 128.0;
+    float3 normal;
 
-    float3 normal = float3(0, 0, 1);
-    //{
-    //    normal = SAMPLE_TEX(texNormal) * 2.0 - 1.0;
-    //    AntiAliasSpecular(normal, gloss);
-    //    float3x3 tbn = float3x3(normalize(vsOutput.tangent), normalize(vsOutput.bitangent), normalize(vsOutput.normal));
-    //    normal = normalize(mul(normal, tbn));
-    //}
+    {
+        normal = normalColor * 2.0 - 1.0;
+        AntiAliasSpecular(normal, gloss);
+        float3x3 tbn = float3x3(normalize(interpolated.tangent).xyz, normalize(interpolated.bitangent).xyz, normalize(interpolated.normal).xyz);
+        normal = normalize(mul(normal, tbn));
+    }
+    
 
+    //payload.color = float4(normalColor, 1);
+    //payload.color = float4(normal, 1);
+    payload.color = float4(specularColor, 1);
     float3 specularAlbedo = float3( 0.56, 0.56, 0.56 );
     //float specularMask = SAMPLE_TEX(texSpecular).g;
     float specularMask = 0.2f;

@@ -7,8 +7,7 @@
 //}
 
 
-Texture2D<float3> texDiffuse		: register(t0);
-Texture2D<float3> texSpecular		: register(t1);
+Texture2D<float3> texDiffuse		: register(t0); Texture2D<float3> texSpecular		: register(t1);
 //Texture2D<float4> texEmissive		: register(t2);
 Texture2D<float3> texNormal			: register(t3);
 //Texture2D<float4> texLightmap		: register(t4);
@@ -82,5 +81,6 @@ MRT main(VSOutput vsOutput)
 	mrt.Color = colorSum;
 	//DEBUG UV 
     //mrt.Color = float4(vsOutput.uv, 1, 1);
+    //mrt.Color = float4(normal,  1);
 	return mrt;
 }
