@@ -94,7 +94,21 @@ namespace TestRaytracing
 	float aspectRatio;
 	UINT m_raytracingOutputResourceUAVDescriptorHeapIndex;
 	//Stores the flattened indices as Buffer that can be passed on the GPU
-	std::vector<StructuredBuffer> m_perInstanceUVs;
+	//Per Instance Addtional Vertex Data
+	__declspec(align(16)) struct AdditionalVertexData
+	{
+		//$VECTOR2 uv
+		//float uvX;
+		//float uvY;
+		XMFLOAT4 uv;
+		XMFLOAT4 normal;
+		XMFLOAT4 tangent;
+		XMFLOAT4 bitanget;
+
+	};
+
+
+	std::vector<StructuredBuffer> m_perInstanceVertexData;
 	std::vector<StructuredBuffer> m_perInstanceIndices;
 	//Store the per-intance diffuse textures
 	std::vector<StructuredBuffer> m_perInstanceCB;
@@ -651,7 +665,7 @@ namespace TestRaytracing
 			};
 			//auto rootArgSize = sizeof(D3D12_GPU_VIRTUAL_ADDRESS) * 2;
 			auto rootArgSize = sizeof(RootArgs);
-			UINT numShaderRecords = static_cast<UINT>(m_perInstanceUVs.size());
+			UINT numShaderRecords = static_cast<UINT>(m_perInstanceVertexData.size());
 			UINT shaderIdentifierSize = D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES;
 
 			// Each shader record must contain the shader identifier + local root arguments
@@ -666,7 +680,7 @@ namespace TestRaytracing
 				// Root arguments are packed together
 				struct RootArgs rootArgs;
 				rootArgs.cb1 = m_perInstanceCB[i].GetGpuVirtualAddress();
-				rootArgs.uav0 = m_perInstanceUVs[i].GetGpuVirtualAddress();
+				rootArgs.uav0 = m_perInstanceVertexData[i].GetGpuVirtualAddress();
 				rootArgs.uavIndices = m_perInstanceIndices[i].GetGpuVirtualAddress();
 
 				ShaderRecord record(
@@ -790,7 +804,7 @@ namespace TestRaytracing
 
 	void CreatePerInstanceCB(ModelH3D& model,UINT numMeshes) {
 
-		m_perInstanceUVs.resize(numMeshes);
+		m_perInstanceVertexData.resize(numMeshes);
 		m_perInstanceIndices.resize(numMeshes);
 		m_perInstanceCB.resize(numMeshes);
 		m_perInstanceData.resize(numMeshes);
@@ -800,6 +814,9 @@ namespace TestRaytracing
 		{
 			auto& mesh = model.m_pMesh[i];
 			auto uvAttribOffset = (UINT)mesh.attrib[ModelH3D::attrib_texcoord0].offset;
+			auto normalAttribOffset = (UINT)mesh.attrib[ModelH3D::attrib_normal].offset;
+			auto tangetAttribOffset = (UINT)mesh.attrib[ModelH3D::attrib_tangent].offset;
+			auto bitangentAttribOffset = (UINT)mesh.attrib[ModelH3D::attrib_bitangent].offset;
 			D3D12_GPU_VIRTUAL_ADDRESS uvStartAddress =
 				model.GetVertexBuffer().BufferLocation +
 				mesh.vertexDataByteOffset +
@@ -811,17 +828,25 @@ namespace TestRaytracing
 			uint8_t* basePtr = reinterpret_cast<uint8_t*>(model.m_pVertexData);
 			basePtr += mesh.vertexDataByteOffset;
 
-			std::vector<XMFLOAT2> uvData(mesh.vertexCount);
+			//std::vector<XMFLOAT2> uvData(mesh.vertexCount);
+			std::vector<AdditionalVertexData> additionalVertexDataTemp(mesh.vertexCount);
 
 			//For loop to extract all the UV coordinates
 			for (UINT j = 0; j < mesh.vertexCount; ++j)
 			{
 				//Append to an array
 				float* uvPtr = reinterpret_cast<float*>(basePtr + j * mesh.vertexStride + uvAttribOffset);
-				uvData[j] = XMFLOAT2(uvPtr[0], uvPtr[1]);
+				float* normalPtr = reinterpret_cast<float*>(basePtr + j * mesh.vertexStride + normalAttribOffset);
+				float* tangentPtr = reinterpret_cast<float*>(basePtr + j * mesh.vertexStride + tangetAttribOffset);
+				float* bitangentPtr = reinterpret_cast<float*>(basePtr + j * mesh.vertexStride + bitangentAttribOffset);
+
+				additionalVertexDataTemp[j].uv = XMFLOAT4(uvPtr[0], uvPtr[1],uvPtr[0], uvPtr[1]);
+				additionalVertexDataTemp[j].normal = XMFLOAT4(normalPtr[0], normalPtr[1], normalPtr[2],0);
+				additionalVertexDataTemp[j].tangent = XMFLOAT4(tangentPtr[0], tangentPtr[1], tangentPtr[2],0);
+				additionalVertexDataTemp[j].bitanget = XMFLOAT4(bitangentPtr[0], bitangentPtr[1], bitangentPtr[2],0);
 			}
 			//Create in the appropriate per instance buffer
-			m_perInstanceUVs[i].Create(L"Uv Buffer", mesh.vertexCount, sizeof(XMFLOAT2), uvData.data());
+			m_perInstanceVertexData[i].Create(L"Uv Buffer", mesh.vertexCount, sizeof(AdditionalVertexData), additionalVertexDataTemp.data());
 
 
 
@@ -864,6 +889,9 @@ namespace TestRaytracing
 			//PerInstanceCB a = { mesh.materialIndex,mesh.materialIndex,mesh.materialIndex,mesh.materialIndex};
 			PerInstanceCB materialTemp;
 			materialTemp.materialIndex = mesh.materialIndex;
+			materialTemp.b = mesh.materialIndex;
+			materialTemp.c = mesh.materialIndex;
+			materialTemp.d = mesh.materialIndex;
 			materialTemp.diffuse = mat.diffuse;
 			materialTemp.specular = mat.specular;
 			materialTemp.ambient = mat.ambient;

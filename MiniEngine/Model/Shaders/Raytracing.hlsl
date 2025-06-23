@@ -15,6 +15,13 @@
 #include "RaytracingHlslCompat.h"
 #include "SurfelASAsserts.hlsli"
 
+struct AdditionalVertexData
+{
+    float4 uv;
+    float4 normal;
+    float4 tangent;
+    float4 bitanget;
+};
 
 RaytracingAccelerationStructure Scene : register(t0, space0);
 Texture2D<float4> diffuseTextures[] : register(t1, space1);
@@ -29,7 +36,7 @@ RWStructuredBuffer<uint> surfelGridUAV : register(u3);
 
 //  --PER INSTANCE DATA--
 //Flatenned uvs
-RWStructuredBuffer<float2> FlattenedUV : register(u4);
+RWStructuredBuffer<AdditionalVertexData> AdditionalVertexDataBuffer : register(u4);
 RWStructuredBuffer<uint> IndexBuffer : register(u5);
 SamplerState defaultSampler : register(s0);
 
@@ -247,12 +254,13 @@ void MyClosestHitShader(inout RayPayload payload, in MyAttributes attr)
     uint i0 = IndexBuffer[primitiveIndex * 3 + 0];
     uint i1 = IndexBuffer[primitiveIndex * 3 + 1];
     uint i2 = IndexBuffer[primitiveIndex * 3 + 2];
-    float2 uv0 = FlattenedUV[i0];
-    float2 uv1 = FlattenedUV[i1];
-    float2 uv2 = FlattenedUV[i2];
+    float2 uv0 = AdditionalVertexDataBuffer[i0].uv;
+    float2 uv1 = AdditionalVertexDataBuffer[i1].uv;
+    float2 uv2 = AdditionalVertexDataBuffer[i2].uv;
     float3 barycentrics = float3(1 - attr.barycentrics.x - attr.barycentrics.y, attr.barycentrics.x, attr.barycentrics.y);
     float2 interpolatedUV = barycentrics.x * uv0 + barycentrics.y * uv1 + barycentrics.z * uv2;
-    uint diffuseID = materialIndex-1;
+    uint diffuseID = materialIndex.x-1;
+    //uint diffuseID = materialIndex.x;
     float4 diffuseColor = diffuseTextures[diffuseID].SampleLevel(defaultSampler, interpolatedUV, 0);
     //payload.color = float4(interpolatedUV, 1, 1);
     payload.color = diffuseColor * diffuse;
