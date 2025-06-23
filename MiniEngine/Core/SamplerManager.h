@@ -39,8 +39,7 @@ public:
         MaxLOD = D3D12_FLOAT32_MAX;
     }
 
-    void SetTextureAddressMode( D3D12_TEXTURE_ADDRESS_MODE AddressMode )
-    {
+    void SetTextureAddressMode( D3D12_TEXTURE_ADDRESS_MODE AddressMode ) {
         AddressU = AddressMode;
         AddressV = AddressMode;
         AddressW = AddressMode;
