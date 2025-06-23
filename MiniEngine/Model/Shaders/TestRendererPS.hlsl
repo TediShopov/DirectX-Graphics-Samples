@@ -79,7 +79,8 @@ MRT main(VSOutput vsOutput)
 		);
 
 	mrt.Normal = normal;
-	//mrt.Color = colorSum;
-    mrt.Color = float4(vsOutput.uv, 1, 1);
+	mrt.Color = colorSum;
+	//DEBUG UV 
+    //mrt.Color = float4(vsOutput.uv, 1, 1);
 	return mrt;
 }

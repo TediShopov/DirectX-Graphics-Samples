@@ -139,9 +139,10 @@ void MyClosestHitShader(inout RayPayload payload, in MyAttributes attr)
     float2 uv2 = FlattenedUV[i2];
     float3 barycentrics = float3(1 - attr.barycentrics.x - attr.barycentrics.y, attr.barycentrics.x, attr.barycentrics.y);
     float2 interpolatedUV = barycentrics.x * uv0 + barycentrics.y * uv1 + barycentrics.z * uv2;
-    uint diffuseID = materialIndex;
+    uint diffuseID = materialIndex-1;
     float4 diffuseColor = diffuseTextures[diffuseID].SampleLevel(defaultSampler, interpolatedUV, 0);
-    payload.color = float4(interpolatedUV, 1, 1);
+    //payload.color = float4(interpolatedUV, 1, 1);
+    payload.color = diffuseColor;
 
     
 }
