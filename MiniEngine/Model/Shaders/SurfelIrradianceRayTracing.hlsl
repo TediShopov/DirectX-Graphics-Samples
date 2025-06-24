@@ -15,8 +15,18 @@
 #include "RaytracingHlslCompat.h"
 #include "SurfelASAsserts.hlsli"
 
+struct AdditionalVertexData
+{
+    float4 uv;
+    float4 normal;
+    float4 tangent;
+    float4 bitangent;
+};
+
+
 
 RaytracingAccelerationStructure Scene : register(t0, space0);
+Texture2D<float3> instanceTextures[] : register(t1, space1);
 RWTexture2D<float4> RenderTarget : register(u0);
 
 
@@ -25,8 +35,14 @@ RWStructuredBuffer<uint> surlfeListUAV : register(u2); // Stored pointers (indic
 // Stored pointer to a range of surfle IDs 
 // SurfelList[from SurfelGrid[i] to SurfelGrid[i+1]] is all the surfel that occupy a cell with index I
 RWStructuredBuffer<uint> surfelGridUAV : register(u3); 
+
 RWStructuredBuffer<uint> rayDispatchUUAV : register(u4); 
-RWStructuredBuffer<float2> flattenedUVs : register(u5); 
+//  --PER INSTANCE DATA--
+//Flatenned uvs
+RWStructuredBuffer<AdditionalVertexData> AdditionalVertexDataBuffer : register(u5);
+RWStructuredBuffer<uint> IndexBuffer : register(u6);
+
+SamplerState defaultSampler : register(s0);
 
 
 cbuffer RayGen3DBuffer : register(b0)
@@ -42,6 +58,26 @@ cbuffer GridCB : register(b1)
 {
     UniformGrid Grid;
     uint frameIndex;
+};
+
+cbuffer SunDirectionalLight : register(b2)
+{
+    float4 sunDirection;
+    float4 sunColor;
+    float4 sunAbmientColor;
+};
+cbuffer LocalCB : register(b3)
+{
+    uint4 materialIndex;
+    float4 diffuse;
+    float4 specular;
+    float4 ambient;
+    float4 emissive;
+    float4 transparent; 
+    float opacity;
+    float shininess; 
+    float specularStrength; 
+    float padding;
 };
 
 
@@ -84,6 +120,11 @@ bool IsInsideViewport(float2 p, Viewport viewport)
     return (p.x >= viewport.left && p.x <= viewport.right)
         && (p.y >= viewport.top && p.y <= viewport.bottom);
 }
+
+struct ShadowPayload
+{
+    bool hit;
+};
 
 [shader("raygeneration")]
 void MyRaygenShader()
@@ -129,10 +170,13 @@ void MyRaygenShader()
 [shader("closesthit")]
 void MyClosestHitShader(inout RayPayload payload, in MyAttributes attr)
 {
+    IndexBuffer[0] = 0;
+    AdditionalVertexDataBuffer[0].uv.x = 0;
+
     // Compute hit point in world space
     float3 hitPos = WorldRayOrigin() + RayTCurrent() * WorldRayDirection();
-    payload.color = float4(flattenedUVs[1].x,flattenedUVs[2].x,flattenedUVs[3].x,1);
-    //payload.color = float4(hitPos, 1);
+    //payload.color = float4(flattenedUVs[1].x,flattenedUVs[2].x,flattenedUVs[3].x,1);
+    payload.color = float4(hitPos, 1);
     
     //float3 barycentrics = float3(1 - attr.barycentrics.x - attr.barycentrics.y, attr.barycentrics.x, attr.barycentrics.y);
     //payload.color = float4(barycentrics, 1);
@@ -142,6 +186,12 @@ void MyClosestHitShader(inout RayPayload payload, in MyAttributes attr)
 void MyMissShader(inout RayPayload payload)
 {
     payload.color = float4(0, 0, 0, 1);
+}
+
+[shader("miss")]
+void ShadowMissShader(inout ShadowPayload payload)
+{
+    payload.hit = false;
 }
 
 #endif // RAYTRACING_HLSL

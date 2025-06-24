@@ -94,7 +94,6 @@ namespace TestRaytracing
 
 	void CreateRaytracingPipelineStateObject();
 
-	void BuildAccelerationStructures(Transform transform, D3D12_VERTEX_BUFFER_VIEW vertexBV, D3D12_INDEX_BUFFER_VIEW indexBV);
 	void BuildAccelerationStructures(Transform transform, ModelH3D& model, UINT numMeshes);
 
 	void BuildShaderTables();

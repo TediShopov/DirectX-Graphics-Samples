@@ -31,25 +31,53 @@ class DescriptorHeapStack;
 namespace SurfelIrradianceAccumulation
 {
 	extern std::unique_ptr<DescriptorHeapStack> g_pRaytracingDescriptorHeap;
+	
+	__declspec(align(16))	struct		SunDirectionalLight
+	{
+		Vector4 sunDirection;
+		Vector4 sunColor;
+		Vector4 ambientColor;
+	};
+	__declspec(align(16))	struct		PerInstanceCB {
 
+		UINT materialIndex;
+		UINT b;
+		UINT c;
+		UINT d;
+
+		Color diffuse;
+		Color specular;
+		Color ambient;
+		Color emissive;
+		Color transparent; // light passing through a transparent surface is multiplied by this filter color
+		float opacity;
+		float shininess; // specular exponent
+		float specularStrength; // multiplier on top of specular color
+		float padding;
+	};
+	__declspec(align(16))	struct		RayGet3DBuffer {
+
+		XMMATRIX invViewProject;
+		XMMATRIX viewToWorld;
+		Viewport viewport;
+		Viewport stencil;
+	};
+	__declspec(align(16)) struct AdditionalVertexData
+	{
+		XMFLOAT4 uv;
+		XMFLOAT4 normal;
+		XMFLOAT4 tangent;
+		XMFLOAT4 bitanget;
+	};
 	//---   RAY-TRACING RELATED
-#pragma region RAY-TRACING DEMO
-
-
-	// Create resources that depend on the device.
-	void CreateDeviceDependentResources(
-		Transform transform,
-		D3D12_VERTEX_BUFFER_VIEW vertexBV,
-		D3D12_INDEX_BUFFER_VIEW indexBV,
-		ColorBuffer* outputBuffer,
-		DescriptorHeap surfelUAVHeap
-	);
 	void CreateDeviceDependentResources(
 		Transform transform,
 		ModelH3D& model,
 		ColorBuffer* outputBuffer,
 		DescriptorHeap surfelUAVHeap
 	);
+
+	extern SunDirectionalLight directionalLightData;
 
 	void CreateOutputTextureUAV(ColorBuffer* color);
 	void DoRaytracing(const Math::Camera& camera,DescriptorHeap surfelUAVHeap, UniformGrid grid,std::vector<SurfelData>& surfels);
@@ -78,7 +106,6 @@ namespace SurfelIrradianceAccumulation
 	void CreateRaytracingPipelineStateObject();
 
 
-	void BuildAccelerationStructures(Transform transform,D3D12_VERTEX_BUFFER_VIEW vertexBV, D3D12_INDEX_BUFFER_VIEW indexBV);
 	void BuildAccelerationStructures(Transform transform,ModelH3D& model, UINT numMeshes);
 
 	void BuildShaderTables();
@@ -87,7 +114,6 @@ namespace SurfelIrradianceAccumulation
 
 
 
-#pragma endregion
 
 };
 

@@ -751,6 +751,9 @@ void TestRenderer::RenderScene(
     TestRaytracing::directionalLightData.sunDirection =Vector4(m_SunDirection,1);
     TestRaytracing::directionalLightData.sunColor = Vector4(1.0f, 1.0f, 1.0f,1.0f) * m_SunLightIntensity;
     TestRaytracing::directionalLightData.ambientColor = Vector4(1.0f, 1.0f, 1.0f,1.0f) * m_AmbientIntensity;
+    SurfelIrradianceAccumulation::directionalLightData.sunDirection =Vector4(m_SunDirection,1);
+    SurfelIrradianceAccumulation::directionalLightData.sunColor = Vector4(1.0f, 1.0f, 1.0f,1.0f) * m_SunLightIntensity;
+    SurfelIrradianceAccumulation::directionalLightData.ambientColor = Vector4(1.0f, 1.0f, 1.0f,1.0f) * m_AmbientIntensity;
 
     // Set the default state for command lists
     auto& pfnSetupGraphicsState = [&](void)
