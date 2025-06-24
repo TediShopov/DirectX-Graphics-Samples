@@ -16,39 +16,63 @@
 #include "DirectXRaytracingHelper.h"
 #include "UniformGrid.h"
 
-
 namespace Math
 {
     class Camera;
     class Vector3;
 }
-class ModelH3D;
 
+class ModelH3D;
 class DescriptorHeapStack;
-__declspec(align(16)) struct SunDirectionalLight 
-{
-    Vector4 sunDirection;
-    Vector4 sunColor;
-    Vector4 ambientColor;
-};
 
 namespace TestRaytracing
 {
+	//Structs of Constant Buffer Data
+	__declspec(align(16))	struct		SunDirectionalLight
+	{
+		Vector4 sunDirection;
+		Vector4 sunColor;
+		Vector4 ambientColor;
+	};
+	__declspec(align(16))	struct		PerInstanceCB {
+
+		UINT materialIndex;
+		UINT b;
+		UINT c;
+		UINT d;
+
+		Color diffuse;
+		Color specular;
+		Color ambient;
+		Color emissive;
+		Color transparent; // light passing through a transparent surface is multiplied by this filter color
+		float opacity;
+		float shininess; // specular exponent
+		float specularStrength; // multiplier on top of specular color
+		float padding;
+	};
+	__declspec(align(16))	struct		RayGet3DBuffer {
+
+		XMMATRIX invViewProject;
+		XMMATRIX viewToWorld;
+		Viewport viewport;
+		Viewport stencil;
+	};
+	__declspec(align(16)) struct AdditionalVertexData
+	{
+		XMFLOAT4 uv;
+		XMFLOAT4 normal;
+		XMFLOAT4 tangent;
+		XMFLOAT4 bitanget;
+	};
+
 	extern std::unique_ptr<DescriptorHeapStack> g_pRaytracingDescriptorHeap;
 	extern SunDirectionalLight directionalLightData;
 
-	//---   RAY-TRACING RELATED
-#pragma region RAY-TRACING DEMO
+	//--- RENDERING PASS	---
+	void DoRaytracing(const Math::Camera& camera, DescriptorHeap surfelUAVHeap, UniformGrid grid);
 
-
-	// Create resources that depend on the device.
-	void CreateDeviceDependentResources(
-		Transform transform,
-		D3D12_VERTEX_BUFFER_VIEW vertexBV,
-		D3D12_INDEX_BUFFER_VIEW indexBV,
-		ColorBuffer* outputBuffer,
-		DescriptorHeap surfelUAVHeap
-	);
+	//---	INITIALIZATION FUNCITONS ---
 	void CreateDeviceDependentResources(
 		Transform transform,
 		ModelH3D& model,
@@ -56,22 +80,10 @@ namespace TestRaytracing
 		DescriptorHeap surfelUAVHeap
 	);
 
-	void CreateOutputTextureUAV(ColorBuffer* color);
-	void DoRaytracing(const Math::Camera& camera,DescriptorHeap surfelUAVHeap,UniformGrid grid);
-
-// Update the application state with the new resolution.
-	void UpdateCBForSizeChange(UINT width, UINT height);
-
-
-
-
-	D3D12_GPU_DESCRIPTOR_HANDLE GetSrvGpuHandle();
-	D3D12_CPU_DESCRIPTOR_HANDLE GetSrvCpuHandle();
-	ColorBuffer GetOutputBuffer();
-
+	void CreateOutputAndPerInstanceTexturesHeap(ColorBuffer* outputBuffer, DescriptorHeap surfelUAVHeap, ModelH3D& model);
+	void CreatePerInstanceCBs(ModelH3D& model, UINT numMeshes);
 
 	void CreateRaytracingInterfaces();
-	inline void ThrowIfFailed(HRESULT hr, const wchar_t* msg);
 
 	void SerializeAndCreateRaytracingRootSignature(D3D12_ROOT_SIGNATURE_DESC& desc, ComPtr<ID3D12RootSignature>* rootSig);
 	void CreateRootSignatures();
@@ -82,17 +94,21 @@ namespace TestRaytracing
 
 	void CreateRaytracingPipelineStateObject();
 
-
-	void BuildAccelerationStructures(Transform transform,D3D12_VERTEX_BUFFER_VIEW vertexBV, D3D12_INDEX_BUFFER_VIEW indexBV);
-	void BuildAccelerationStructures(Transform transform,ModelH3D& model, UINT numMeshes);
+	void BuildAccelerationStructures(Transform transform, D3D12_VERTEX_BUFFER_VIEW vertexBV, D3D12_INDEX_BUFFER_VIEW indexBV);
+	void BuildAccelerationStructures(Transform transform, ModelH3D& model, UINT numMeshes);
 
 	void BuildShaderTables();
 
-	UINT AllocateDescriptor(D3D12_CPU_DESCRIPTOR_HANDLE* cpuDescriptor, UINT descriptorIndexToUse);
+	//---	CREATE RAYTRACING OUTPUT UAV ---
+
+	void CreateOutputTextureUAV(ColorBuffer* color);
+	ColorBuffer GetOutputBuffer();
 
 
+	//--- UTILITIES AND EVENTS ---
 
-#pragma endregion
-
+	// Update the application state with the new resolution.
+	void UpdateCBForSizeChange(UINT width, UINT height);
+	inline void ThrowIfFailed(HRESULT hr, const wchar_t* msg);
 };
 

@@ -35,5 +35,34 @@ public:
 	static void CopyDescriptorsToHeap(DescriptorHeap& targetHeap,
 		std::vector<D3D12_CPU_DESCRIPTOR_HANDLE> srcDescriptors,
 		D3D12_DESCRIPTOR_HEAP_TYPE heapType = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+
+
+	// Read one vertex's attribute of type T
+	 template<typename T>
+	static T ReadAttribute(
+		uint8_t* base,
+		size_t stride,
+		size_t index,
+		size_t offset
+	)
+	{
+		return *reinterpret_cast<T*>(base + index * stride + offset);
+	}
+	template<typename T>
+	static T ReadAttribute(
+		uint8_t* base,
+		size_t index,
+		size_t offset
+	)
+	{
+		return *reinterpret_cast<T*>(base + index * sizeof(T) + offset);
+	}
+
+	static XMFLOAT4 PadToXMFLOAT4(XMFLOAT3 a, float w = 1.0f) {
+		return XMFLOAT4(a.x, a.y, a.z, w);
+
+	}
+
+
 };
 

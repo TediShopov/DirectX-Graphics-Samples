@@ -320,11 +320,6 @@ void MyClosestHitShader(inout RayPayload payload, in MyAttributes attr)
     
     
 }
-//[shader("closesthit")]
-//void ShadowClosestHitShader(inout ShadowPayload payload, in MyAttributes attr)
-//{
-//    payload.hit = true;
-//}
 
 [shader("miss")]
 void MyMissShader(inout RayPayload payload)
