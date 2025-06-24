@@ -30,10 +30,10 @@ RWTexture2D<float4> RenderTarget : register(u0);
 
 RWStructuredBuffer<SurfelData> surfelsUAV : register(u1); // world position
 RWStructuredBuffer<uint> surlfeListUAV : register(u2); // Stored pointers (indices) to the appropriate surfel data
+
 // Stored pointer to a range of surfle IDs 
 // SurfelList[from SurfelGrid[i] to SurfelGrid[i+1]] is all the surfel that occupy a cell with index I
 RWStructuredBuffer<uint> surfelGridUAV : register(u3); 
-
 //  --PER INSTANCE DATA--
 //Flatenned uvs
 RWStructuredBuffer<AdditionalVertexData> AdditionalVertexDataBuffer : register(u4);

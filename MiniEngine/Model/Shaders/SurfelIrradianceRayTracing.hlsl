@@ -14,6 +14,7 @@
 
 #include "RaytracingHlslCompat.h"
 #include "SurfelASAsserts.hlsli"
+static const float M_PI = 3.14159265f;
 
 struct AdditionalVertexData
 {
@@ -121,65 +122,278 @@ bool IsInsideViewport(float2 p, Viewport viewport)
         && (p.y >= viewport.top && p.y <= viewport.bottom);
 }
 
+//ConstantBuffer<RayGenConstantBuffer> g_rayGenCB : register(b0);
+void FSchlick( inout float3 specular, inout float3 diffuse, float3 lightDir, float3 halfVec )
+{
+    float fresnel = pow(1.0 - saturate(dot(lightDir, halfVec)), 5.0);
+    specular = lerp(specular, 1, fresnel);
+    diffuse = lerp(diffuse, 0, fresnel);
+}
+
+float3 ApplyAmbientLight(
+    float3	diffuse,	// Diffuse albedo
+    float	ao,			// Pre-computed ambient-occlusion
+    float3	lightColor	// Radiance of ambient light
+    )
+{
+    return ao * diffuse * lightColor;
+}
+
+
+
+float3 ApplyLightCommon(
+    float3	diffuseColor,	// Diffuse albedo
+    float3	specularColor,	// Specular albedo
+    float	specularMask,	// Where is it shiny or dingy?
+    float	gloss,			// Specular power
+    float3	normal,			// World-space normal
+    float3	viewDir,		// World-space vector from eye to point
+    float3	lightDir,		// World-space vector from point to light
+    float3	lightColor		// Radiance of directional light
+    )
+{
+    float3 halfVec = normalize(lightDir - viewDir);
+    float nDotH = saturate(dot(halfVec, normal));
+
+    FSchlick( diffuseColor, specularColor, lightDir, halfVec );
+
+    float specularFactor = specularMask * pow(nDotH, gloss) * (gloss + 2) / 8;
+
+    float nDotL = saturate(dot(normal, lightDir));
+
+    return nDotL * lightColor * (diffuseColor + specularFactor * specularColor);
+}
+
+float3 ApplyDirectionalLight(
+    float3	diffuseColor,	// Diffuse albedo
+    float3	specularColor,	// Specular albedo
+    float	specularMask,	// Where is it shiny or dingy?
+    float	gloss,			// Specular power
+    float3	normal,			// World-space normal
+    float3	viewDir,		// World-space vector from eye to point
+    float3	lightDir,		// World-space vector from point to light
+    float3	lightColor		// Radiance of directional light
+    )
+{
+
+    return  ApplyLightCommon(
+        diffuseColor,
+        specularColor,
+        specularMask,
+        gloss,
+        normal,
+        viewDir,
+        lightDir,
+        lightColor
+        );
+}
+
+float3 ApplyPointLight(
+    float3	diffuseColor,	// Diffuse albedo
+    float3	specularColor,	// Specular albedo
+    float	specularMask,	// Where is it shiny or dingy?
+    float	gloss,			// Specular power
+    float3	normal,			// World-space normal
+    float3	viewDir,		// World-space vector from eye to point
+    float3	worldPos,		// World-space fragment position
+    float3	lightPos,		// World-space light position
+    float	lightRadiusSq,
+    float3	lightColor		// Radiance of directional light
+    )
+{
+    float3 lightDir = lightPos - worldPos;
+    float lightDistSq = dot(lightDir, lightDir);
+    float invLightDist = rsqrt(lightDistSq);
+    lightDir *= invLightDist;
+
+    // modify 1/d^2 * R^2 to fall off at a fixed radius
+    // (R/d)^2 - d/R = [(1/d^2) - (1/R^2)*(d/R)] * R^2
+    float distanceFalloff = lightRadiusSq * (invLightDist * invLightDist);
+    distanceFalloff = max(0, distanceFalloff - rsqrt(distanceFalloff));
+
+    return distanceFalloff * ApplyLightCommon(
+        diffuseColor,
+        specularColor,
+        specularMask,
+        gloss,
+        normal,
+        viewDir,
+        lightDir,
+        lightColor
+        );
+}
+
+typedef BuiltInTriangleIntersectionAttributes MyAttributes;
+void AntiAliasSpecular( inout float3 texNormal, inout float gloss )
+{
+    float normalLenSq = dot(texNormal, texNormal);
+    float invNormalLen = rsqrt(normalLenSq);
+    texNormal *= invNormalLen;
+    float normalLen = normalLenSq * invNormalLen;
+	float flatness = saturate(1 - abs(ddx(normalLen)) - abs(ddy(normalLen)));
+	gloss = exp2(lerp(0, log2(gloss), flatness));
+}
 struct ShadowPayload
 {
     bool hit;
 };
 
+//Simplified approach. Use count of rays = to surfel count. Each thread would cast X rays based on surfel count.
+//This is naive approach however the benefit it that all irradiances can be averaged and integrated in here 
+//and there is no reliance on InterclockedAdd that does not support floats
 [shader("raygeneration")]
 void MyRaygenShader()
 {
-    //float2 screenUV = (float2) DispatchRaysIndex() / (float2) DispatchRaysDimensions(); // [0,1]
-    // Map to NDC space [-1,1]
-    //float2 ndc = screenUV * 2.0 - 1.0;
-    //ndc.x = -ndc.x; // Flip Y if needed for DX convention
-    //ndc.y = -ndc.y; // Flip Y if needed for DX convention
+    uint globalIndex = DispatchRaysIndex().x;
+     surfelsUAV[ globalIndex].raySamples;
 
-    //float4 target = mul(float4(ndc.x, ndc.y, 1.0f, 1.0f), invViewProj);
-    //float3 worldPos = target.xyz / target.w;
-     uint globalIndex = DispatchRaysIndex().x;
-    uint surfelIndex = rayDispatchUUAV[globalIndex];
-    uint seed = GetThreadTemporalSeed(DispatchRaysIndex(),frameIndex);
-    float2 rnd;
-    rnd.x = RandomFloat01(seed);
-    rnd.y = RandomFloat01(seed);
-    float3 rayDir = SampleHemisphere(rnd, surfelsUAV[surfelIndex].normal);
+    float3 accumulatedIrradiance = float3(0, 0, 0);
+    for (int i = 0; i < surfelsUAV[globalIndex].raySamples.x;i++)
+    {
+        uint3 index3 = DispatchRaysIndex();
+        index3.y = i;
+        uint seed = GetThreadTemporalSeed(index3, frameIndex);
+        float2 rnd;
+        rnd.x = RandomFloat01(seed);
+        rnd.y = RandomFloat01(seed);
+        float3 rayDir = SampleHemisphere(rnd, surfelsUAV[globalIndex].normal);
 
     // Trace the ray.
-    RayDesc ray;
-    ray.Origin = surfelsUAV[surfelIndex].position;
-    ray.Direction = rayDir;
-        // Set TMin to a non-zero small value to avoid aliasing issues due to floating - point errors.
-        // TMin should be kept small to prevent missing geometry at close contact areas.
-    ray.TMin = 0.001;
-    ray.TMax = 10000.0;
-    RayPayload payload = { float4(0, 0, 0, 0) };
-        //TraceRay(Scene, RAY_FLAG_CULL_BACK_FACING_TRIANGLES, ~0, 0, 1, 0, ray, payload);
-    TraceRay(Scene, RAY_FLAG_NONE, ~0, 0, 1, 0, ray, payload);
-    float3 rayHitWorldPos = payload.color;
+        RayDesc ray;
+        ray.Origin = surfelsUAV[globalIndex].position;
+        ray.Direction = rayDir;
+        ray.TMin = 0.001;
+        ray.TMax = 10000.0;
+        RayPayload payload = { float4(0, 0, 0, 0) };
+        TraceRay(Scene, RAY_FLAG_NONE, ~0, 0, 1, 0, ray, payload);
+        float3 rayHitWorldPos = payload.color;
+        float3 Li = payload.color; // returned radiance
+        float cosTheta = saturate(dot(rayDir, surfelsUAV[globalIndex].normal));
+        float3 radiance = Li * cosTheta * (2.0f * M_PI);
+        accumulatedIrradiance += radiance;
+        
+    }
 
-    uint3 cellIndex = ComputeGridIndex(rayHitWorldPos, Grid.gridOrigin, Grid.cellSize);
-    uint flattenedIndex = HashGridIndex(cellIndex, Grid);
-    uint surfelIdFrom = surfelGridUAV[flattenedIndex];
-    uint surfelIdTo = surfelGridUAV[flattenedIndex + 1];
+    //Average
+    accumulatedIrradiance /= surfelsUAV[globalIndex].raySamples;
+    //Integrate
 
-    uint surfelCount = surfelIdTo - surfelIdFrom;
-    RenderTarget[DispatchRaysIndex().xy] = payload.color;
+    float alpha = saturate(0.1f / (1.0f + frameIndex * 0.01));
+    surfelsUAV[globalIndex].color = lerp(surfelsUAV[globalIndex].color, float4(accumulatedIrradiance, 1), alpha);
+        
 }
+
+//Ray generetion relying on ray dispatch data
+//[shader("raygeneration")]
+//void MyRaygenShader()
+//{
+//     uint globalIndex = DispatchRaysIndex().x;
+//    uint surfelIndex = rayDispatchUUAV[globalIndex];
+//    uint seed = GetThreadTemporalSeed(DispatchRaysIndex(),frameIndex);
+//    float2 rnd;
+//    rnd.x = RandomFloat01(seed);
+//    rnd.y = RandomFloat01(seed);
+//    float3 rayDir = SampleHemisphere(rnd, surfelsUAV[surfelIndex].normal);
+//
+//    // Trace the ray.
+//    RayDesc ray;
+//    ray.Origin = surfelsUAV[surfelIndex].position;
+//    ray.Direction = rayDir;
+//    ray.TMin = 0.001;
+//    ray.TMax = 10000.0;
+//    RayPayload payload = { float4(0, 0, 0, 0) };
+//    TraceRay(Scene, RAY_FLAG_NONE, ~0, 0, 1, 0, ray, payload);
+//    float3 rayHitWorldPos = payload.color;
+//
+//    //Accumulate radiance
+//    float3 Li = payload.color;             // returned radiance
+//    float cosTheta = saturate(dot(rayDir, surfelsUAV[surfelIndex].normal));
+//
+//    float3 irradiance = Li * cosTheta * (2.0f * M_PI);
+//    InterlockedAdd(surfelsUAV[surfelIndex].color.r, irradiance.r);
+//
+//    
+//    //uint3 cellIndex = ComputeGridIndex(rayHitWorldPos, Grid.gridOrigin, Grid.cellSize);
+//    //uint flattenedIndex = HashGridIndex(cellIndex, Grid);
+//    //uint surfelIdFrom = surfelGridUAV[flattenedIndex];
+//    //uint surfelIdTo = surfelGridUAV[flattenedIndex + 1];
+//
+//    //+
+//    //
+//
+//    //uint surfelCount = surfelIdTo - surfelIdFrom;
+//    //RenderTarget[DispatchRaysIndex().xy] = payload.color;
+//}
 
 [shader("closesthit")]
 void MyClosestHitShader(inout RayPayload payload, in MyAttributes attr)
 {
-    IndexBuffer[0] = 0;
-    AdditionalVertexDataBuffer[0].uv.x = 0;
-
-    // Compute hit point in world space
     float3 hitPos = WorldRayOrigin() + RayTCurrent() * WorldRayDirection();
-    //payload.color = float4(flattenedUVs[1].x,flattenedUVs[2].x,flattenedUVs[3].x,1);
-    payload.color = float4(hitPos, 1);
+    uint primitiveIndex = PrimitiveIndex();
+    uint instanceID = InstanceID();
+    //ATTEMP TO RECONSTRCUT THE ACTUAL UVs
+    //Assumption is that primitive index is "autogenerated" as per docs
+    //But the actual index could be retrieves with prim index indexing
+    uint i0 = IndexBuffer[primitiveIndex * 3 + 0];
+    uint i1 = IndexBuffer[primitiveIndex * 3 + 1];
+    uint i2 = IndexBuffer[primitiveIndex * 3 + 2];
+
+    AdditionalVertexData v0 = AdditionalVertexDataBuffer[i0];
+    AdditionalVertexData v1 = AdditionalVertexDataBuffer[i1];
+    AdditionalVertexData v2 = AdditionalVertexDataBuffer[i2];
     
-    //float3 barycentrics = float3(1 - attr.barycentrics.x - attr.barycentrics.y, attr.barycentrics.x, attr.barycentrics.y);
-    //payload.color = float4(barycentrics, 1);
+    
+    
+    float3 barycentrics = float3(1 - attr.barycentrics.x - attr.barycentrics.y, attr.barycentrics.x, attr.barycentrics.y);
+
+    //Interpolated all the vertex data
+    AdditionalVertexData interpolated;
+    interpolated.uv = barycentrics.x * v0.uv + barycentrics.y * v1.uv + barycentrics.z * v2.uv;
+    interpolated.normal= barycentrics.x * v0.normal + barycentrics.y * v1.normal + barycentrics.z * v2.normal;
+    interpolated.tangent= barycentrics.x * v0.tangent + barycentrics.y * v1.tangent + barycentrics.z * v2.tangent;
+    interpolated.bitangent= barycentrics.x * v0.bitangent + barycentrics.y * v1.bitangent + barycentrics.z * v2.bitangent;
+
+    uint instanceId = (materialIndex.x);
+    uint specularID = instanceId * 3;
+    uint normalID = instanceId * 3 +1;
+    uint diffuseID = instanceId * 3+ 2;
+    float3 diffuseColor = instanceTextures[diffuseID].SampleLevel(defaultSampler, interpolated.uv, 0);
+    float3 specularColor = instanceTextures[specularID].SampleLevel(defaultSampler, interpolated.uv, 0);
+    float3 normalColor = instanceTextures[normalID].SampleLevel(defaultSampler, interpolated.uv, 0);
+
+
+    float gloss = 128.0;
+    float3 normal;
+
+    {
+        normal = normalColor * 2.0 - 1.0;
+        AntiAliasSpecular(normal, gloss);
+        float3x3 tbn = float3x3(normalize(interpolated.tangent).xyz, normalize(interpolated.bitangent).xyz, normalize(interpolated.normal).xyz);
+        normal = normalize(mul(normal, tbn));
+    }
+    float3 specularAlbedo = float3( 0.56, 0.56, 0.56 );
+    float specularMask = specularColor;
+
+    //This is not the viewiign direction toward the camera but 
+    //Direction towards the surfel in worlds space
+    float3 towardSurfel = -WorldRayDirection();
+    float3 dirColor = ApplyDirectionalLight(diffuseColor, float3(0, 0, 0), specularAlbedo, specularMask, normal,towardSurfel, sunDirection, sunColor);
+    payload.color = float4(dirColor, 1);
+
+    
+    //Cast Shadow Ray
+    RayDesc shadowRay;
+    shadowRay.Origin = hitPos + normal * 0.001;
+    shadowRay.Direction = normalize(sunDirection);
+    shadowRay.TMin = 0.001;
+    shadowRay.TMax = 1e6;
+    ShadowPayload shadowPayload = { true };
+
+    TraceRay(Scene, RAY_FLAG_ACCEPT_FIRST_HIT_AND_END_SEARCH | RAY_FLAG_SKIP_CLOSEST_HIT_SHADER, ~0, 0, 1, 1, shadowRay, shadowPayload);
+    if(shadowPayload.hit == true)
+    {
+        payload.color = float4(diffuseColor,1) * sunAbmientColor;
+    }
 }
 
 [shader("miss")]

@@ -834,6 +834,7 @@ namespace SurfelIrradianceAccumulation
 		gfxContext.WriteBuffer(m_RayDispatchBuffer, 0, m_RayDispatchData.data(), sizeof(UINT) * m_RayDispatchData.size());
 
 		commandList->SetComputeRootSignature(m_rtGlobalRootSignature.Get());
+		static const UINT surfelCount = 1000;
 		auto DispatchRays = [&](auto* commandList, auto* stateObject, auto* dispatchDesc)
 			{
 				dispatchDesc->HitGroupTable.StartAddress = m_hitGroupShaderTable->GetGPUVirtualAddress();
@@ -846,7 +847,7 @@ namespace SurfelIrradianceAccumulation
 				dispatchDesc->RayGenerationShaderRecord.SizeInBytes = m_rayGenShaderTable->GetDesc().Width;
 //$				dispatchDesc->Width = Graphics::g_SceneColorBuffer.GetWidth();
 //$				dispatchDesc->Height = Graphics::g_SceneColorBuffer.GetHeight();
-				dispatchDesc->Width = totalSamples;
+				dispatchDesc->Width = 1000;
 				dispatchDesc->Height = 1;
 				dispatchDesc->Depth = 1;
 				commandList->SetPipelineState1(stateObject);

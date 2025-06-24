@@ -321,7 +321,8 @@ void main(
                         newSurfel.tilePos = tilePos;
                         newSurfel.pixelPos = pixelPos;
                         newSurfel.randomValues = float4(changeAgainst, chanceSpawn, changeAgainst,1);
-                        newSurfel.color = float4(RandomFloat01(threadRandomnessSeed), RandomFloat01(threadRandomnessSeed), RandomFloat01(threadRandomnessSeed),1);
+                        //newSurfel.color = float4(RandomFloat01(threadRandomnessSeed), RandomFloat01(threadRandomnessSeed), RandomFloat01(threadRandomnessSeed),1);
+                        newSurfel.color = float4(1,1,1,1);
                         newSurfel.raySamples = uint4(10, 10, 10, 10);
                         surfelsUAV[surfelID] = newSurfel;
                     }
