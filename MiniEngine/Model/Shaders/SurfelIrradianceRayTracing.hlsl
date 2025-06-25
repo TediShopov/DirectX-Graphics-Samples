@@ -313,6 +313,10 @@ void MyRaygenShader()
         accumulatedIrradiance += radiance;
         
     }
+
+    
+     
+    
     meanRayDir /= N;
     float3x3 cov = sumOuter / N - OuterProduct(meanRayDir, meanRayDir);
     float3x3 inverseCov = InverseMatrix3x3(cov);
@@ -325,6 +329,13 @@ void MyRaygenShader()
     surfelsUAV[globalIndex].co3 = float4(inverseCov._m20_m21_m22, 0);
 
 
+   //Average
+    accumulatedIrradiance /= surfelsUAV[globalIndex].raySamples.x;
+    //Integrate
+
+    uint frameOffset = frameIndex - surfelsUAV[globalIndex].padding.x;
+    float alpha = saturate(0.1f / (1.0f + frameIndex * 0.01));
+    surfelsUAV[globalIndex].color = lerp(surfelsUAV[globalIndex].color, float4(accumulatedIrradiance, 1), alpha);
 
     
     
@@ -333,23 +344,6 @@ void MyRaygenShader()
     InterlockedAdd(surfelsUAV[globalIndex].raySamples.y, surfelsUAV[globalIndex].raySamples.x);
 
 
-    //Average
-    accumulatedIrradiance /= surfelsUAV[globalIndex].raySamples.x;
-    //Integrate
-
-    uint frameOffset = frameIndex - surfelsUAV[globalIndex].padding.x;
-    //surfelsUAV[globalIndex].color = float4(accumulatedIrradiance, 1);
-    //if (frameOffset < 5)
-    //{
-    //    surfelsUAV[globalIndex].color = float4(accumulatedIrradiance, 1);
-    //    
-    //}
-    //else
-    //{
-        float alpha = saturate(0.1f / (1.0f + frameIndex * 0.01));
-        surfelsUAV[globalIndex].color = lerp(surfelsUAV[globalIndex].color, float4(accumulatedIrradiance, 1), alpha);
-        
-    //}
 
         
 }
@@ -465,8 +459,11 @@ void MyClosestHitShader(inout RayPayload payload, in MyAttributes attr)
 
         if(IntersectRayWithSurfel(ra, surfel, t))
         {
-            payload.color = surfel.color;
-            payload.color.w = 1;
+            //FINISH CODE HERE
+            float3 albedo = float3(1, 1, 1); // or assume float3(1,1,1) if no albedo
+            float3 irradiance = surfel.color.rgb; // surfel's accumulated irradiance
+            float3 radiance = irradiance * albedo / M_PI;
+            payload.color = float4(radiance, 1.0);
             return;
         }
         
