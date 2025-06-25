@@ -304,7 +304,7 @@ void main(
                     uint prevStackPointer;
                     InterlockedAdd(surfleStackUAV[0], 1, prevStackPointer);
                     uint surfelStackPointer = prevStackPointer + 2;
-                    if (surfelStackPointer <= 1000)
+                    if (surfelStackPointer <= MaxSurfels)
                     {
                         uint surfelID = surfleStackUAV[surfelStackPointer];
                         SurfelData newSurfel;

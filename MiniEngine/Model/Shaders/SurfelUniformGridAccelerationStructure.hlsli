@@ -107,58 +107,59 @@ bool ComputeCornerDotProductsWithSurfelPlane(
     UniformGrid grid,
     uint3 cellIndex)
 {
-    // Compute base corner of the grid cell
-    float3 base = grid.gridOrigin + (cellIndex * grid.cellSize);
-
-    // Precompute for convenience
-    float3 size = grid.cellSize;
-    float3 N = surfel.normal;
-    float3 P0 = surfel.position;
-
-    // 8 corners of the grid cell (relative to base)
-    float3 corners[8] = {
-        base,
-        base + float3(size.x, 0, 0),
-        base + float3(0, size.y, 0),
-        base + float3(0, 0, size.z),
-        base + float3(size.x, size.y, 0),
-        base + float3(size.x, 0, size.z),
-        base + float3(0, size.y, size.z),
-        base + size
-    };
-
-    // Compute dot products: dot(corner - P0, N)
-    float previousPointDot;
-
-
-    //Test the first cell corner to avoid an if in the for loop
-
-    float3 offset = corners[0] - P0;
-    previousPointDot = dot(offset, N);
-
-
-
-
-
-    
-
-    //Test the rest of the poitns
-    [unroll]
-    for (int i = 1; i < 8; ++i)
-    {
-        float3 offset = corners[i] - P0;
-        float currentPlaneDot = dot(offset, N);
-        if (sign(currentPlaneDot) != sign(previousPointDot))
-        {
-            //One cell corner is on one side of the plane while another is on the other 
-            //therefore the surfel disc has to cut it
-            return true;
-        }
-    }
-
-    //All the corner of the box lie on one of the side of the plane formed by the surfle
-    //the box does not overlap with the surfel
-    return false;
+    return true;
+//    // Compute base corner of the grid cell
+//    float3 base = grid.gridOrigin + (cellIndex * grid.cellSize);
+//
+//    // Precompute for convenience
+//    float3 size = grid.cellSize;
+//    float3 N = surfel.normal;
+//    float3 P0 = surfel.position;
+//
+//    // 8 corners of the grid cell (relative to base)
+//    float3 corners[8] = {
+//        base,
+//        base + float3(size.x, 0, 0),
+//        base + float3(0, size.y, 0),
+//        base + float3(0, 0, size.z),
+//        base + float3(size.x, size.y, 0),
+//        base + float3(size.x, 0, size.z),
+//        base + float3(0, size.y, size.z),
+//        base + size
+//    };
+//
+//    // Compute dot products: dot(corner - P0, N)
+//    float previousPointDot;
+//
+//
+//    //Test the first cell corner to avoid an if in the for loop
+//
+//    float3 offset = corners[0] - P0;
+//    previousPointDot = dot(offset, N);
+//
+//
+//
+//
+//
+//    
+//
+//    //Test the rest of the poitns
+//    [unroll]
+//    for (int i = 1; i < 8; ++i)
+//    {
+//        float3 offset = corners[i] - P0;
+//        float currentPlaneDot = dot(offset, N);
+//        if (sign(currentPlaneDot) != sign(previousPointDot))
+//        {
+//            //One cell corner is on one side of the plane while another is on the other 
+//            //therefore the surfel disc has to cut it
+//            return true;
+//        }
+//    }
+//
+//    //All the corner of the box lie on one of the side of the plane formed by the surfle
+//    //the box does not overlap with the surfel
+//    return false;
 
 }
 

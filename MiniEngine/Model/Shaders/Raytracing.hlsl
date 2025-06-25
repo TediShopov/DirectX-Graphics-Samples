@@ -246,6 +246,9 @@ void MyRaygenShader()
     RenderTarget[DispatchRaysIndex().xy] = payload.color;
 }
 
+
+
+
 //Use per-instance constant buffers to pass the uvs, diffuse/normal textures and material properties
 
 //This does not need to be a ray-tracing pass 
@@ -264,31 +267,95 @@ void MyClosestHitShader(inout RayPayload payload, in MyAttributes attr)
     //TODO make a raycast toward surfels position to see if it contributes
     //uint3 index = ComputeGridIndex(worldPos, Grid.gridOrigin, Grid.cellSize);
     float3 colorE = float3(0, 0, 0);
+    uint surfelNum = 0;
+    uint surfelStride = 0;
 
-    for (uint i = 0; i < 1000; ++i)
+    SurfelData mock;
+    mock.position = float4(worldPos, 1);
+    mock.radius = Grid.cellSize.x*2;
+    //mock.radius = Grid.cellSize.x /3.0f;
+    uint3 bb[2];
+    SurfelSOIBoundingCells(mock, Grid, bb);
+
+    uint3 minCell = bb[0];
+    uint3 maxCell = bb[1];
+
+
+    // Iterate over overlapping cells
+    for (uint z = minCell.z; z <= maxCell.z; ++z)
     {
-        float3x3 covarianceInverse = 0;
-        covarianceInverse._m00_m01_m02 = surfelsUAV[i].co1;
-        covarianceInverse._m10_m11_m12 = surfelsUAV[i].co2;
-        covarianceInverse._m20_m21_m22 = surfelsUAV[i].co3;
-
-        float3 d = worldPos - surfelsUAV[i].position;
-        float3 dTransformed = mul(covarianceInverse, d);
-        float D2 = dot(d, dTransformed); // Mahalanobis distance squared
-        D2 /= 2000.0f;
-        float w = exp(-0.5 * D2); // Gaussian weight
-
-        float3 L = -normalize(d); // light dir toward surfel
-        float NdotL = saturate(dot(surfelsUAV[i].normal, L));
-        //if (NdotL > 0.0f && w > threshold)
-        if (NdotL > 0.0f)
+        for (uint y = minCell.y; y <= maxCell.y; ++y)
         {
-        // optional visibility check with ray as before...
-            colorE += surfelsUAV[i].color * NdotL * w;
-            //colorE += float3(10,10,10) * NdotL * w;
+            for (uint x = minCell.x; x <= maxCell.x; ++x)
+            {
+                //uint linearIndex = x + y * gridDim.x + z * gridDim.x * gridDim.y;
+                uint3 idx = uint3(x, y, z);
+                uint linearIndex = HashGridIndex(idx,Grid);
+                uint surfelListIndexFrom = surfelGridUAV[linearIndex];
+                uint surfelListIndexTo = surfelGridUAV[linearIndex+1];
+
+                for (uint i = surfelListIndexFrom; i < surfelListIndexTo; ++i)
+                {
+                    uint index = surlfeListUAV[i];
+                    SurfelData surfel = surfelsUAV[index];
+
+                    float3x3 covarianceInverse = 0;
+                    covarianceInverse._m00_m01_m02 = surfel.co1;
+                    covarianceInverse._m10_m11_m12 = surfel.co2;
+                    covarianceInverse._m20_m21_m22 = surfel.co3;
+
+                    float3 d = worldPos - surfel.position;
+                    float3 dTransformed = mul(covarianceInverse, d);
+                    float D2 = dot(d, dTransformed); // Mahalanobis distance squared
+                    D2 /= 3000.0f;
+                    //D2 /= 10000.0f;
+                    float w = exp(-0.5 * D2); // Gaussian weight
+
+                    float3 L = -normalize(d); // light dir toward surfel
+                    float NdotL = saturate(dot(surfel.normal, L));
+                    if (NdotL > 0.0f)
+                    {
+                        colorE += surfel.color * NdotL * w;
+                    }
+                    
+                }
+
+            }
         }
     }
+
     payload.color = float4(colorE, 1);
+
+    
+    
+
+//    surfelsUAV.GetDimensions(surfelNum,surfelStride);
+//
+//    for (uint i = 0; i < surfelNum; ++i)
+//    {
+//        float3x3 covarianceInverse = 0;
+//        covarianceInverse._m00_m01_m02 = surfelsUAV[i].co1;
+//        covarianceInverse._m10_m11_m12 = surfelsUAV[i].co2;
+//        covarianceInverse._m20_m21_m22 = surfelsUAV[i].co3;
+//
+//        float3 d = worldPos - surfelsUAV[i].position;
+//        float3 dTransformed = mul(covarianceInverse, d);
+//        float D2 = dot(d, dTransformed); // Mahalanobis distance squared
+//        //D2 /= 2000.0f;
+//        D2 /= 10000.0f;
+//        float w = exp(-0.5 * D2); // Gaussian weight
+//
+//        float3 L = -normalize(d); // light dir toward surfel
+//        float NdotL = saturate(dot(surfelsUAV[i].normal, L));
+//        //if (NdotL > 0.0f && w > threshold)
+//        if (NdotL > 0.0f)
+//        {
+//        // optional visibility check with ray as before...
+//            colorE += surfelsUAV[i].color * NdotL * w;
+//            //colorE += float3(10,10,10) * NdotL * w;
+//        }
+//    }
+//    payload.color = float4(colorE, 1);
 }
 
 ////Closest hit shader to debug BRDF 
