@@ -247,6 +247,28 @@ float3x3 OuterProduct(float3 a, float3 b)
     );
 }
 
+float3x3 InverseMatrix3x3(float3x3 m)
+{
+    float3 a = m[0]; // column 0
+    float3 b = m[1]; // column 1
+    float3 c = m[2]; // column 2
+
+    float3 r0 = cross(b, c);
+    float3 r1 = cross(c, a);
+    float3 r2 = cross(a, b);
+
+    float det = dot(a, r0);
+    float invDet = 1.0 / det;
+
+    float3x3 adj = float3x3(
+        r0.x, r1.x, r2.x,
+        r0.y, r1.y, r2.y,
+        r0.z, r1.z, r2.z
+    );
+
+    return adj * invDet;
+}
+
 
 //Simplified approach. Use count of rays = to surfel count. Each thread would cast X rays based on surfel count.
 //This is naive approach however the benefit it that all irradiances can be averaged and integrated in here 
@@ -293,13 +315,14 @@ void MyRaygenShader()
     }
     meanRayDir /= N;
     float3x3 cov = sumOuter / N - OuterProduct(meanRayDir, meanRayDir);
+    float3x3 inverseCov = InverseMatrix3x3(cov);
     //
     surfelsUAV[globalIndex].mean = float4(meanRayDir, 0);
 
     //Extract the rows from the covariance matrix
-    surfelsUAV[globalIndex].co1 = float4(cov._m00_m01_m02, 0);
-    surfelsUAV[globalIndex].co2 = float4(cov._m10_m11_m12, 0);
-    surfelsUAV[globalIndex].co3 = float4(cov._m20_m21_m22, 0);
+    surfelsUAV[globalIndex].co1 = float4(inverseCov._m00_m01_m02, 0);
+    surfelsUAV[globalIndex].co2 = float4(inverseCov._m10_m11_m12, 0);
+    surfelsUAV[globalIndex].co3 = float4(inverseCov._m20_m21_m22, 0);
 
 
 
@@ -435,7 +458,7 @@ void MyClosestHitShader(inout RayPayload payload, in MyAttributes attr)
         float t;
 
         //Used for counting how many rays have been fired from surfel
-        if(surfel.padding.y < 200)
+        if(surfel.padding.y < 5)
         {
             continue;
         }
