@@ -32,11 +32,23 @@ __declspec(align(16)) struct SurfelData
 	UINT pixelPosY;
 	Vector4 randomFloats;
 	Vector4 color;
+
 	UINT raySamples;
-	float pad1;
-	float pad2;
-	float pad3;
-	//Vector3 padding;
+	UINT pad;
+	UINT pad2;
+	UINT pad3;
+
+	Vector4 mean;
+	 //DirectX::XMFLOAT4 mean;           
+    DirectX::XMFLOAT4 covarianceRow0;  // 16 bytes
+	DirectX::XMFLOAT4 covarianceRow1;  // 16 bytes
+    DirectX::XMFLOAT4 covarianceRow2;  // 16 bytes
+
+//    DirectX::XMFLOAT3 covarianceRow0; float pad4; // 16 bytes
+//    DirectX::XMFLOAT3 covarianceRow1; float pad5; // 16 bytes
+//    DirectX::XMFLOAT3 covarianceRow2; float pad6; // 16 bytes
+
+
 };
 	__declspec(align(16)) struct SurfelGenCB
 	{

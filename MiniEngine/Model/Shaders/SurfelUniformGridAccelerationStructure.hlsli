@@ -8,8 +8,16 @@ struct SurfelData
     uint2 tilePos;
     uint2 pixelPos;
     float4 randomValues;
+
+
     float4 color;
     uint4 raySamples; 
+
+    float4 mean;
+    float4 co1;
+    float4 co2;
+    float4 co3;
+    //float3x3 covariance;
 
 };
 struct UniformGrid

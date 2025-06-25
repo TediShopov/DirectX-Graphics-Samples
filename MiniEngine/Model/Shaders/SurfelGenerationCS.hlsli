@@ -317,13 +317,21 @@ void main(
                         newSurfel.position = float4(worldPos, 1);
                         newSurfel.normal = atNormal;
                         newSurfel.radius = varRadius;
-                        newSurfel.padding = float3(0, 0, 0);
+                        //newSurfel.padding = float3(0, 0, 0);
+                        newSurfel.padding = float3(FrameIndex, FrameIndex,FrameIndex);
                         newSurfel.tilePos = tilePos;
                         newSurfel.pixelPos = pixelPos;
                         newSurfel.randomValues = float4(changeAgainst, chanceSpawn, changeAgainst,1);
                         //newSurfel.color = float4(RandomFloat01(threadRandomnessSeed), RandomFloat01(threadRandomnessSeed), RandomFloat01(threadRandomnessSeed),1);
-                        newSurfel.color = float4(1,1,1,1);
-                        newSurfel.raySamples = uint4(10, 10, 10, 10);
+                        //newSurfel.color = float4(1,1,1,1);
+                        newSurfel.color = float4(0,0,0,1);
+                        //First value sued for the ray that need casting the second and onwwards for how many have been casted alreaady
+                        //newSurfel.covariance = float3x3(0,0,0,0,0,0,0,0,0);
+                        newSurfel.co1 = float4(0, 0, 2, 5);
+                        newSurfel.co2 = float4(0, 0, 2, 5);
+                        newSurfel.co3 = float4(0, 0, 2, 5);
+                        newSurfel.mean = float4(0,0,3,4);
+                        newSurfel.raySamples = float4(10, 0, 0, 0);
                         surfelsUAV[surfelID] = newSurfel;
                     }
                     else

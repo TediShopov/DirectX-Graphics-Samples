@@ -238,6 +238,16 @@ struct ShadowPayload
     bool hit;
 };
 
+float3x3 OuterProduct(float3 a, float3 b)
+{
+    return float3x3(
+        a.x * b.x, a.x * b.y, a.x * b.z,
+        a.y * b.x, a.y * b.y, a.y * b.z,
+        a.z * b.x, a.z * b.y, a.z * b.z
+    );
+}
+
+
 //Simplified approach. Use count of rays = to surfel count. Each thread would cast X rays based on surfel count.
 //This is naive approach however the benefit it that all irradiances can be averaged and integrated in here 
 //and there is no reliance on InterclockedAdd that does not support floats
@@ -245,10 +255,13 @@ struct ShadowPayload
 void MyRaygenShader()
 {
     uint globalIndex = DispatchRaysIndex().x;
-     surfelsUAV[ globalIndex].raySamples;
+    surfelsUAV[globalIndex].raySamples;
 
     float3 accumulatedIrradiance = float3(0, 0, 0);
-    for (int i = 0; i < surfelsUAV[globalIndex].raySamples.x;i++)
+    float3 meanRayDir = float3(0, 0, 0);
+    float3x3 sumOuter = 0;
+    float N = surfelsUAV[globalIndex].raySamples.x;
+    for (int i = 0; i < N; i++)
     {
         uint3 index3 = DispatchRaysIndex();
         index3.y = i;
@@ -258,12 +271,17 @@ void MyRaygenShader()
         rnd.y = RandomFloat01(seed);
         float3 rayDir = SampleHemisphere(rnd, surfelsUAV[globalIndex].normal);
 
+        meanRayDir += rayDir;
+        sumOuter += OuterProduct(rayDir, rayDir);
+
+
     // Trace the ray.
         RayDesc ray;
         ray.Origin = surfelsUAV[globalIndex].position;
         ray.Direction = rayDir;
         ray.TMin = 0.001;
         ray.TMax = 10000.0;
+
         RayPayload payload = { float4(0, 0, 0, 0) };
         TraceRay(Scene, RAY_FLAG_NONE, ~0, 0, 1, 0, ray, payload);
         float3 rayHitWorldPos = payload.color;
@@ -273,13 +291,43 @@ void MyRaygenShader()
         accumulatedIrradiance += radiance;
         
     }
+    meanRayDir /= N;
+    float3x3 cov = sumOuter / N - OuterProduct(meanRayDir, meanRayDir);
+    //
+    surfelsUAV[globalIndex].mean = float4(meanRayDir, 0);
+
+    //Extract the rows from the covariance matrix
+    surfelsUAV[globalIndex].co1 = float4(cov._m00_m01_m02, 0);
+    surfelsUAV[globalIndex].co2 = float4(cov._m10_m11_m12, 0);
+    surfelsUAV[globalIndex].co3 = float4(cov._m20_m21_m22, 0);
+
+
+
+    
+    
+    
+    
+    InterlockedAdd(surfelsUAV[globalIndex].raySamples.y, surfelsUAV[globalIndex].raySamples.x);
+
 
     //Average
-    accumulatedIrradiance /= surfelsUAV[globalIndex].raySamples;
+    accumulatedIrradiance /= surfelsUAV[globalIndex].raySamples.x;
     //Integrate
 
-    float alpha = saturate(0.1f / (1.0f + frameIndex * 0.01));
-    surfelsUAV[globalIndex].color = lerp(surfelsUAV[globalIndex].color, float4(accumulatedIrradiance, 1), alpha);
+    uint frameOffset = frameIndex - surfelsUAV[globalIndex].padding.x;
+    //surfelsUAV[globalIndex].color = float4(accumulatedIrradiance, 1);
+    //if (frameOffset < 5)
+    //{
+    //    surfelsUAV[globalIndex].color = float4(accumulatedIrradiance, 1);
+    //    
+    //}
+    //else
+    //{
+        float alpha = saturate(0.1f / (1.0f + frameIndex * 0.01));
+        surfelsUAV[globalIndex].color = lerp(surfelsUAV[globalIndex].color, float4(accumulatedIrradiance, 1), alpha);
+        
+    //}
+
         
 }
 
@@ -325,6 +373,33 @@ void MyRaygenShader()
 //    //RenderTarget[DispatchRaysIndex().xy] = payload.color;
 //}
 
+struct Ray
+{
+    float3 origin;
+    float3 dir;
+    
+};
+
+bool IntersectRayWithSurfel(Ray ray, SurfelData surfel, out float t)
+{
+
+    // Plane intersection
+    float denom = dot(ray.dir, surfel.normal);
+    if (abs(denom) < 1e-4) return false; // Parallel ray
+
+    float3 toSurfel = surfel.position - ray.origin;
+    t = dot(toSurfel, surfel.normal) / denom;
+    if (t < 0) return false; // Intersection is behind ray origin
+
+    // Intersection point
+    float3 hitPoint = ray.origin + t * ray.dir;
+
+    // Check if inside disk
+    float dist2 = dot(hitPoint - surfel.position, hitPoint - surfel.position);
+    return dist2 <= (surfel.radius * surfel.radius);
+}
+
+
 [shader("closesthit")]
 void MyClosestHitShader(inout RayPayload payload, in MyAttributes attr)
 {
@@ -342,7 +417,38 @@ void MyClosestHitShader(inout RayPayload payload, in MyAttributes attr)
     AdditionalVertexData v1 = AdditionalVertexDataBuffer[i1];
     AdditionalVertexData v2 = AdditionalVertexDataBuffer[i2];
     
-    
+
+   uint3 cellIndex = ComputeGridIndex(hitPos, Grid.gridOrigin, Grid.cellSize);
+   uint flattenedIndex = HashGridIndex(cellIndex, Grid);
+   uint surfelIdFrom = surfelGridUAV[flattenedIndex];
+   uint surfelIdTo = surfelGridUAV[flattenedIndex + 1];
+
+    for (int i = surfelIdFrom; i < surfelIdTo; i++)
+    {
+        uint surfelIndex = surlfeListUAV[i];
+        SurfelData surfel = surfelsUAV[surfelIndex];
+        Ray ra;
+        ra.origin = WorldRayOrigin();
+        //ra.origin = float3(-100000, -100000, -10000);
+        //ra.dir = float3(0, 1, 0);
+        ra.dir = WorldRayDirection();
+        float t;
+
+        //Used for counting how many rays have been fired from surfel
+        if(surfel.padding.y < 200)
+        {
+            continue;
+        }
+
+        if(IntersectRayWithSurfel(ra, surfel, t))
+        {
+            payload.color = surfel.color;
+            payload.color.w = 1;
+            return;
+        }
+        
+    }
+    //payload.color = float4(0, 0, 0, 1);
     
     float3 barycentrics = float3(1 - attr.barycentrics.x - attr.barycentrics.y, attr.barycentrics.x, attr.barycentrics.y);
 
@@ -381,6 +487,10 @@ void MyClosestHitShader(inout RayPayload payload, in MyAttributes attr)
     payload.color = float4(dirColor, 1);
 
     
+    //TODO chekck if ray is intersecting with another surfel.
+    //Use surfels irradiance from previous frame if that is the case
+
+    
     //Cast Shadow Ray
     RayDesc shadowRay;
     shadowRay.Origin = hitPos + normal * 0.001;
@@ -392,7 +502,8 @@ void MyClosestHitShader(inout RayPayload payload, in MyAttributes attr)
     TraceRay(Scene, RAY_FLAG_ACCEPT_FIRST_HIT_AND_END_SEARCH | RAY_FLAG_SKIP_CLOSEST_HIT_SHADER, ~0, 0, 1, 1, shadowRay, shadowPayload);
     if(shadowPayload.hit == true)
     {
-        payload.color = float4(diffuseColor,1) * sunAbmientColor;
+        //payload.color = float4(diffuseColor,1) * sunAbmientColor;
+        payload.color = float4(0, 0, 0, 1);
     }
 }
 

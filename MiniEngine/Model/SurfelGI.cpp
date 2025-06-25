@@ -183,6 +183,10 @@ void SurfelGI::FillCPUContainers()
 		m_SurfelDataArray[i].tilePosX = 0;
 		m_SurfelDataArray[i].tilePosY = 0;
 		m_SurfelDataArray[i].raySamples = 1;
+		m_SurfelDataArray[i].covarianceRow0 = XMFLOAT4(1,0,0,0);
+		m_SurfelDataArray[i].covarianceRow1 = XMFLOAT4(0,2,0,0);
+		m_SurfelDataArray[i].covarianceRow2 = XMFLOAT4(0,0,3,0);
+		m_SurfelDataArray[i].mean = Math::Vector4(0,1,2,3);
 	}
 
 	//Fill the surfle stack buffer
