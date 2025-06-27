@@ -277,92 +277,92 @@ void MyClosestHitShader(inout RayPayload payload, in MyAttributes attr)
     uint surfelListIndexFrom = surfelGridUAV[linearIndex];
     uint surfelListIndexTo = surfelGridUAV[linearIndex + 1];
 
-//    for (uint i = surfelListIndexFrom; i < surfelListIndexTo; ++i)
-//    {
-//        uint index = surlfeListUAV[i];
-//        SurfelData surfel = surfelsUAV[index];
-//
-//        float3x3 covarianceInverse = 0;
-//        covarianceInverse._m00_m01_m02 = surfel.co1;
-//        covarianceInverse._m10_m11_m12 = surfel.co2;
-//        covarianceInverse._m20_m21_m22 = surfel.co3;
-//
-//        float3 d = worldPos - surfel.position;
-//        float3 dTransformed = mul(covarianceInverse, d);
-//        float D2 = dot(d, dTransformed); // Mahalanobis distance squared
-//        D2 /= 3000.0f;
-//                    //D2 /= 10000.0f;
-//        float w = exp(-0.5 * D2); // Gaussian weight
-//
-//        float3 L = -normalize(d); // light dir toward surfel
-//        float NdotL = saturate(dot(surfel.normal, L));
-//        if (NdotL > 0.0f)
-//        {
-//            colorE += surfel.color * NdotL * w;
-//        }
-//    }
-
-
-    
-
-    SurfelData mock;
-    mock.position = float4(worldPos, 1);
-    mock.radius = Grid.cellSize.x;
-    //mock.radius = Grid.cellSize.x /3.0f;
-    uint3 bb[2];
-    SurfelSOIBoundingCells(mock, Grid, bb);
-
-    uint3 minCell = bb[0];
-    uint3 maxCell = bb[1];
-
-
-    
-
-
-
-    // Iterate over overlapping cells
-    for (uint z = minCell.z; z <= maxCell.z; ++z)
+    for (uint i = surfelListIndexFrom; i < surfelListIndexTo; ++i)
     {
-        for (uint y = minCell.y; y <= maxCell.y; ++y)
-        {
-            for (uint x = minCell.x; x <= maxCell.x; ++x)
-            {
-                //uint linearIndex = x + y * gridDim.x + z * gridDim.x * gridDim.y;
-                uint3 idx = uint3(x, y, z);
-                uint linearIndex = HashGridIndex(idx,Grid);
-                uint surfelListIndexFrom = surfelGridUAV[linearIndex];
-                uint surfelListIndexTo = surfelGridUAV[linearIndex+1];
+        uint index = surlfeListUAV[i];
+        SurfelData surfel = surfelsUAV[index];
 
-                for (uint i = surfelListIndexFrom; i < surfelListIndexTo; ++i)
-                {
-                    uint index = surlfeListUAV[i];
-                    SurfelData surfel = surfelsUAV[index];
-                    float3 d = worldPos - surfel.position;
-                    float3 L = -normalize(d); // light dir toward surfel
-                    float NdotL = saturate(dot(surfel.normal, L));
-                    if (NdotL <= 0.0f)
-                    {
-                        continue;
-                    }
+        float3x3 covarianceInverse = 0;
+        covarianceInverse._m00_m01_m02 = surfel.co1;
+        covarianceInverse._m10_m11_m12 = surfel.co2;
+        covarianceInverse._m20_m21_m22 = surfel.co3;
 
-                    float3x3 covarianceInverse = 0;
-                    covarianceInverse._m00_m01_m02 = surfel.co1;
-                    covarianceInverse._m10_m11_m12 = surfel.co2;
-                    covarianceInverse._m20_m21_m22 = surfel.co3;
-
-                    float3 dTransformed = mul(covarianceInverse, d);
-                    float D2 = dot(d, dTransformed); // Mahalanobis distance squared
-                    D2 /= 3000.0f;
+        float3 d = worldPos - surfel.position;
+        float3 dTransformed = mul(covarianceInverse, d);
+        float D2 = dot(d, dTransformed); // Mahalanobis distance squared
+        D2 /= 3000.0f;
                     //D2 /= 10000.0f;
-                    float w = exp(-0.5 * D2); // Gaussian weight
+        float w = exp(-0.5 * D2); // Gaussian weight
 
-                        colorE += surfel.color * NdotL * w;
-                    
-                }
-
-            }
+        float3 L = -normalize(d); // light dir toward surfel
+        float NdotL = saturate(dot(surfel.normal, L));
+        if (NdotL > 0.0f)
+        {
+            colorE += surfel.color * NdotL * w;
         }
-}
+    }
+
+
+    
+
+//    SurfelData mock;
+//    mock.position = float4(worldPos, 1);
+//    mock.radius = Grid.cellSize.x;
+//    //mock.radius = Grid.cellSize.x /3.0f;
+//    uint3 bb[2];
+//    SurfelSOIBoundingCells(mock, Grid, bb);
+//
+//    uint3 minCell = bb[0];
+//    uint3 maxCell = bb[1];
+//
+//
+//    
+//
+//
+//
+//    // Iterate over overlapping cells
+//    for (uint z = minCell.z; z <= maxCell.z; ++z)
+//    {
+//        for (uint y = minCell.y; y <= maxCell.y; ++y)
+//        {
+//            for (uint x = minCell.x; x <= maxCell.x; ++x)
+//            {
+//                //uint linearIndex = x + y * gridDim.x + z * gridDim.x * gridDim.y;
+//                uint3 idx = uint3(x, y, z);
+//                uint linearIndex = HashGridIndex(idx,Grid);
+//                uint surfelListIndexFrom = surfelGridUAV[linearIndex];
+//                uint surfelListIndexTo = surfelGridUAV[linearIndex+1];
+//
+//                for (uint i = surfelListIndexFrom; i < surfelListIndexTo; ++i)
+//                {
+//                    uint index = surlfeListUAV[i];
+//                    SurfelData surfel = surfelsUAV[index];
+//                    float3 d = worldPos - surfel.position;
+//                    float3 L = -normalize(d); // light dir toward surfel
+//                    float NdotL = saturate(dot(surfel.normal, L));
+//                    if (NdotL <= 0.0f)
+//                    {
+//                        continue;
+//                    }
+//
+//                    float3x3 covarianceInverse = 0;
+//                    covarianceInverse._m00_m01_m02 = surfel.co1;
+//                    covarianceInverse._m10_m11_m12 = surfel.co2;
+//                    covarianceInverse._m20_m21_m22 = surfel.co3;
+//
+//                    float3 dTransformed = mul(covarianceInverse, d);
+//                    float D2 = dot(d, dTransformed); // Mahalanobis distance squared
+//                    D2 /= 3000.0f;
+//                    //D2 /= 10000.0f;
+//                    float w = exp(-0.5 * D2); // Gaussian weight
+//
+//                        colorE += surfel.color * NdotL * w;
+//                    
+//                }
+//
+//            }
+//        }
+//}
 
     payload.color = float4(colorE, 1);
 
