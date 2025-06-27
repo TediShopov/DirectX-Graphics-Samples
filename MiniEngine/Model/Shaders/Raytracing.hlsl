@@ -307,7 +307,7 @@ void MyClosestHitShader(inout RayPayload payload, in MyAttributes attr)
 
     SurfelData mock;
     mock.position = float4(worldPos, 1);
-    mock.radius = Grid.cellSize.x*2;
+    mock.radius = Grid.cellSize.x;
     //mock.radius = Grid.cellSize.x /3.0f;
     uint3 bb[2];
     SurfelSOIBoundingCells(mock, Grid, bb);
