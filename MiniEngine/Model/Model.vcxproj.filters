@@ -328,5 +328,8 @@
     <FxCompile Include="Shaders\SurfelIrradianceRayTracing.hlsl">
       <Filter>Shaders</Filter>
     </FxCompile>
+    <FxCompile Include="Shaders\SurfelApplicationCS.hlsli">
+      <Filter>Shaders</Filter>
+    </FxCompile>
   </ItemGroup>
 </Project>

@@ -153,6 +153,9 @@
     <FxCompile Include="Shaders\SurfelAccelerationStructuresCS.hlsli">
       <FileType>Document</FileType>
     </FxCompile>
+    <FxCompile Include="Shaders\SurfelApplicationCS.hlsli">
+      <FileType>Document</FileType>
+    </FxCompile>
     <None Include="Shaders\SurfelASAsserts.hlsli" />
     <None Include="Shaders\SurfelUniformGridAccelerationStructure.hlsli">
       <FileType>Document</FileType>

@@ -4,10 +4,12 @@
 #include "Math/Vector.h"
 #include <limits>
 #include "UniformGrid.h"
+#include "ColorBuffer.h"
 
 
 #include "CompiledShaders/SurfelAccelerationStructuresCS.h"
 #include "CompiledShaders/SurfelGenerationCS.h"
+#include "CompiledShaders/SurfelApplicationCS.h"
 
 
   void SurfelGI::UpdateProjection(const Camera& camera)
@@ -60,20 +62,21 @@
 
   void SurfelGI::CreateHeaps()
   {
-	  nonShaderVisibleHeap.Create(L"SURFEL SRV HEAP", D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 6,false);
+	  nonShaderVisibleHeap.Create(L"SURFEL SRV HEAP", D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 7,false);
 	  ExtendedUtility::CopyDescriptorsToHeap(nonShaderVisibleHeap, {
 	      m_GBuffer.g_Depth->GetDepthSRV(),
 	      m_GBuffer.g_Normal->GetSRV(),
 	      m_SurfelData.GetUAV(),
 	      m_SurfelList.GetUAV(),
 	      m_SurfelGrid.GetUAV(),
-	      m_SurfelStack.GetUAV()
+	      m_SurfelStack.GetUAV(),
+	      m_OutputTexture.GetUAV()
 	      }
 	  );
 
 
 
-	  srvHeap.Create(L"SURFEL SRV HEAP", D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 6);
+	  srvHeap.Create(L"SURFEL SRV HEAP", D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 7);
 
 	  ExtendedUtility::CopyDescriptorsToHeap(srvHeap, {
 
@@ -82,7 +85,8 @@
 		  m_SurfelData.GetUAV(),
 		  m_SurfelList.GetUAV(),
 		  m_SurfelGrid.GetUAV(),
-		  m_SurfelStack.GetUAV()
+		  m_SurfelStack.GetUAV(),
+	      m_OutputTexture.GetUAV()
 		  }
 	  );
   }
@@ -93,6 +97,11 @@
 	  m_SurfelGenerationPSO.SetRootSignature(m_SurfelGenerationRT);
 	  m_SurfelGenerationPSO.SetComputeShader(g_pSurfelGenerationCS, sizeof(g_pSurfelGenerationCS));
 	  m_SurfelGenerationPSO.Finalize();
+
+	  //Uses the same root signature but a different shader
+	  m_SurfelApplicationPSO.SetRootSignature(m_SurfelGenerationRT);
+	  m_SurfelApplicationPSO.SetComputeShader(g_pSurfelApplicationCS, sizeof(g_pSurfelApplicationCS));
+	  m_SurfelApplicationPSO.Finalize();
 
 	  m_SurfelAccelerationPassPSO.SetRootSignature(m_SurfelGenerationRT);
 	  m_SurfelAccelerationPassPSO.SetComputeShader(g_pSurfelAccelerationStructuresCS, sizeof(g_pSurfelAccelerationStructuresCS));
@@ -111,6 +120,7 @@
 	  m_SurfelGrid.Create(L"Surfel Grid Buffer", _CELL_COUNT_, sizeof(UINT));
 	  //+1 for the stack pointer itself
 	  m_SurfelStack.Create(L"Surfel Stack", _DEBUG_SURFEL_NUM + 1, sizeof(UINT));
+	  CreateOutputTexture(&Graphics::g_SceneNormalBuffer);
   }
 
   void SurfelGI::CreateRootSig()
@@ -131,8 +141,25 @@
 	  //SRVs: Position and Normal
 	  m_SurfelGenerationRT[2].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 2);
 	  //UAVs: 
-	  m_SurfelGenerationRT[3].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 0, 4);
+	  m_SurfelGenerationRT[3].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 0, 5);
 	  m_SurfelGenerationRT.Finalize(L"CS Surfel Root Signature");
+
+
+//	  //Appliacatoin Root Signature
+//
+//	  m_SurfelGenerationRT.Reset(4, 3);
+//
+//	  m_SurfelGenerationRT.InitStaticSampler(10, DefaultSamplerDesc);
+//	  m_SurfelGenerationRT.InitStaticSampler(11, Graphics::SamplerShadowDesc);
+//	  m_SurfelGenerationRT.InitStaticSampler(12, CubeMapSamplerDesc);
+//
+//	  m_SurfelGenerationRT[0].InitAsConstantBuffer(0);
+//	  m_SurfelGenerationRT[1].InitAsConstantBuffer(1);
+//	  //SRVs: Position and Normal
+//	  m_SurfelGenerationRT[2].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 3);
+//	  //UAVs: 
+//	  m_SurfelGenerationRT[3].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 0, 4);
+//	  m_SurfelGenerationRT.Finalize(L"CS Surfel Root Signature");
   }
 
   void SurfelGI::SetDefaultCBData()
@@ -203,6 +230,11 @@ void SurfelGI::FillCPUContainers()
 	for (int i = 0; i < _DEBUG_SURFEL_NUM + 1; ++i) {
 		m_SurfelStackActual.push_back(i);
 	}
+}
+
+void SurfelGI::CreateOutputTexture(ColorBuffer* outputBuffer)
+{
+	m_OutputTexture.Create(L"RayTracingOutput", outputBuffer->GetWidth(), outputBuffer->GetHeight(), 1, DXGI_FORMAT_R8G8B8A8_UNORM);
 }
 
   void SurfelGI::SpawnSurfels(ComputeContext& gfxContext,  const Camera& camera)
@@ -320,6 +352,32 @@ void SurfelGI::FillCPUContainers()
 	m_SurfelDataReadback.Unmap();
 
 }
+
+  void SurfelGI::ApplySurfels(ComputeContext& gfxContext,const Camera& camera)
+  {
+
+	ScopedTimer _prof(L"Surfel Application Compute Shader", gfxContext);
+
+	//Transition resources from render target to CS 
+	//NON-PIXEL SHADER RESOURCE should cover the ComputeShader stage
+	gfxContext.TransitionResource(*m_GBuffer.g_Depth, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, true);
+	gfxContext.TransitionResource(*m_GBuffer.g_Normal, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, true);
+
+	//Switch to the appropriate PSO
+	gfxContext.SetPipelineState(m_SurfelApplicationPSO);
+	gfxContext.SetRootSignature(m_SurfelGenerationRT);
+	SendParameters(gfxContext, camera);
+
+	//Dispatch grid number
+	const UINT TEX_SIZE_X = m_GBuffer.g_Normal->GetWidth();
+	const UINT TEX_SIZE_Y = m_GBuffer.g_Normal->GetHeight();
+
+	const UINT THREAD_GROUP_X = 1;
+	const UINT THREAD_GROUP_Y = 1;
+	//Mini Engine Internally uses ceilign division to supply enoug threads
+	gfxContext.Dispatch2D(TEX_SIZE_X,TEX_SIZE_Y,THREAD_GROUP_X,THREAD_GROUP_Y);
+
+  }
 
   int SurfelGI::GetClosestSurfelToPosition(Vector3 worldPos)
 {

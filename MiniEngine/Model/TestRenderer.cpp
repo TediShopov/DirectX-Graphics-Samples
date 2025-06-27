@@ -915,5 +915,6 @@ void TestRenderer::RenderScene(
     SurfelIllumination->SpawnSurfels(cfx,camera);
 
     SurfelIllumination->ReadbackSurfelData(gfxContext);
+    SurfelIllumination->ApplySurfels(cfx,camera);
 }
 

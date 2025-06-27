@@ -77,10 +77,12 @@ public:
 	//--- PIPELINE STATE OBJECTS --
 
 	ComputePSO m_SurfelGenerationPSO = { (L"Surfel Generation Compute Shader Stage") };
+	ComputePSO m_SurfelApplicationPSO = { (L"Surfel Application Compute Shader Stage") };
 	ComputePSO m_SurfelAccelerationPassPSO = { (L"Surfel Fill Acceleration Structure Pass Compute Shader Stage") };
 
 	//--- ROOT SIGNATURES
 	RootSignature m_SurfelGenerationRT;
+	//RootSignature m_SurfelApplicationRT;
 
 	//--- DESCRIPTOR HEAPS ---
 	DescriptorHeap srvHeap;
@@ -109,6 +111,7 @@ public:
 	StructuredBuffer m_SurfelList;
 	StructuredBuffer m_SurfelGrid;
 	StructuredBuffer m_SurfelStack; //A stack holding unique surfel IDs.Used for spawning and recycling surfels.
+	ColorBuffer m_OutputTexture; 
 
 	//GPU->CPU readback buffer
 	ReadbackBuffer m_SurfelDataReadback;
@@ -130,6 +133,7 @@ public:
 	void SendParametersGraphics(GraphicsContext& gfxContext, const Camera& camera);
 	void FillAccelerationStructures(ComputeContext& gfxContext);
 	void ReadbackSurfelData(GraphicsContext& gfx);
+	void ApplySurfels(ComputeContext& gfxContext,const Camera& camera);
 	int GetClosestSurfelToPosition(Vector3 worldPos);
 
 protected:
@@ -140,5 +144,6 @@ protected:
 	void CreateRootSig();
 	void SetDefaultCBData();
 	void FillCPUContainers();
+	void CreateOutputTexture(ColorBuffer* ouputBuffer);
 };
 
