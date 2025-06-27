@@ -372,8 +372,8 @@ void SurfelGI::CreateOutputTexture(ColorBuffer* outputBuffer)
 	const UINT TEX_SIZE_X = m_GBuffer.g_Normal->GetWidth();
 	const UINT TEX_SIZE_Y = m_GBuffer.g_Normal->GetHeight();
 
-	const UINT THREAD_GROUP_X = 1;
-	const UINT THREAD_GROUP_Y = 1;
+	const UINT THREAD_GROUP_X = 32;
+	const UINT THREAD_GROUP_Y = 32;
 	//Mini Engine Internally uses ceilign division to supply enoug threads
 	gfxContext.Dispatch2D(TEX_SIZE_X,TEX_SIZE_Y,THREAD_GROUP_X,THREAD_GROUP_Y);
 

@@ -703,7 +703,7 @@ void TestRenderer::RenderScene(
     bool skipShadowMap)
 {
 
-    TestRaytracing::DoRaytracing(camera, SurfelIllumination->srvHeap,SurfelIllumination->m_SurfelGen.UniformGrid);
+    //TestRaytracing::DoRaytracing(camera, SurfelIllumination->srvHeap,SurfelIllumination->m_SurfelGen.UniformGrid);
     SurfelIrradianceAccumulation::DoRaytracing(
         camera,
         SurfelIllumination->srvHeap,

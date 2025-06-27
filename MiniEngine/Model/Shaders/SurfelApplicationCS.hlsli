@@ -68,31 +68,33 @@ float3 computeRadianceForWorldPos(float3 worldPos)
     {
         uint index = surlfeListUAV[i];
         SurfelData surfel = surfelsUAV[index];
+        float3 d = worldPos - surfel.position;
+        float3 L = -normalize(d); // light dir toward surfel
+        float NdotL = saturate(dot(surfel.normal, L));
+        if (NdotL <= 0.0f)
+        {
+            continue;
+        }
 
         float3x3 covarianceInverse = 0;
         covarianceInverse._m00_m01_m02 = surfel.co1;
         covarianceInverse._m10_m11_m12 = surfel.co2;
         covarianceInverse._m20_m21_m22 = surfel.co3;
 
-        float3 d = worldPos - surfel.position;
+
         float3 dTransformed = mul(covarianceInverse, d);
         float D2 = dot(d, dTransformed); // Mahalanobis distance squared
         D2 /= 3000.0f;
                     //D2 /= 10000.0f;
         float w = exp(-0.5 * D2); // Gaussian weight
 
-        float3 L = -normalize(d); // light dir toward surfel
-        float NdotL = saturate(dot(surfel.normal, L));
-        if (NdotL > 0.0f)
-        {
-            colorE += surfel.color * NdotL * w;
-        }
+        colorE += surfel.color * NdotL * w;
     }
     return colorE;
 
 }
 
-[numthreads(1, 1, 1)]
+[numthreads(32, 32, 1)]
 void main(
     uint3 dispatchThreadId: SV_DispatchThreadID,
     uint groupIndex: SV_GroupIndex,
