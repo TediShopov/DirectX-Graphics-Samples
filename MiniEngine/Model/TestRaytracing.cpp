@@ -65,6 +65,7 @@ namespace TestRaytracing
 
 
 
+	const float SPONZA_NUM_MESHES = 33;
 	float aspectRatio;
 	UINT m_raytracingOutputResourceUAVDescriptorHeapIndex;
 
@@ -101,7 +102,7 @@ namespace TestRaytracing
 		auto DispatchRays = [&](auto* commandList, auto* stateObject, auto* dispatchDesc)
 			{
 				dispatchDesc->HitGroupTable.StartAddress = m_hitGroupShaderTable->GetGPUVirtualAddress();
-				dispatchDesc->HitGroupTable.SizeInBytes = 20 * 64;
+				dispatchDesc->HitGroupTable.SizeInBytes = SPONZA_NUM_MESHES * 64;
 				dispatchDesc->HitGroupTable.StrideInBytes = 64;
 				dispatchDesc->MissShaderTable.StartAddress = m_missShaderTable->GetGPUVirtualAddress();
 				dispatchDesc->MissShaderTable.SizeInBytes = 64;
@@ -140,7 +141,7 @@ namespace TestRaytracing
 		CreateOutputAndPerInstanceTexturesHeap(outputBuffer, surfelSRVHeap, model);
 
 		//Extract fllatened UV for per instance parameters
-		CreatePerInstanceCBs(model, 20);
+		CreatePerInstanceCBs(model, SPONZA_NUM_MESHES);
 
 		UpdateCBForSizeChange(outputBuffer->GetWidth(), outputBuffer->GetHeight());
 		// Initialize raytracing pipeline.
@@ -155,7 +156,7 @@ namespace TestRaytracing
 		CreateRaytracingPipelineStateObject();
 
 		// Build raytracing acceleration structures from the generated geometry.
-		BuildAccelerationStructures(transform, model, 20);
+		BuildAccelerationStructures(transform, model, SPONZA_NUM_MESHES);
 
 		// Build shader tables, which define shaders and their local root arguments.
 		BuildShaderTables();
