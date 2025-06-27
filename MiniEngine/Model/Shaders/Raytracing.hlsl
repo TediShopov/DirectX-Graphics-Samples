@@ -262,10 +262,24 @@ void MyClosestHitShader(inout RayPayload payload, in MyAttributes attr)
     uint primitiveIndex = PrimitiveIndex();
     uint instanceID = InstanceID();
 
-    //Get all for now
-    //TODO make a bounding box around the surfel to only allow surfel in some range
-    //TODO make a raycast toward surfels position to see if it contributes
-    //uint3 index = ComputeGridIndex(worldPos, Grid.gridOrigin, Grid.cellSize);
+
+    uint i0 = IndexBuffer[primitiveIndex * 3 + 0];
+    uint i1 = IndexBuffer[primitiveIndex * 3 + 1];
+    uint i2 = IndexBuffer[primitiveIndex * 3 + 2];
+    AdditionalVertexData v0 = AdditionalVertexDataBuffer[i0];
+    AdditionalVertexData v1 = AdditionalVertexDataBuffer[i1];
+    AdditionalVertexData v2 = AdditionalVertexDataBuffer[i2];
+
+    float3 barycentrics = float3(1 - attr.barycentrics.x - attr.barycentrics.y, attr.barycentrics.x, attr.barycentrics.y);
+
+    //Interpolated all the vertex data
+    AdditionalVertexData interpolated;
+    interpolated.uv = barycentrics.x * v0.uv + barycentrics.y * v1.uv + barycentrics.z * v2.uv;
+    interpolated.normal= barycentrics.x * v0.normal + barycentrics.y * v1.normal + barycentrics.z * v2.normal;
+    interpolated.tangent= barycentrics.x * v0.tangent + barycentrics.y * v1.tangent + barycentrics.z * v2.tangent;
+    interpolated.bitangent= barycentrics.x * v0.bitangent + barycentrics.y * v1.bitangent + barycentrics.z * v2.bitangent;
+    
+    
     float3 colorE = float3(0, 0, 0);
     uint surfelNum = 0;
     uint surfelStride = 0;
@@ -277,31 +291,63 @@ void MyClosestHitShader(inout RayPayload payload, in MyAttributes attr)
     uint surfelListIndexFrom = surfelGridUAV[linearIndex];
     uint surfelListIndexTo = surfelGridUAV[linearIndex + 1];
 
+//    for (uint i = surfelListIndexFrom; i < surfelListIndexTo; ++i)
+//    {
+//        uint index = surlfeListUAV[i];
+//        SurfelData surfel = surfelsUAV[index];
+//
+//        float3x3 covarianceInverse = 0;
+//        covarianceInverse._m00_m01_m02 = surfel.co1;
+//        covarianceInverse._m10_m11_m12 = surfel.co2;
+//        covarianceInverse._m20_m21_m22 = surfel.co3;
+//
+//        float3 d = worldPos - surfel.position;
+//        float3 dTransformed = mul(covarianceInverse, d);
+//        float D2 = dot(d, dTransformed); // Mahalanobis distance squared
+//        D2 /= 3000.0f;
+//                    //D2 /= 10000.0f;
+//        float w = exp(-0.5 * D2); // Gaussian weight
+//
+//        float3 L = -normalize(d); // light dir toward surfel
+//        float NdotL = saturate(dot(surfel.normal, L));
+//        if (NdotL > 0.0f)
+//        {
+//            colorE += surfel.color * NdotL * w;
+//        }
+//    }
+
     for (uint i = surfelListIndexFrom; i < surfelListIndexTo; ++i)
     {
         uint index = surlfeListUAV[i];
         SurfelData surfel = surfelsUAV[index];
 
-        float3x3 covarianceInverse = 0;
-        covarianceInverse._m00_m01_m02 = surfel.co1;
-        covarianceInverse._m10_m11_m12 = surfel.co2;
-        covarianceInverse._m20_m21_m22 = surfel.co3;
-
         float3 d = worldPos - surfel.position;
-        float3 dTransformed = mul(covarianceInverse, d);
-        float D2 = dot(d, dTransformed); // Mahalanobis distance squared
-        D2 /= 3000.0f;
-                    //D2 /= 10000.0f;
-        float w = exp(-0.5 * D2); // Gaussian weight
 
-        float3 L = -normalize(d); // light dir toward surfel
-        float NdotL = saturate(dot(surfel.normal, L));
+    // --------- Ellipsoidal distance without covariance matrix ---------
+        float dDotN = dot(d, surfel.normal);
+        float3 tangentOffset = d - dDotN * surfel.normal;
+        float3 normalOffset = dDotN * surfel.normal;
+
+        float squash = 2.0f; // faster falloff in normal direction
+        float3 squashOffset = tangentOffset + squash * normalOffset;
+        float D2 = dot(squashOffset, squashOffset);
+        D2 /= surfel.radius * surfel.radius;
+
+        float w = exp(-0.5 * D2); // Spatial weight
+
+//    // --------- Angular weighting (optional, like PICA PICA) ---------
+
+//        float NdotN = saturate(dot(interpolated.normal, surfel.normal));
+//        w *= NdotN * NdotN;
+//
+//        float3 L = -normalize(d); // light direction from surfel
+        float NdotL = 1;
+//        float NdotL = saturate(dot(surfel.normal, L));
         if (NdotL > 0.0f)
         {
             colorE += surfel.color * NdotL * w;
         }
     }
-
 
     
 
