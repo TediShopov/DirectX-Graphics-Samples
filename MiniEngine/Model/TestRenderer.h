@@ -19,12 +19,45 @@ namespace Math
 }
 class SurfelGI;
 class HashGridVisualization;
+using namespace Math;
 
 namespace TestRenderer
 {
+	//--- DEFINES ---
+
+	enum eObjectFilter { kOpaque = 0x1, kCutout = 0x2, kTransparent = 0x4, kAll = 0xF, kNone = 0x0 };
+
+	#define RENDER_OBJECT_INSTANCE_PARAMS GraphicsContext& gfxContext, const Matrix4& ViewProjMat, const Vector3& viewerPos, eObjectFilter Filter
+
+	
+	//--- DATA ---
+#pragma region ExposedProperties
+	extern UINT frameIndex;
+
+	extern SurfelGI* SurfelIllumination;
+	extern HashGridVisualization* GridVisualization;
+
+	extern SphereMesh* m_Sphere;
+	extern DiscMesh* m_Disc;
+	extern Transform m_Transform;
+
+	//-- DIRECTIONAL LIGHT PROPERTIES
+    extern Math::Vector3 m_SunDirection;
+    extern ShadowCamera m_SunShadow;
+    extern ExpVar m_AmbientIntensity;
+    extern ExpVar m_SunLightIntensity;
+#pragma endregion
+
+
+	//--- INITTIALIZATOIN ---
 	void Startup( Math::Camera& camera , HWND hwnd);
+	void InitTriangleModel();
+	void InitSphereModel();
+
+	//--- CLEANUP ---
 	void Cleanup( void );
 
+	//--- RENDERING ---
 	void RenderScene(
 		GraphicsContext& gfxContext,
 		const Math::Camera& camera,
@@ -33,29 +66,19 @@ namespace TestRenderer
 		bool skipDiffusePass = false,
 		bool skipShadowMap = false );
 
-	//void UHGTriangleRender(GraphicsContext& gfxContext, const D3D12_VIEWPORT& viewport, const D3D12_RECT& scissor, const Math::Camera& camera);
+	void RenderLightShadows(GraphicsContext& gfxContext, const Camera& camera);
+	void RenderScreenSpaceTriangle(GraphicsContext& Context);
+	void RenderSphereObject(RENDER_OBJECT_INSTANCE_PARAMS);
+	void RenderObjects(RENDER_OBJECT_INSTANCE_PARAMS);
+	void RenderSurfels(RENDER_OBJECT_INSTANCE_PARAMS);
 
+
+	//-- UI SPECIFIC --
+	void RenderImGuiUI(GraphicsContext& gfx);
+
+
+	//--- UTILITY ---
 	const ModelH3D& GetModel();
-	void InitTriangleModel();
-	void InitSphereModel();
-	void ImGuiFrame(GraphicsContext& gfx);
 
-	extern UINT frameIndex;
-
-	extern SurfelGI* SurfelIllumination;
-	extern HashGridVisualization* GridVisualization;
-
-	//std::unordered_map<std::wstring, SphereMesh> m_SphereMeshes;
-	//std::vector<SphereMesh*> m_SphereMeshes;
-	extern SphereMesh* m_Sphere;
-	extern DiscMesh* m_Disc;
-	extern Transform m_Transform;
-	//std::vector<MeshInstance*> m_meshes;
-
-
-    extern Math::Vector3 m_SunDirection;
-    extern ShadowCamera m_SunShadow;
-    extern ExpVar m_AmbientIntensity;
-    extern ExpVar m_SunLightIntensity;
 
 }

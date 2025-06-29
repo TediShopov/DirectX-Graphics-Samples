@@ -432,7 +432,7 @@ void ModelViewer::RenderUI(GraphicsContext& gfx)
 //
 //    Text.End();
 
-    TestRenderer::ImGuiFrame(gfx);
+    TestRenderer::RenderImGuiUI(gfx);
 
     gfx.SetScissor(0, 0, g_DisplayWidth, g_DisplayHeight);
 
