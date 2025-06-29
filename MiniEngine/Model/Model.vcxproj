@@ -58,7 +58,7 @@
       <EnableDPIAwareness>true</EnableDPIAwareness>
     </Manifest>
     <ClCompile>
-      <AdditionalIncludeDirectories Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(ProjectDir)nv_helpers_dx12;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">D:\MScSurfelBasedGI\DirectX-Graphics-Samples\MiniEngine\Model\Imgui\imgui-master;$(ProjectDir)nv_helpers_dx12;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <LanguageStandard Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">stdcpp14</LanguageStandard>
     </ClCompile>
     <ClCompile>
@@ -85,6 +85,7 @@
     <ClInclude Include="Geometry\Transform.h" />
     <ClInclude Include="glTF.h" />
     <ClInclude Include="HashGridVisualization.h" />
+    <ClInclude Include="Imgui\imgui-master\imgui.h" />
     <ClInclude Include="IndexOptimizePostTransform.h" />
     <ClInclude Include="json.hpp" />
     <ClInclude Include="LightManager.h" />
@@ -123,6 +124,13 @@
     <ClCompile Include="Geometry\Transform.cpp" />
     <ClCompile Include="glTF.cpp" />
     <ClCompile Include="HashGridVisualization.cpp" />
+    <ClCompile Include="Imgui\imgui-master\backends\imgui_impl_dx12.cpp" />
+    <ClCompile Include="Imgui\imgui-master\backends\imgui_impl_win32.cpp" />
+    <ClCompile Include="Imgui\imgui-master\imgui.cpp" />
+    <ClCompile Include="Imgui\imgui-master\imgui_demo.cpp" />
+    <ClCompile Include="Imgui\imgui-master\imgui_draw.cpp" />
+    <ClCompile Include="Imgui\imgui-master\imgui_tables.cpp" />
+    <ClCompile Include="Imgui\imgui-master\imgui_widgets.cpp" />
     <ClCompile Include="IndexOptimizePostTransform.cpp" />
     <ClCompile Include="LightManager.cpp" />
     <ClCompile Include="MeshConvert.cpp" />

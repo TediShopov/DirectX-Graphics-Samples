@@ -22,7 +22,7 @@ class HashGridVisualization;
 
 namespace TestRenderer
 {
-	void Startup( Math::Camera& camera );
+	void Startup( Math::Camera& camera , HWND hwnd);
 	void Cleanup( void );
 
 	void RenderScene(
@@ -38,6 +38,7 @@ namespace TestRenderer
 	const ModelH3D& GetModel();
 	void InitTriangleModel();
 	void InitSphereModel();
+	void ImGuiFrame(GraphicsContext& gfx);
 
 	extern UINT frameIndex;
 

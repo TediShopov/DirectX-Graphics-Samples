@@ -104,6 +104,9 @@ void FlyingFPSCamera::Update( float deltaTime )
     yaw += GameInput::GetAnalogInput(GameInput::kAnalogMouseX) * m_MouseSensitivityX;
     pitch += GameInput::GetAnalogInput(GameInput::kAnalogMouseY) * m_MouseSensitivityY;
 
+
+
+
     m_CurrentPitch += pitch;
     m_CurrentPitch = XMMin( XM_PIDIV2, m_CurrentPitch);
     m_CurrentPitch = XMMax(-XM_PIDIV2, m_CurrentPitch);

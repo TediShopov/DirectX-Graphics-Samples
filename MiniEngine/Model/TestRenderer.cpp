@@ -15,10 +15,17 @@
 #include "ExtendedUtility.h"
 
 #include <initializer_list>
+#include "combaseapi.h"
+#include "GameInput.h"
 
 #include "SurfelGI.h"
 #include "HashGridVisualization.h"
 
+
+//Imgui 
+#include "imgui.h"
+#include "backends/imgui_impl_win32.h"
+#include "backends/imgui_impl_dx12.h"
 
 
 // From Model
@@ -45,6 +52,8 @@
 
 
 
+
+
 using namespace Math;
 using namespace Graphics;
 using namespace std;
@@ -53,14 +62,64 @@ using namespace std;
 namespace TestRenderer
 {
 
-    SurfelGI* TestRenderer::SurfelIllumination = new SurfelGI();  // Definition (allocates storage)
-    HashGridVisualization* TestRenderer::GridVisualization = new HashGridVisualization();  // Definition (allocates storage)
-    UINT TestRenderer::frameIndex = 0;
+	struct ExampleDescriptorHeapAllocator
+	{
+		ID3D12DescriptorHeap* Heap = nullptr;
+		D3D12_DESCRIPTOR_HEAP_TYPE  HeapType = D3D12_DESCRIPTOR_HEAP_TYPE_NUM_TYPES;
+		D3D12_CPU_DESCRIPTOR_HANDLE HeapStartCpu;
+		D3D12_GPU_DESCRIPTOR_HANDLE HeapStartGpu;
+		UINT                        HeapHandleIncrement;
+		ImVector<int>               FreeIndices;
+
+		void Create(ID3D12Device* device, ID3D12DescriptorHeap* heap)
+		{
+			IM_ASSERT(Heap == nullptr && FreeIndices.empty());
+			Heap = heap;
+			D3D12_DESCRIPTOR_HEAP_DESC desc = heap->GetDesc();
+			HeapType = desc.Type;
+			HeapStartCpu = Heap->GetCPUDescriptorHandleForHeapStart();
+			HeapStartGpu = Heap->GetGPUDescriptorHandleForHeapStart();
+			HeapHandleIncrement = device->GetDescriptorHandleIncrementSize(HeapType);
+			FreeIndices.reserve((int)desc.NumDescriptors);
+			for (int n = desc.NumDescriptors; n > 0; n--)
+				FreeIndices.push_back(n - 1);
+		}
+		void Destroy()
+		{
+			Heap = nullptr;
+			FreeIndices.clear();
+		}
+		void Alloc(D3D12_CPU_DESCRIPTOR_HANDLE* out_cpu_desc_handle, D3D12_GPU_DESCRIPTOR_HANDLE* out_gpu_desc_handle)
+		{
+			IM_ASSERT(FreeIndices.Size > 0);
+			int idx = FreeIndices.back();
+			FreeIndices.pop_back();
+			out_cpu_desc_handle->ptr = HeapStartCpu.ptr + (idx * HeapHandleIncrement);
+			out_gpu_desc_handle->ptr = HeapStartGpu.ptr + (idx * HeapHandleIncrement);
+		}
+		void Free(D3D12_CPU_DESCRIPTOR_HANDLE out_cpu_desc_handle, D3D12_GPU_DESCRIPTOR_HANDLE out_gpu_desc_handle)
+		{
+			int cpu_idx = (int)((out_cpu_desc_handle.ptr - HeapStartCpu.ptr) / HeapHandleIncrement);
+			int gpu_idx = (int)((out_gpu_desc_handle.ptr - HeapStartGpu.ptr) / HeapHandleIncrement);
+			IM_ASSERT(cpu_idx == gpu_idx);
+			FreeIndices.push_back(cpu_idx);
+		}
+	};
+
+	static ID3D12DescriptorHeap* g_pd3dSrvDescHeap = nullptr;
+	ExampleDescriptorHeapAllocator	g_pd3dSrvDescHeapAlloc;
+
+	SurfelGI* TestRenderer::SurfelIllumination = new SurfelGI();  // Definition (allocates storage)
+	HashGridVisualization* TestRenderer::GridVisualization = new HashGridVisualization();  // Definition (allocates storage)
+	UINT TestRenderer::frameIndex = 0;
 
 
 	SphereMesh* TestRenderer::m_Sphere = nullptr;
 	DiscMesh* TestRenderer::m_Disc = nullptr;
 	Transform TestRenderer::m_Transform = Transform();
+
+
+	DescriptorHeap renderTargetHeap;
 
 
 	void RenderLightShadows(GraphicsContext& gfxContext, const Camera& camera);
@@ -114,7 +173,7 @@ namespace TestRenderer
 		// Define the geometry for a triangle.
 		//const float m_triDepthValue = 1.0f;
 	const float m_triDepthValue = 0.1f;
-	 float _TRI_SCALE = 0.3f;
+	float _TRI_SCALE = 0.3f;
 	ColorVertex triangleVertices[3] =
 	{
 		{ { 0.0f, _TRI_SCALE * m_aspectRatio, m_triDepthValue,1}, { 1.0f, 0.0f, 0.0f, 1.0f } },
@@ -131,132 +190,173 @@ namespace TestRenderer
 	ByteAddressBuffer projectionBuffer;
 
 
-XMVECTOR GetRotationQuaternionFromUpToDirection(FXMVECTOR targetDirection)
-{
-    const XMVECTOR up = XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f); // original surfel normal
-    XMVECTOR dir = XMVector3Normalize(targetDirection);
+	XMVECTOR GetRotationQuaternionFromUpToDirection(FXMVECTOR targetDirection)
+	{
+		const XMVECTOR up = XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f); // original surfel normal
+		XMVECTOR dir = XMVector3Normalize(targetDirection);
 
-    float dot = XMVectorGetX(XMVector3Dot(up, dir));
+		float dot = XMVectorGetX(XMVector3Dot(up, dir));
 
-    // Case 1: Vectors are already aligned
-    if (dot > 0.99f)
-    {
-        return XMQuaternionIdentity();
-    }
+		// Case 1: Vectors are already aligned
+		if (dot > 0.99f)
+		{
+			return XMQuaternionIdentity();
+		}
+		int a = 3;
 
-    // Case 2: Vectors are opposite
-    if (dot < -0.9999f)
-    {
-        // Pick an arbitrary perpendicular axis to rotate 180 degrees
-        XMVECTOR axis = XMVector3Cross(up, XMVectorSet(1.0f, 0.0f, 0.0f, 0.0f));
-        if (XMVector3LengthSq(axis).m128_f32[0] < 1e-6f)
-        {
-            axis = XMVector3Cross(up, XMVectorSet(0.0f, 0.0f, 1.0f, 0.0f));
-        }
-        axis = XMVector3Normalize(axis);
-        return XMQuaternionRotationAxis(axis, XM_PI);
-    }
+		// Case 2: Vectors are opposite
+		if (dot < -0.9999f)
+		{
+			// Pick an arbitrary perpendicular axis to rotate 180 degrees
+			XMVECTOR axis = XMVector3Cross(up, XMVectorSet(1.0f, 0.0f, 0.0f, 0.0f));
+			if (XMVector3LengthSq(axis).m128_f32[0] < 1e-6f)
+			{
+				axis = XMVector3Cross(up, XMVectorSet(0.0f, 0.0f, 1.0f, 0.0f));
+			}
+			axis = XMVector3Normalize(axis);
+			return XMQuaternionRotationAxis(axis, XM_PI);
+		}
 
-    // General case: shortest arc quaternion between up and direction
-    XMVECTOR axis = XMVector3Cross(up, dir);
-    float angle = acosf(dot); // angle between vectors
-    return XMQuaternionRotationAxis(axis, angle);
+		// General case: shortest arc quaternion between up and direction
+		XMVECTOR axis = XMVector3Cross(up, dir);
+		float angle = acosf(dot); // angle between vectors
+		return XMQuaternionRotationAxis(axis, angle);
+	}
+
+	void RenderSphereOnSurfels(GraphicsContext& gfxContext, const Matrix4& ViewProjMat, const Vector3& viewerPos, eObjectFilter Filter)
+	{
+
+		float modelRadius = Length(m_Model.GetBoundingBox().GetDimensions()) * 0.5f;
+		const Vector3 eye = m_Model.GetBoundingBox().GetCenter() + Vector3(modelRadius * 0.5f, 0.0f, 0.0f);
+		const Vector3 relSphereOffset(0, 0, 0.1);
+		const Vector3 offset = relSphereOffset * modelRadius;
+
+		struct VSConstants
+		{
+			Matrix4 modelToWorld;
+			Matrix4 modelToProjection;
+			Matrix4 modelToShadow;
+			XMFLOAT3 viewerPos;
+		} vsConstants;
+		//vsConstants.modelToWorld        = Matrix4(Math::XMMatrixIdentity());
+		vsConstants.modelToWorld = Matrix4(TestRenderer::m_Transform.getTransformMatrix());
+		vsConstants.modelToProjection = ViewProjMat;
+		vsConstants.modelToShadow = m_SunShadow.GetShadowMatrix();
+		XMStoreFloat3(&vsConstants.viewerPos, viewerPos);
+
+		gfxContext.SetDynamicConstantBufferView(Renderer::kMeshConstants, sizeof(vsConstants), &vsConstants);
+		//uint32_t VertexStride = m_Model.GetVertexStride();
+		const UINT vertexBufferSize = sizeof(triangleVertices);
+		//---TEMPORARILY switch index and vertex buffers
+	//	gfxContext.SetIndexBuffer(m_Sphere->m_IndexBufferView);
+	//	gfxContext.SetVertexBuffer(0, m_Sphere->m_VertexBufferView);
+		gfxContext.SetIndexBuffer(m_Disc->m_IndexBufferView);
+		gfxContext.SetVertexBuffer(0, m_Disc->m_VertexBufferView);
+
+
+		for each (SurfelData s in SurfelIllumination->m_SurfelDataArray)
+		{
+
+			Transform t;
+			Vector4 extrudedPossition = s.position + (s.normal * 1.0f);
+
+			t.setPosition(extrudedPossition);
+
+			if (XMVector4Length(s.normal).m128_f32[0] > 0.001f)
+			{
+				Vector4 quat = Vector4(GetRotationQuaternionFromUpToDirection(s.normal));
+				t.setQuaternion(quat.GetX(), quat.GetY(), quat.GetZ(), quat.GetW());
+				t.setComposeRotationFromQuaternions(true);
+
+				t.setScale(s.radius.GetX(), s.radius.GetX(), s.radius.GetX());
+
+
+				vsConstants.modelToWorld = Matrix4(t.getTransformMatrix());
+				XMStoreFloat3(&vsConstants.viewerPos, viewerPos);
+
+				gfxContext.SetDynamicConstantBufferView(Renderer::kMeshConstants, sizeof(vsConstants), &vsConstants);
+				//Vector4 customColor = Vector4(0.2f, 0.3f, 1, 1.0f);
+				//Vector4 customColor = Vector4(1.0f, 0.3f, 0, 1.0f);
+				gfxContext.SetDynamicConstantBufferView(Renderer::kCommonCBV, sizeof(Vector4), &s.color);
+				//--- Draw three indices of the triangle
+				gfxContext.DrawIndexed(m_Disc->m_Indices.size(), 0, 0);
+
+			}
+
+		}
+
+
+		//Vector3 explicitWorldPosition = (699.0f, 630.0f, 109.0f);
+		//int a = GetClosestSurfelToPosition(explicitWorldPosition);
+
+		int a = 3;
+
+		//--- Switch Back To Sponza model
+		gfxContext.SetIndexBuffer(m_Model.GetIndexBuffer());
+		gfxContext.SetVertexBuffer(0, m_Model.GetVertexBuffer());
+
+	}
+
+	void ImGuiFrame(GraphicsContext& gfx) {
+
+
+		//GraphicsContext& ne = gfx.Begin(L"ImGui UI");
+
+		//Apply input to Imgui mouse
+		ImGuiIO& io = ImGui::GetIO();
+		bool pressedOne  = GameInput::IsPressed(GameInput::kMouse0);
+		io.AddMouseButtonEvent(0, pressedOne);
+
+
+		//io.AddMouseButtonEvent()
+
+
+
+		ImGui_ImplDX12_NewFrame();
+		ImGui_ImplWin32_NewFrame();
+		ImGui::NewFrame();
+
+		// Your ImGui UI code here
+		ImGui::Begin("Example");
+		ImGui::ShowDemoWindow();
+		//ImGui::Text("Hello from ImGui!");
+		ImGui::End();
+
+		ImGui::Render();
+
+		ID3D12GraphicsCommandList* cmdList = gfx.GetCommandList();
+	ID3D12DescriptorHeap* ppHeaps[] = {
+	g_pd3dSrvDescHeap,      // CBV/SRV/UAV heap (for textures)
+};
+		cmdList->SetDescriptorHeaps(1, ppHeaps);
+		ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), cmdList);
+		//gfx.Finish(true);  // Submit command list
+
+	}
 }
 
-void RenderSphereOnSurfels(GraphicsContext& gfxContext, const Matrix4& ViewProjMat, const Vector3& viewerPos, eObjectFilter Filter)
+D3D12_CPU_DESCRIPTOR_HANDLE cpu_handle;
+D3D12_GPU_DESCRIPTOR_HANDLE gpu_handle;
+
+void TestRenderer::Startup( Math::Camera& camera , HWND hwnd)
 {
 
-    float modelRadius = Length(m_Model.GetBoundingBox().GetDimensions()) * 0.5f;
-    const Vector3 eye = m_Model.GetBoundingBox().GetCenter() + Vector3(modelRadius * 0.5f, 0.0f, 0.0f);
-    const Vector3 relSphereOffset (0,0,0.1);
-    const Vector3 offset = relSphereOffset * modelRadius;
+	DXGI_FORMAT ColorFormat = g_SceneColorBuffer.GetFormat();
+	DXGI_FORMAT NormalFormat = g_SceneNormalBuffer.GetFormat();
+	DXGI_FORMAT DepthFormat = g_SceneDepthBuffer.GetFormat();
+	//DXGI_FORMAT ShadowFormat = g_ShadowBuffer.GetFormat();
 
-    struct VSConstants
-    {
-        Matrix4 modelToWorld;
-        Matrix4 modelToProjection;
-        Matrix4 modelToShadow;
-        XMFLOAT3 viewerPos;
-    } vsConstants;
-    //vsConstants.modelToWorld        = Matrix4(Math::XMMatrixIdentity());
-    vsConstants.modelToWorld        = Matrix4(TestRenderer::m_Transform.getTransformMatrix());
-    vsConstants.modelToProjection   = ViewProjMat;
-    vsConstants.modelToShadow = m_SunShadow.GetShadowMatrix();
-    XMStoreFloat3(&vsConstants.viewerPos, viewerPos);
+	//m_Transform.setScale(50,50,50);
+	m_Transform.setScale(100, 100, 100);
 
-    gfxContext.SetDynamicConstantBufferView(Renderer::kMeshConstants, sizeof(vsConstants), &vsConstants);
-    //uint32_t VertexStride = m_Model.GetVertexStride();
-	const UINT vertexBufferSize = sizeof(triangleVertices);
-    //---TEMPORARILY switch index and vertex buffers
-//	gfxContext.SetIndexBuffer(m_Sphere->m_IndexBufferView);
-//	gfxContext.SetVertexBuffer(0, m_Sphere->m_VertexBufferView);
-	gfxContext.SetIndexBuffer(m_Disc->m_IndexBufferView);
-	gfxContext.SetVertexBuffer(0, m_Disc->m_VertexBufferView);
-
-
-    for each (SurfelData s in SurfelIllumination->m_SurfelDataArray)
-    {
-
-        Transform t;
-        Vector4 extrudedPossition = s.position + (s.normal * 1.0f);
-
-        t.setPosition(extrudedPossition);
-        
-        if (XMVector4Length(s.normal).m128_f32[0] > 0.001f)
-        {
-			Vector4 quat = Vector4(GetRotationQuaternionFromUpToDirection(s.normal));
-			t.setQuaternion(quat.GetX(), quat.GetY(), quat.GetZ(), quat.GetW());
-			t.setComposeRotationFromQuaternions(true);
-
-			t.setScale(s.radius.GetX(),s.radius.GetX(),s.radius.GetX());
-
-
-			vsConstants.modelToWorld = Matrix4(t.getTransformMatrix());
-			XMStoreFloat3(&vsConstants.viewerPos, viewerPos);
-
-			gfxContext.SetDynamicConstantBufferView(Renderer::kMeshConstants, sizeof(vsConstants), &vsConstants);
-            //Vector4 customColor = Vector4(0.2f, 0.3f, 1, 1.0f);
-            //Vector4 customColor = Vector4(1.0f, 0.3f, 0, 1.0f);
-			gfxContext.SetDynamicConstantBufferView(Renderer::kCommonCBV, sizeof(Vector4), &s.color);
-			//--- Draw three indices of the triangle
-			gfxContext.DrawIndexed(m_Disc->m_Indices.size(), 0, 0);
-
-        }
-
-    }
-    
-
-    //Vector3 explicitWorldPosition = (699.0f, 630.0f, 109.0f);
-    //int a = GetClosestSurfelToPosition(explicitWorldPosition);
-
-    
-    //--- Switch Back To Sponza model
-	gfxContext.SetIndexBuffer(m_Model.GetIndexBuffer());
-	gfxContext.SetVertexBuffer(0, m_Model.GetVertexBuffer());
-
-}
-
-}
-
-
-void TestRenderer::Startup( Camera& Camera )
-{
-    DXGI_FORMAT ColorFormat = g_SceneColorBuffer.GetFormat();
-    DXGI_FORMAT NormalFormat = g_SceneNormalBuffer.GetFormat();
-    DXGI_FORMAT DepthFormat = g_SceneDepthBuffer.GetFormat();
-    //DXGI_FORMAT ShadowFormat = g_ShadowBuffer.GetFormat();
-
-    //m_Transform.setScale(50,50,50);
-    m_Transform.setScale(100,100,100);
-
-    D3D12_INPUT_ELEMENT_DESC vertElem[] =
-    {
-        { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
-        { "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
-        { "NORMAL", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
-        { "TANGENT", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
-        { "BITANGENT", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 }
-    };
+	D3D12_INPUT_ELEMENT_DESC vertElem[] =
+	{
+		{ "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+		{ "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+		{ "NORMAL", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+		{ "TANGENT", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+		{ "BITANGENT", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 }
+	};
 	D3D12_INPUT_ELEMENT_DESC colorElem[] =
 	{
 		{ "POSITION", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
@@ -265,137 +365,138 @@ void TestRenderer::Startup( Camera& Camera )
 
 	D3D12_INPUT_ELEMENT_DESC simpleVertElemnt[] =
 	{
-        { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
-        { "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
-        { "NORMAL", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 }
+		{ "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+		{ "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+		{ "NORMAL", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 }
 	};
 
-    // Depth-only (2x rate)
-    m_DepthPSO.SetRootSignature(Renderer::m_RootSig);
-    m_DepthPSO.SetRasterizerState(RasterizerDefault);
-    m_DepthPSO.SetBlendState(BlendNoColorWrite);
-    m_DepthPSO.SetDepthStencilState(DepthStateReadWrite);
-    m_DepthPSO.SetInputLayout(_countof(vertElem), vertElem);
-    m_DepthPSO.SetPrimitiveTopologyType(D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE);
-    m_DepthPSO.SetRenderTargetFormats(0, nullptr, DepthFormat);
-    m_DepthPSO.SetVertexShader(g_pDepthViewerVS, sizeof(g_pDepthViewerVS));
-    m_DepthPSO.Finalize();
-//
-//    // Depth-only shading but with alpha testing
-    m_CutoutDepthPSO = m_DepthPSO;;
-    m_CutoutDepthPSO.SetPixelShader(g_pDepthViewerPS, sizeof(g_pDepthViewerPS));
-    m_CutoutDepthPSO.SetRasterizerState(RasterizerTwoSided);
-    m_CutoutDepthPSO.Finalize();
+	// Depth-only (2x rate)
+	m_DepthPSO.SetRootSignature(Renderer::m_RootSig);
+	m_DepthPSO.SetRasterizerState(RasterizerDefault);
+	m_DepthPSO.SetBlendState(BlendNoColorWrite);
+	m_DepthPSO.SetDepthStencilState(DepthStateReadWrite);
+	m_DepthPSO.SetInputLayout(_countof(vertElem), vertElem);
+	m_DepthPSO.SetPrimitiveTopologyType(D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE);
+	m_DepthPSO.SetRenderTargetFormats(0, nullptr, DepthFormat);
+	m_DepthPSO.SetVertexShader(g_pDepthViewerVS, sizeof(g_pDepthViewerVS));
+	m_DepthPSO.Finalize();
+	//
+	//    // Depth-only shading but with alpha testing
+	m_CutoutDepthPSO = m_DepthPSO;;
+	m_CutoutDepthPSO.SetPixelShader(g_pDepthViewerPS, sizeof(g_pDepthViewerPS));
+	m_CutoutDepthPSO.SetRasterizerState(RasterizerTwoSided);
+	m_CutoutDepthPSO.Finalize();
 
-    // Depth-only but with a depth bias and/or render only backfaces
-    m_ShadowPSO = m_DepthPSO;
-    m_ShadowPSO.SetRasterizerState(RasterizerShadow);
-    m_ShadowPSO.SetRenderTargetFormats(0, nullptr, g_ShadowBuffer.GetFormat());
-    m_ShadowPSO.Finalize();
+	// Depth-only but with a depth bias and/or render only backfaces
+	m_ShadowPSO = m_DepthPSO;
+	m_ShadowPSO.SetRasterizerState(RasterizerShadow);
+	m_ShadowPSO.SetRenderTargetFormats(0, nullptr, g_ShadowBuffer.GetFormat());
+	m_ShadowPSO.Finalize();
 
-    // Shadows with alpha testing
-    m_CutoutShadowPSO = m_ShadowPSO;
-    m_CutoutShadowPSO.SetPixelShader(g_pDepthViewerPS, sizeof(g_pDepthViewerPS));
-    m_CutoutShadowPSO.SetRasterizerState(RasterizerShadowTwoSided);
-    m_CutoutShadowPSO.Finalize();
+	// Shadows with alpha testing
+	m_CutoutShadowPSO = m_ShadowPSO;
+	m_CutoutShadowPSO.SetPixelShader(g_pDepthViewerPS, sizeof(g_pDepthViewerPS));
+	m_CutoutShadowPSO.SetRasterizerState(RasterizerShadowTwoSided);
+	m_CutoutShadowPSO.Finalize();
 
-    DXGI_FORMAT formats[2] = { ColorFormat, NormalFormat };
+	DXGI_FORMAT formats[2] = { ColorFormat, NormalFormat };
 
-    //--- CONTAINS ONLY A SINGLE COLOR PASS FOR NOW ---
-    // Full color pass
-    m_ModelPSO = m_DepthPSO;
-    m_ModelPSO.SetBlendState(BlendDisable);
-    m_ModelPSO.SetDepthStencilState(DepthStateTestEqual);
-    m_ModelPSO.SetRenderTargetFormats(2, formats, DepthFormat);
-    
-    m_ModelPSO.SetVertexShader( g_pModelViewerVS, sizeof(g_pModelViewerVS) );
-//--- REPLACE WITH CUSTOM PIXEL SHADER ---
-//    m_ModelPSO.SetPixelShader( g_pModelViewerPS, sizeof(g_pModelViewerPS) );
-    m_ModelPSO.SetPixelShader( g_pTestRendererPS, sizeof(g_pTestRendererPS) );
-    m_ModelPSO.Finalize();
+	//--- CONTAINS ONLY A SINGLE COLOR PASS FOR NOW ---
+	// Full color pass
+	m_ModelPSO = m_DepthPSO;
+	m_ModelPSO.SetBlendState(BlendDisable);
+	m_ModelPSO.SetDepthStencilState(DepthStateTestEqual);
+	m_ModelPSO.SetRenderTargetFormats(2, formats, DepthFormat);
 
-//    m_CutoutModelPSO = m_ModelPSO;
-//    m_CutoutModelPSO.SetRasterizerState(RasterizerTwoSided);
-//    m_CutoutModelPSO.Finalize();
+	m_ModelPSO.SetVertexShader(g_pModelViewerVS, sizeof(g_pModelViewerVS));
+	//--- REPLACE WITH CUSTOM PIXEL SHADER ---
+	//    m_ModelPSO.SetPixelShader( g_pModelViewerPS, sizeof(g_pModelViewerPS) );
+	m_ModelPSO.SetPixelShader(g_pTestRendererPS, sizeof(g_pTestRendererPS));
+	m_ModelPSO.Finalize();
 
-
-
-    //--- DEMO PASS FOR RENDERING TRIANGLE ---
-    // Full color pass
-    //InitTestRootSignature();
+	//    m_CutoutModelPSO = m_ModelPSO;
+	//    m_CutoutModelPSO.SetRasterizerState(RasterizerTwoSided);
+	//    m_CutoutModelPSO.Finalize();
 
 
 
-	//--- DEMO PASS FOR GENERATING SURFEL WITH COMPUTE SHADER ---
+		//--- DEMO PASS FOR RENDERING TRIANGLE ---
+		// Full color pass
+		//InitTestRootSignature();
 
 
-    
 
-    //--- DEMO PASS FOR RENDERING SPHERE ---
-    // Full color pass
-    m_TestSpherePSO = m_DepthPSO;
-    m_TestSpherePSO.SetBlendState(BlendDisable);
-    //m_TestSpherePSO.SetDepthStencilState(DepthStateTestEqual);
-    m_TestSpherePSO.SetRenderTargetFormats(2, formats, DepthFormat);
-    m_TestSpherePSO.SetInputLayout(_countof(simpleVertElemnt), simpleVertElemnt);
-    //--- CHANGE THE DEPTH STATE ALWAYS TO DRAW ON TOP OF GEOMETRY
-    //m_TestSpherePSO.SetDepthStencilState(DepthStateDisabled);
-    m_TestSpherePSO.SetDepthStencilState(DepthStateReadWrite);
-    //--- THIS HAS TO BE SET TO UNKNOWN FORMAT TO CONFORM TO FRAMEWORK
-    //m_TestSpherePSO.SetDepthTargetFormat(DXGI_FORMAT_UNKNOWN);
-    //--- MAKE SURE THAT CULLING IS OFF AND BOTH SIDES ARE DRAWN
-    m_TestSpherePSO.SetRasterizerState(RasterizerTwoSided);
-
-    //-- CHANGE TO THE NEW SHADER FOR THE TRIANGLE
-    m_TestSpherePSO.SetVertexShader( g_pSimpleMeshVS, sizeof(g_pSimpleMeshVS) );
-    m_TestSpherePSO.SetPixelShader( g_pSimpleMeshPS, sizeof(g_pSimpleMeshPS) );
-
-    m_TestSpherePSO.Finalize();
-
-    // LOADING SPONZA AS WELL
-    ASSERT(m_Model.Load(L"Sponza/sponza.h3d"), "Failed to load model");
-    ASSERT(m_Model.GetMeshCount() > 0, "Model contains no meshes");
-    InitTriangleModel();
-    InitSphereModel();
-    m_Disc = new DiscMesh(10);
-
-    // The caller of this function can override which materials are considered cutouts
-    m_pMaterialIsCutout.resize(m_Model.GetMaterialCount());
-    for (uint32_t i = 0; i < m_Model.GetMaterialCount(); ++i)
-    {
-
-        const ModelH3D::Material& mat = m_Model.GetMaterial(i);
-        XMVECTOR(mat.ambient).m128_f32[0] = 0;
-        XMVECTOR(mat.ambient).m128_f32[1] = 0;
-        if (std::string(mat.texDiffusePath).find("thorn") != std::string::npos ||
-            std::string(mat.texDiffusePath).find("plant") != std::string::npos ||
-            std::string(mat.texDiffusePath).find("chain") != std::string::npos)
-        {
-            m_pMaterialIsCutout[i] = true;
-        }
-        else
-        {
-            m_pMaterialIsCutout[i] = false;
-        }
-    }
-
-    ParticleEffects::InitFromJSON(L"Sponza/particles.json");
-
-    //Camera Setup needed ? 
-    float modelRadius = Length(m_Model.GetBoundingBox().GetDimensions()) * 0.5f;
-    const Vector3 eye = m_Model.GetBoundingBox().GetCenter() + Vector3(modelRadius * 0.5f, 0.0f, 0.0f);
-    Camera.SetEyeAtUp( eye, Vector3(kZero), Vector3(kYUnitVector) );
-
-
-    uint32_t VertexStride = m_Model.GetVertexStride();
+		//--- DEMO PASS FOR GENERATING SURFEL WITH COMPUTE SHADER ---
 
 
 
 
+		//--- DEMO PASS FOR RENDERING SPHERE ---
+		// Full color pass
+	m_TestSpherePSO = m_DepthPSO;
+	m_TestSpherePSO.SetBlendState(BlendDisable);
+	//m_TestSpherePSO.SetDepthStencilState(DepthStateTestEqual);
+	m_TestSpherePSO.SetRenderTargetFormats(2, formats, DepthFormat);
+	m_TestSpherePSO.SetInputLayout(_countof(simpleVertElemnt), simpleVertElemnt);
+	//--- CHANGE THE DEPTH STATE ALWAYS TO DRAW ON TOP OF GEOMETRY
+	//m_TestSpherePSO.SetDepthStencilState(DepthStateDisabled);
+	m_TestSpherePSO.SetDepthStencilState(DepthStateReadWrite);
+	//--- THIS HAS TO BE SET TO UNKNOWN FORMAT TO CONFORM TO FRAMEWORK
+	//m_TestSpherePSO.SetDepthTargetFormat(DXGI_FORMAT_UNKNOWN);
+	//--- MAKE SURE THAT CULLING IS OFF AND BOTH SIDES ARE DRAWN
+	m_TestSpherePSO.SetRasterizerState(RasterizerTwoSided);
+
+	//-- CHANGE TO THE NEW SHADER FOR THE TRIANGLE
+	m_TestSpherePSO.SetVertexShader(g_pSimpleMeshVS, sizeof(g_pSimpleMeshVS));
+	m_TestSpherePSO.SetPixelShader(g_pSimpleMeshPS, sizeof(g_pSimpleMeshPS));
+
+	m_TestSpherePSO.Finalize();
+
+	// LOADING SPONZA AS WELL
+	ASSERT(m_Model.Load(L"Sponza/sponza.h3d"), "Failed to load model");
+	ASSERT(m_Model.GetMeshCount() > 0, "Model contains no meshes");
+	InitTriangleModel();
+	InitSphereModel();
+	m_Disc = new DiscMesh(10);
+
+	// The caller of this function can override which materials are considered cutouts
+	m_pMaterialIsCutout.resize(m_Model.GetMaterialCount());
+	for (uint32_t i = 0; i < m_Model.GetMaterialCount(); ++i)
+	{
+
+		const ModelH3D::Material& mat = m_Model.GetMaterial(i);
+		XMVECTOR(mat.ambient).m128_f32[0] = 0;
+		XMVECTOR(mat.ambient).m128_f32[1] = 0;
+		if (std::string(mat.texDiffusePath).find("thorn") != std::string::npos ||
+			std::string(mat.texDiffusePath).find("plant") != std::string::npos ||
+			std::string(mat.texDiffusePath).find("chain") != std::string::npos)
+		{
+			m_pMaterialIsCutout[i] = true;
+		}
+		else
+		{
+			m_pMaterialIsCutout[i] = false;
+		}
+	}
+
+	ParticleEffects::InitFromJSON(L"Sponza/particles.json");
+
+	//Camera Setup needed ? 
+	float modelRadius = Length(m_Model.GetBoundingBox().GetDimensions()) * 0.5f;
+	const Vector3 eye = m_Model.GetBoundingBox().GetCenter() + Vector3(modelRadius * 0.5f, 0.0f, 0.0f);
+	camera.SetEyeAtUp(eye, Vector3(kZero), Vector3(kYUnitVector));
+
+
+	int a = 3;
+	uint32_t VertexStride = m_Model.GetVertexStride();
 
 
 
-    //Create device dependent resource for ray tracing for the triangle 
+
+
+
+
+	//Create device dependent resource for ray tracing for the triangle 
 //    TestRaytracing::CreateDeviceDependentResources(
 //        m_Transform,
 //        //m_Sphere->m_VertexBufferView,
@@ -407,66 +508,125 @@ void TestRenderer::Startup( Camera& Camera )
 //        &Graphics::g_SceneColorBuffer
 //    );
 
-    //Allocate just and extra descriptor table entry
-    uint32_t DestCount = 9;
-    // Allocate a descriptor table for the common textures
-    Renderer::m_CommonTextures = Renderer::s_TextureHeap.Alloc(1);
+	//Allocate just and extra descriptor table entry
+	uint32_t DestCount = 9;
+	// Allocate a descriptor table for the common textures
+	Renderer::m_CommonTextures = Renderer::s_TextureHeap.Alloc(1);
 
-    uint32_t SourceCounts[] = { 1, 1, 1, 1, 1, 1, 1, 1,1 };
+	uint32_t SourceCounts[] = { 1, 1, 1, 1, 1, 1, 1, 1,1 };
 
-    TestRaytracing::CreateOutputTextureUAV(&g_SceneColorBuffer);
-    SurfelIrradianceAccumulation::CreateOutputTextureUAV(&g_SceneColorBuffer);
+	TestRaytracing::CreateOutputTextureUAV(&g_SceneColorBuffer);
+	SurfelIrradianceAccumulation::CreateOutputTextureUAV(&g_SceneColorBuffer);
 
-    D3D12_CPU_DESCRIPTOR_HANDLE SourceTextures[] =
+	D3D12_CPU_DESCRIPTOR_HANDLE SourceTextures[] =
+	{
+		GetDefaultTexture(kBlackCubeMap),
+		GetDefaultTexture(kBlackCubeMap),
+		g_SSAOFullScreen.GetSRV(),
+		g_ShadowBuffer.GetSRV(),
+		Lighting::m_LightBuffer.GetSRV(),
+		Lighting::m_LightShadowArray.GetSRV(),
+		Lighting::m_LightGrid.GetSRV(),
+		Lighting::m_LightGridBitMask.GetSRV(),
+		TestRaytracing::GetOutputBuffer().GetSRV()
+
+	};
+	//       TestRaytracing::GetOutputBuffer().GetSRV()
+	g_Device->CopyDescriptors(1, &Renderer::m_CommonTextures, &DestCount, DestCount, SourceTextures, SourceCounts, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+
+	Lighting::CreateRandomLights(m_Model.GetBoundingBox().GetMin(), m_Model.GetBoundingBox().GetMax());
+
+	GBufferPtrs gbuffer{
+		&g_SceneColorBuffer,
+		&g_SceneNormalBuffer,
+		&g_SceneDepthBuffer
+
+	};
+
+	SurfelIllumination->Setup(
+		gbuffer
+	);
+
+	TestRaytracing::CreateDeviceDependentResources(
+		m_Transform,
+		m_Model,
+		&Graphics::g_SceneColorBuffer,
+		SurfelIllumination->nonShaderVisibleHeap
+		//SurfelIllumination->srvHeap
+	);
+	SurfelIrradianceAccumulation::CreateDeviceDependentResources(
+		m_Transform,
+		m_Model,
+		&Graphics::g_SceneColorBuffer,
+		SurfelIllumination->nonShaderVisibleHeap
+		//SurfelIllumination->srvHeap
+
+	);
+
+
+	GridVisualization->Setup(
+		gbuffer,
+		&TestRaytracing::GetOutputBuffer()
+	);
+
+
+	//Imgui Startup
+
+	ImGui::CreateContext();
+	ImGuiIO& io = ImGui::GetIO(); (void)io;
+	io.MouseDrawCursor = true;
+	//io.WantCaptureMouse = true;
+	//io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard; // Optional
+
+
+	//ImGui::StyleColorsDark(); // or ImGui::StyleColorsClassic();
+
+	// Setup Platform/Renderer bindings
+	//renderTargetHeap.Create(L"Render Target Heap", D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 10, true);
+	ID3D12Device* device = Graphics::g_Device;
     {
-        GetDefaultTexture(kBlackCubeMap),
-        GetDefaultTexture(kBlackCubeMap),
-        g_SSAOFullScreen.GetSRV(),
-        g_ShadowBuffer.GetSRV(),
-        Lighting::m_LightBuffer.GetSRV(),
-        Lighting::m_LightShadowArray.GetSRV(),
-        Lighting::m_LightGrid.GetSRV(),
-        Lighting::m_LightGridBitMask.GetSRV(),
-        TestRaytracing::GetOutputBuffer().GetSRV()
+        D3D12_DESCRIPTOR_HEAP_DESC desc = {};
+        desc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
+        desc.NumDescriptors = 10;
+        desc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
+		if (device->CreateDescriptorHeap(&desc, IID_PPV_ARGS(&g_pd3dSrvDescHeap)) != S_OK)
+		{
+			int a = 3;
+            //return false;
 
-    };
-//       TestRaytracing::GetOutputBuffer().GetSRV()
-    g_Device->CopyDescriptors(1, &Renderer::m_CommonTextures, &DestCount, DestCount, SourceTextures, SourceCounts, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
-
-    Lighting::CreateRandomLights(m_Model.GetBoundingBox().GetMin(), m_Model.GetBoundingBox().GetMax());
-
-    GBufferPtrs gbuffer{
-        &g_SceneColorBuffer,
-        &g_SceneNormalBuffer,
-        &g_SceneDepthBuffer
-
-    };
-
-    SurfelIllumination->Setup(
-        gbuffer
-    );
-
-    TestRaytracing::CreateDeviceDependentResources(
-        m_Transform,
-        m_Model,
-        &Graphics::g_SceneColorBuffer,
-        SurfelIllumination->nonShaderVisibleHeap
-        //SurfelIllumination->srvHeap
-    );
-    SurfelIrradianceAccumulation::CreateDeviceDependentResources(
-        m_Transform,
-        m_Model,
-        &Graphics::g_SceneColorBuffer,
-        SurfelIllumination->nonShaderVisibleHeap
-        //SurfelIllumination->srvHeap
-
-    );
+		}
+        g_pd3dSrvDescHeapAlloc.Create(device, g_pd3dSrvDescHeap);
+    }
+    
 
 
-    GridVisualization->Setup(
-        gbuffer,
-        &TestRaytracing::GetOutputBuffer()
-    );
+	ImGui_ImplWin32_Init(hwnd);
+    ImGui_ImplDX12_InitInfo info;
+    info.Device = device;
+    info.NumFramesInFlight = 2;
+    info.CommandQueue = Graphics::g_CommandManager.GetCommandQueue();
+   // info.DSVFormat = DXGI;
+   // info.RTVFormat = Graphics::g_OverlayBuffer.GetFormat();
+
+    info.RTVFormat = DXGI_FORMAT_R8G8B8A8_UNORM;
+    info.DSVFormat = DXGI_FORMAT_UNKNOWN;
+
+	info.SrvDescriptorHeap = g_pd3dSrvDescHeap;
+    info.SrvDescriptorAllocFn = [](ImGui_ImplDX12_InitInfo* info, D3D12_CPU_DESCRIPTOR_HANDLE* out_cpu_handle, D3D12_GPU_DESCRIPTOR_HANDLE* out_gpu_handle)
+        {
+			g_pd3dSrvDescHeapAlloc.Alloc(out_cpu_handle, out_gpu_handle);
+             return;
+        };
+    info.SrvDescriptorFreeFn = [](ImGui_ImplDX12_InitInfo*, D3D12_CPU_DESCRIPTOR_HANDLE cpu_handle, D3D12_GPU_DESCRIPTOR_HANDLE gpu_handle)            
+        {
+			g_pd3dSrvDescHeapAlloc.Free(cpu_handle,gpu_handle );
+             return;
+        };
+
+    bool t = ImGui_ImplDX12_Init(&info);
+
+
+
 
 
 
@@ -703,6 +863,7 @@ void TestRenderer::RenderScene(
     bool skipShadowMap)
 {
 
+
     //TestRaytracing::DoRaytracing(camera, SurfelIllumination->srvHeap,SurfelIllumination->m_SurfelGen.UniformGrid);
     SurfelIrradianceAccumulation::DoRaytracing(
         camera,
@@ -710,6 +871,7 @@ void TestRenderer::RenderScene(
         SurfelIllumination->m_SurfelGen.UniformGrid,
         SurfelIllumination->m_SurfelDataArray);
     Renderer::UpdateGlobalDescriptors();
+
     Vector3 pos = camera.GetPosition();
 
     uint32_t FrameIndex = TemporalEffects::GetFrameIndexMod2();

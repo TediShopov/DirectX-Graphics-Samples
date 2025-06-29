@@ -107,6 +107,7 @@ void ChangeIBLSet(EngineVar::ActionType)
 void ChangeIBLBias(EngineVar::ActionType)
 {
     Renderer::SetIBLBias(g_IBLBias);
+    
 }
 
 #include <direct.h> // for _getcwd() to check data root path
@@ -162,6 +163,7 @@ void ModelViewer::Startup( void )
     PostEffects::EnableHDR = true;
     PostEffects::EnableAdaptation = true;
     SSAO::Enable = true;
+    
 
     Renderer::Initialize();
 
@@ -177,7 +179,7 @@ void ModelViewer::Startup( void )
     if (CommandLineArgs::GetString(L"model", gltfFileName) == false)
     {
 #ifdef LEGACY_RENDERER
-        TestRenderer::Startup(m_Camera);
+        TestRenderer::Startup(m_Camera,g_hWnd);
         //Sponza::Startup(m_Camera);
 #else
         m_ModelInst = Renderer::LoadModel(L"Sponza/PBR/sponza2.gltf", forceRebuild);
@@ -380,55 +382,59 @@ void ModelViewer::RenderScene( void )
 void ModelViewer::RenderUI(GraphicsContext& gfx)
 {
     //I am here
-    //GraphRenderer::RenderGraphs(Context, GraphRenderer::GraphType::Profile);
+    //$GraphRenderer::RenderGraphs(Context, GraphRenderer::GraphType::Profile);
 
-    TextContext Text(gfx);
-    Text.Begin();
+//    TextContext Text(gfx);
+//    Text.Begin();
+//
+//    EngineProfiling::DisplayFrameRate(Text);
+//    float x, y;
+//
+//    Text.ResetCursor( x, y );
+//
+////    if (!sm_IsVisible)
+////    {
+////        EngineProfiling::Display(Text, x, y, w, h);
+////        return;
+////    }
+//    float w = g_SceneColorBuffer.GetWidth();
+//    float h = g_SceneColorBuffer.GetHeight();
+//
+//    
+//    float s_ScrollTopTrigger = y + h * 0.2f;
+//    float s_ScrollBottomTrigger = y + h * 0.8f;
+//
+//    float hScale = g_DisplayWidth / 1920.0f;
+//    float vScale = g_DisplayHeight / 1080.0f;
+//
+//    gfx.SetScissor((uint32_t)Floor(x * hScale), (uint32_t)Floor(y * vScale), 
+//        (uint32_t)Ceiling((x + w) * hScale), (uint32_t)Ceiling((y + h) * vScale));
+//
+//    //Text.ResetCursor(x, y - s_ScrollOffset );
+//    Text.ResetCursor(x, y + h*0.8f);
+//    Text.SetColor( Color(0.0f,1.0f,0.0f,1.0f) );
+//    Text.SetTextSize(30.0f);
+//
+//    std::ostringstream oss;
+//    oss << "Camera Position:" << "X:" <<
+//        setw(1) <<  (float)m_Camera.GetPosition().GetX() << "Y:" <<
+//        (float)m_Camera.GetPosition().GetY() << "Z:" <<
+//        (float)m_Camera.GetPosition().GetZ() <<
+//        ".";
+//
+//    Text.DrawString(oss.str());
+//
+//    //Text.DrawString("Engine Tuning\n");
+//
+//    //VariableGroup::sm_RootGroup.Display( Text, x, sm_SelectedVariable );
+//    
+//    //EngineProfiling::DisplayPerfGraph(Context);
+//
+//    Text.End();
 
-    EngineProfiling::DisplayFrameRate(Text);
-    float x, y;
+    TestRenderer::ImGuiFrame(gfx);
 
-    Text.ResetCursor( x, y );
-
-//    if (!sm_IsVisible)
-//    {
-//        EngineProfiling::Display(Text, x, y, w, h);
-//        return;
-//    }
-    float w = g_SceneColorBuffer.GetWidth();
-    float h = g_SceneColorBuffer.GetHeight();
-
-    
-    float s_ScrollTopTrigger = y + h * 0.2f;
-    float s_ScrollBottomTrigger = y + h * 0.8f;
-
-    float hScale = g_DisplayWidth / 1920.0f;
-    float vScale = g_DisplayHeight / 1080.0f;
-
-    gfx.SetScissor((uint32_t)Floor(x * hScale), (uint32_t)Floor(y * vScale), 
-        (uint32_t)Ceiling((x + w) * hScale), (uint32_t)Ceiling((y + h) * vScale));
-
-    //Text.ResetCursor(x, y - s_ScrollOffset );
-    Text.ResetCursor(x, y + h*0.8f);
-    Text.SetColor( Color(0.0f,1.0f,0.0f,1.0f) );
-    Text.SetTextSize(30.0f);
-
-    std::ostringstream oss;
-    oss << "Camera Position:" << "X:" <<
-        setw(1) <<  (float)m_Camera.GetPosition().GetX() << "Y:" <<
-        (float)m_Camera.GetPosition().GetY() << "Z:" <<
-        (float)m_Camera.GetPosition().GetZ() <<
-        ".";
-
-    Text.DrawString(oss.str());
-
-    //Text.DrawString("Engine Tuning\n");
-
-    //VariableGroup::sm_RootGroup.Display( Text, x, sm_SelectedVariable );
-    
-    //EngineProfiling::DisplayPerfGraph(Context);
-
-    Text.End();
     gfx.SetScissor(0, 0, g_DisplayWidth, g_DisplayHeight);
+
 
 }
