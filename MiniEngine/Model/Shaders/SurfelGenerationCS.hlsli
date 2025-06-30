@@ -15,7 +15,8 @@ cbuffer SurfelGenCB : register(b0)
     float  NormalThreshold;
     float  ViewDistThreshold;
     uint   MaxSurfels;
-    uint3   padding;
+    uint   CurrentSurfelCount;
+    uint2   padding;
     UniformGrid Grid;
 };
 
@@ -220,10 +221,6 @@ void main(
             indirectLighting.xyz /= indirectLighting.w;
             indirectLighting.w = saturate(indirectLighting.w);
 
-        //varianceEx /= indirectLighting.w;
-        //rayCountEx /= indirectLighting.w;
-
-
             uint coverageData = 0;
 
         //coverageData is all packed in UINT 32-bits
@@ -333,6 +330,7 @@ void main(
                         newSurfel.mean = float4(0,0,3,4);
                         newSurfel.raySamples = float4(10, 0, 0, 0);
                         surfelsUAV[surfelID] = newSurfel;
+                        //InterlockedAdd(CurrentSurfelCount, 1);
                     }
                     else
                     {
@@ -342,6 +340,10 @@ void main(
             }
         }
     }
+
+
+
+    
 
         //--SURFEL TO DESTROY --
     if (surfelCount > 0)
@@ -369,6 +371,7 @@ void main(
                     //Decrement surfel stack pointer by one 
                     uint orig;
                     InterlockedAdd(surfleStackUAV[0], -1, orig);
+                    //InterlockedAdd(CurrentSurfelCount, -1);
                     surfleStackUAV[orig] = toDestroySurfelIndex;
 
                     

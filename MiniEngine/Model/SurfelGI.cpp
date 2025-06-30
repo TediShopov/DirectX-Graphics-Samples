@@ -167,6 +167,7 @@
 	  m_SurfelGen.DepthThreshold = 0.1;
 	  m_SurfelGen.FrameIndex = 0;
 	  m_SurfelGen.MaxSurfels = 1000;
+	  m_SurfelGen.CurrentSurfelCount = 0;
 	  m_SurfelGen.NormalThreshold = 0.5;
 	  m_SurfelGen.ViewDistThreshold = 0.75;
 

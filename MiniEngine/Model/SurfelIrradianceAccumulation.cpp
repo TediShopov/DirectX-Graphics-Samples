@@ -21,6 +21,7 @@
 namespace SurfelIrradianceAccumulation
 {
 	//ByteAddressBuffer	TestRaytracing::m_TestCB;
+	UINT _RAYTRACE_MESH_COUNT_ = 33;
 	ByteAddressBuffer	m_TestCB;
 
 	std::unique_ptr<DescriptorHeapStack> g_pRaytracingDescriptorHeap = nullptr;
@@ -765,7 +766,7 @@ namespace SurfelIrradianceAccumulation
 
 		CreateOutputAndPerInstanceTexturesHeap(outputBuffer, surfelSRVHeap, model);
 
-		CreatePerInstanceCBs(model, 20);
+		CreatePerInstanceCBs(model, _RAYTRACE_MESH_COUNT_);
 
 		UpdateCBForSizeChange(outputBuffer->GetWidth(), outputBuffer->GetHeight());
 
@@ -782,7 +783,7 @@ namespace SurfelIrradianceAccumulation
 
 		//	
 		// Build raytracing acceleration structures from the generated geometry.
-		BuildAccelerationStructures(transform, model, 20);
+		BuildAccelerationStructures(transform, model, _RAYTRACE_MESH_COUNT_);
 		//BuildAccelerationStructures(transform,model);
 		//	
 		// Build shader tables, which define shaders and their local root arguments.
@@ -838,7 +839,7 @@ namespace SurfelIrradianceAccumulation
 		auto DispatchRays = [&](auto* commandList, auto* stateObject, auto* dispatchDesc)
 			{
 				dispatchDesc->HitGroupTable.StartAddress = m_hitGroupShaderTable->GetGPUVirtualAddress();
-				dispatchDesc->HitGroupTable.SizeInBytes = 20 * 64;
+				dispatchDesc->HitGroupTable.SizeInBytes = _RAYTRACE_MESH_COUNT_ * 64;
 				dispatchDesc->HitGroupTable.StrideInBytes = 64;
 				dispatchDesc->MissShaderTable.StartAddress = m_missShaderTable->GetGPUVirtualAddress();
 				dispatchDesc->MissShaderTable.SizeInBytes = 64;

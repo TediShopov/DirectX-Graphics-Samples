@@ -15,7 +15,8 @@ cbuffer SurfelGenCB : register(b0)
     float  NormalThreshold;
     float  ViewDistThreshold;
     uint   MaxSurfels;
-    uint3   padding;
+    uint   CurrentSurfelCount;
+    uint2   padding;
     UniformGrid Grid;
 };
 
@@ -45,6 +46,98 @@ groupshared uint groupShareMinCoverage;
 groupshared uint groupShareMaxContribution;
 
 
+//Calculate the surfel contribution by using Mahalonobis distance and angular fallof.
+//The actual inverse covariance matrix need be calculated. 
+//A scalling factor based on the scene must be supplied for appropriate results.
+float3 calculateSurfelsContribution_WActualCovarianceMatrix(SurfelData surfel, float3 worldPos, float sclalingFactor)
+{
+    
+    float3 colorContribution = float3(0, 0, 0);
+        
+    float3 d = worldPos - surfel.position;
+    float3 L = -normalize(d); // light dir toward surfel
+    float NdotL = saturate(dot(surfel.normal, L));
+
+    if (NdotL <= 0.0f)
+    {
+        return colorContribution;
+        
+    }
+
+    float3x3 covarianceInverse = 0;
+    covarianceInverse._m00_m01_m02 = surfel.co1;
+    covarianceInverse._m10_m11_m12 = surfel.co2;
+    covarianceInverse._m20_m21_m22 = surfel.co3;
+
+    float3 dTransformed = mul(covarianceInverse, d);
+    float D2 = dot(d, dTransformed); // Mahalanobis distance squared
+    D2 /= sclalingFactor;
+    float w = exp(-0.5 * D2);
+    colorContribution = surfel.color * NdotL * w;;
+    return colorContribution;
+    
+}
+
+
+//Compute the surfel contributing color based on Mahalonobis-like metric and angular fallof.
+// The mahalonobis metric does NOT use an inverse covariance matrix but instead the 
+// distance is "squashed" by a factor in the surfels normal direction
+float3 calculateSurfelsContribution_MahalonobisLikeMetric(SurfelData surfel, float3 worldPos, float squshFactor=2, float relScalingFactor = 2)
+{
+    float3 colorContribution = float3(0, 0, 0);
+    float3 d = worldPos - surfel.position;
+
+        //  Ellipsoidal distance without covariance matrix 
+    float dDotN = dot(d, surfel.normal);
+    float3 tangentOffset = d - dDotN * surfel.normal;
+    float3 normalOffset = dDotN * surfel.normal;
+
+    float squash = 2.0f; // faster falloff in normal direction
+    float3 squashOffset = tangentOffset + squash * normalOffset;
+    float D2 = dot(squashOffset, squashOffset);
+    D2 /= pow(surfel.radius, relScalingFactor);
+    float w = exp(-0.5 * D2); // Spatial weight
+
+    colorContribution = surfel.color * w;
+
+    return colorContribution;
+        
+}
+
+//Compute the surfel contributing color based on Mahalonobis-like metric and angular fallof.
+// The mahalonobis metric does NOT use an inverse covariance matrix but instead the 
+// distance is "squashed" by a factor in the surfels normal direction
+float3 calculateSurfelsContribution_MahalonobisLikeMetricAndAngularFallof(SurfelData surfel, float3 worldPos, float3 interpolatedNormal,float squshFactor=2, float relScalingFactor = 2)
+{
+    float3 colorContribution = float3(0, 0, 0);
+    float3 d = worldPos - surfel.position;
+
+        //  Ellipsoidal distance without covariance matrix 
+    float dDotN = dot(d, surfel.normal);
+    float3 tangentOffset = d - dDotN * surfel.normal;
+    float3 normalOffset = dDotN * surfel.normal;
+
+    float squash = 2.0f; // faster falloff in normal direction
+    float3 squashOffset = tangentOffset + squash * normalOffset;
+    float D2 = dot(squashOffset, squashOffset);
+    D2 /= pow(surfel.radius, relScalingFactor);
+
+    float w = exp(-0.5 * D2); // Spatial weight
+
+        // Angular weighting (optional, like PICA PICA) 
+    float NdotN = saturate(dot(interpolatedNormal, surfel.normal));
+    w *= NdotN * NdotN;
+
+    float3 L = -normalize(d); // light direction from surfel
+    float NdotL = saturate(dot(surfel.normal, L));
+    if (NdotL > 0.0f)
+    {
+        colorContribution = surfel.color * NdotL * w;;
+    }
+    return colorContribution;
+        
+}
+
 
 float3 computeRadianceForWorldPos(float3 worldPos)
 {
@@ -64,31 +157,19 @@ float3 computeRadianceForWorldPos(float3 worldPos)
     uint surfelListIndexFrom = surfelGridUAV[linearIndex];
     uint surfelListIndexTo = surfelGridUAV[linearIndex + 1];
 
+    
+
+    
+    
+
     for (uint i = surfelListIndexFrom; i < surfelListIndexTo; ++i)
     {
+
         uint index = surlfeListUAV[i];
         SurfelData surfel = surfelsUAV[index];
         float3 d = worldPos - surfel.position;
-        float3 L = -normalize(d); // light dir toward surfel
-        float NdotL = saturate(dot(surfel.normal, L));
-        if (NdotL <= 0.0f)
-        {
-            continue;
-        }
-
-        float3x3 covarianceInverse = 0;
-        covarianceInverse._m00_m01_m02 = surfel.co1;
-        covarianceInverse._m10_m11_m12 = surfel.co2;
-        covarianceInverse._m20_m21_m22 = surfel.co3;
-
-
-        float3 dTransformed = mul(covarianceInverse, d);
-        float D2 = dot(d, dTransformed); // Mahalanobis distance squared
-        D2 /= 3000.0f;
-                    //D2 /= 10000.0f;
-        float w = exp(-0.5 * D2); // Gaussian weight
-
-        colorE += surfel.color * NdotL * w;
+        float3 colorContribution = calculateSurfelsContribution_MahalonobisLikeMetric(surfel, worldPos);
+        colorE += colorContribution;
     }
     return colorE;
 

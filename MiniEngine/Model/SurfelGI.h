@@ -59,7 +59,7 @@ __declspec(align(16)) struct SurfelData
 
 		UINT   MaxSurfels;
 		// Makes sure the struct after is properly aligned
-		UINT Padding0;
+		UINT CurrentSurfelCount;
 		UINT Padding1;
 		UINT Padding2;
 
