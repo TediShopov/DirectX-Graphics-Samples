@@ -39,6 +39,7 @@ RWStructuredBuffer<uint> surlfeListUAV : register(u1); // Stored pointers (indic
 RWStructuredBuffer<uint> surfelGridUAV : register(u2); 
 //The first index of this structure is the stack pointer
 RWStructuredBuffer<uint> surfleStackUAV : register(u3); // Stored pointers (indices) to the appropriate surfel data
+//Actual surfel coutn
 groupshared uint groupShareMinCoverage;
 groupshared uint groupShareMaxContribution;
 
@@ -299,11 +300,20 @@ void main(
 //                //Write data to the surfel data as per the poitner in the surfel stack
                 //retrieve the stack poitner found at position 0
                     uint prevStackPointer;
+                    uint prevSurfelCount;
                     InterlockedAdd(surfleStackUAV[0], 1, prevStackPointer);
-                    uint surfelStackPointer = prevStackPointer + 2;
-                    if (surfelStackPointer <= MaxSurfels)
+                    InterlockedAdd(surfleStackUAV[1], 1, prevSurfelCount);
+                    //uint surfelStackPointer = prevStackPointer + 2 + 1;
+                    //uint surfelStackPointer = prevStackPointer + 3;
+                    //Fill the currently free surfel at stack ptr
+                    //uint surfelStackPointer = surfleStackUAV[prevStackPointer];
+                    uint surfelStackPointer = prevStackPointer+1;
+                    
+
+                    
+                    if (surfelStackPointer < MaxSurfels+2)
                     {
-                        uint surfelID = surfleStackUAV[surfelStackPointer];
+                        uint surfelID = surfleStackUAV[prevStackPointer];
                         SurfelData newSurfel;
 
                         //float v = 1 - depthRaw;
@@ -324,17 +334,19 @@ void main(
                         newSurfel.color = float4(0,0,0,1);
                         //First value sued for the ray that need casting the second and onwwards for how many have been casted alreaady
                         //newSurfel.covariance = float3x3(0,0,0,0,0,0,0,0,0);
-                        newSurfel.co1 = float4(0, 0, 2, 5);
-                        newSurfel.co2 = float4(0, 0, 2, 5);
-                        newSurfel.co3 = float4(0, 0, 2, 5);
+                        //newSurfel.co1 = float4(0, 0, 2, 5);
+                        //newSurfel.co2 = float4(0, 0, 2, 5);
+                        //newSurfel.co3 = float4(0, 0, 2, 5);
+                        newSurfel.contribution = uint4(0, FrameIndex, 0, 0);
                         newSurfel.mean = float4(0,0,3,4);
                         newSurfel.raySamples = float4(10, 0, 0, 0);
                         surfelsUAV[surfelID] = newSurfel;
-                        //InterlockedAdd(CurrentSurfelCount, 1);
                     }
                     else
                     {
                         InterlockedAdd(surfleStackUAV[0], -1);
+                        InterlockedAdd(surfleStackUAV[1], -1);
+
                     }
                 }
             }
@@ -357,29 +369,30 @@ void main(
 
                 float chanceRemove = pow(depthRaw, gChancePower) * gChanceMultiply;
                 float changeAgainst = RandomFloat01(threadRandomnessSeed);
-                if (changeAgainst < chanceRemove)
-                {
-                    uint contributionData = groupShareMaxContribution;
-                    float maxContribution = f16tof32((contributionData & 0xFFFF0000) >> 16);
-                    uint maxContributionSurfelIndex = (contributionData & 0x0000FFFF) >> 0;
-
-                    
-
-                    uint toDestroySurfelIndex = surlfeListUAV[maxContributionSurfelIndex];
-                    surfelsUAV[toDestroySurfelIndex].radius = 0;
-
-                    //Decrement surfel stack pointer by one 
-                    uint orig;
-                    InterlockedAdd(surfleStackUAV[0], -1, orig);
-                    //InterlockedAdd(CurrentSurfelCount, -1);
-                    surfleStackUAV[orig] = toDestroySurfelIndex;
-
-                    
-                     
-
-                    
-
-                }
+//                if (changeAgainst < chanceRemove)
+//                {
+//                    uint contributionData = groupShareMaxContribution;
+//                    float maxContribution = f16tof32((contributionData & 0xFFFF0000) >> 16);
+//                    uint maxContributionSurfelIndex = (contributionData & 0x0000FFFF) >> 0;
+//
+//                    
+//
+//                    uint toDestroySurfelIndex = surlfeListUAV[maxContributionSurfelIndex];
+//                    surfelsUAV[toDestroySurfelIndex].radius = 0;
+//
+//                    //Decrement surfel stack pointer by one 
+//                    uint orig;
+//                    InterlockedAdd(surfleStackUAV[0], -1, orig);
+//                    InterlockedAdd(surfleStackUAV[1], -1, orig);
+//                    //InterlockedAdd(CurrentSurfelCount, -1);
+//                    surfleStackUAV[orig-1] = toDestroySurfelIndex;
+//
+//                    
+//                     
+//
+//                    
+//
+//                }
             }
         }
     }

@@ -39,10 +39,14 @@ __declspec(align(16)) struct SurfelData
 	UINT pad3;
 
 	Vector4 mean;
+	UINT contribution0;
+	UINT contribution1;
+	UINT contribution2;
+	UINT contribution3;
 	 //DirectX::XMFLOAT4 mean;           
-    DirectX::XMFLOAT4 covarianceRow0;  // 16 bytes
-	DirectX::XMFLOAT4 covarianceRow1;  // 16 bytes
-    DirectX::XMFLOAT4 covarianceRow2;  // 16 bytes
+//    DirectX::XMFLOAT4 covarianceRow0;  // 16 bytes
+//	DirectX::XMFLOAT4 covarianceRow1;  // 16 bytes
+//    DirectX::XMFLOAT4 covarianceRow2;  // 16 bytes
 
 //    DirectX::XMFLOAT3 covarianceRow0; float pad4; // 16 bytes
 //    DirectX::XMFLOAT3 covarianceRow1; float pad5; // 16 bytes
@@ -76,16 +80,17 @@ public:
 
 	//--- PIPELINE STATE OBJECTS --
 
-	ComputePSO m_SurfelGenerationPSO = { (L"Surfel Generation Compute Shader Stage") };
-	ComputePSO m_SurfelApplicationPSO = { (L"Surfel Application Compute Shader Stage") };
-	ComputePSO m_SurfelAccelerationPassPSO = { (L"Surfel Fill Acceleration Structure Pass Compute Shader Stage") };
+	ComputePSO m_GenerationPassPSO = { (L"Surfel Generation Compute Shader Stage") };
+	ComputePSO m_ApplicationPassPSO = { (L"Surfel Application Compute Shader Stage") };
+	ComputePSO m_AccelerationPassPSO = { (L"Surfel Fill Acceleration Structure Pass Compute Shader Stage") };
+	ComputePSO m_RecyclingPassPSO = { (L"Surfel Recycling Pass PSO") };
 
 	//--- ROOT SIGNATURES
 	RootSignature m_SurfelGenerationRT;
 	//RootSignature m_SurfelApplicationRT;
 
 	//--- DESCRIPTOR HEAPS ---
-	DescriptorHeap srvHeap;
+	DescriptorHeap descriptorHeap;
 	DescriptorHeap nonShaderVisibleHeap;
 	//ID3D12DescriptorHeap* nonShaderVisibleHeap;
 	DescriptorHeap uavHeap;
@@ -134,6 +139,7 @@ public:
 	void FillAccelerationStructures(ComputeContext& gfxContext);
 	void ReadbackSurfelData(GraphicsContext& gfx);
 	void ApplySurfels(ComputeContext& gfxContext,const Camera& camera);
+	void RecycleSurfels(ComputeContext& gfxContext,const Camera& camera);
 	int GetClosestSurfelToPosition(Vector3 worldPos);
 
 protected:

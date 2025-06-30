@@ -14,9 +14,13 @@ struct SurfelData
     uint4 raySamples; 
 
     float4 mean;
-    float4 co1;
-    float4 co2;
-    float4 co3;
+//    uint contribution;
+//    uint frameLastUsed;
+//    uint2 contributionPadding;
+    uint4 contribution;
+//    float4 co1;
+//    float4 co2;
+//    float4 co3;
     //float3x3 covariance;
 
 };

@@ -54,26 +54,26 @@ float3 calculateSurfelsContribution_WActualCovarianceMatrix(SurfelData surfel, f
     
     float3 colorContribution = float3(0, 0, 0);
         
-    float3 d = worldPos - surfel.position;
-    float3 L = -normalize(d); // light dir toward surfel
-    float NdotL = saturate(dot(surfel.normal, L));
-
-    if (NdotL <= 0.0f)
-    {
-        return colorContribution;
-        
-    }
-
-    float3x3 covarianceInverse = 0;
-    covarianceInverse._m00_m01_m02 = surfel.co1;
-    covarianceInverse._m10_m11_m12 = surfel.co2;
-    covarianceInverse._m20_m21_m22 = surfel.co3;
-
-    float3 dTransformed = mul(covarianceInverse, d);
-    float D2 = dot(d, dTransformed); // Mahalanobis distance squared
-    D2 /= sclalingFactor;
-    float w = exp(-0.5 * D2);
-    colorContribution = surfel.color * NdotL * w;;
+//    float3 d = worldPos - surfel.position;
+//    float3 L = -normalize(d); // light dir toward surfel
+//    float NdotL = saturate(dot(surfel.normal, L));
+//
+//    if (NdotL <= 0.0f)
+//    {
+//        return colorContribution;
+//        
+//    }
+//
+//    float3x3 covarianceInverse = 0;
+//    covarianceInverse._m00_m01_m02 = surfel.co1;
+//    covarianceInverse._m10_m11_m12 = surfel.co2;
+//    covarianceInverse._m20_m21_m22 = surfel.co3;
+//
+//    float3 dTransformed = mul(covarianceInverse, d);
+//    float D2 = dot(d, dTransformed); // Mahalanobis distance squared
+//    D2 /= sclalingFactor;
+//    float w = exp(-0.5 * D2);
+//    colorContribution = surfel.color * NdotL * w;;
     return colorContribution;
     
 }
@@ -169,6 +169,23 @@ float3 computeRadianceForWorldPos(float3 worldPos)
         SurfelData surfel = surfelsUAV[index];
         float3 d = worldPos - surfel.position;
         float3 colorContribution = calculateSurfelsContribution_MahalonobisLikeMetric(surfel, worldPos);
+
+        //ApplySurfels
+        //Color Intensity Contribution
+
+        //A hacky way to estimate relative contribution of a surfel to the pixel
+        float colorIntensity = length(colorContribution);
+
+        float intensityThreshold = 0.01f;
+        if (colorIntensity > intensityThreshold)
+        {
+            //Add to the contributions metric
+            InterlockedAdd(surfelsUAV[index].contribution.x, 1);
+            //Store the last frame used
+            uint outO;
+            InterlockedExchange(surfelsUAV[index].contribution.y, FrameIndex, outO);
+
+        }
         colorE += colorContribution;
     }
     return colorE;

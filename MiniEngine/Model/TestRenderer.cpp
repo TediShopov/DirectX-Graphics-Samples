@@ -822,7 +822,7 @@ namespace TestRenderer
 		//TestRaytracing::DoRaytracing(camera, SurfelIllumination->srvHeap,SurfelIllumination->m_SurfelGen.UniformGrid);
 		SurfelIrradianceAccumulation::DoRaytracing(
 			camera,
-			SurfelIllumination->srvHeap,
+			SurfelIllumination->descriptorHeap,
 			SurfelIllumination->m_SurfelGen.UniformGrid,
 			SurfelIllumination->m_SurfelDataArray);
 		Renderer::UpdateGlobalDescriptors();
@@ -1032,4 +1032,5 @@ namespace TestRenderer
 
 		SurfelIllumination->ReadbackSurfelData(gfxContext);
 		SurfelIllumination->ApplySurfels(cfx, camera);
+		SurfelIllumination->RecycleSurfels(cfx, camera);
 	}

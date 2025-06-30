@@ -165,6 +165,9 @@
       <FileType>Document</FileType>
     </FxCompile>
     <None Include="Shaders\SurfelASAsserts.hlsli" />
+    <FxCompile Include="Shaders\SurfelRecyclingCS.hlsli">
+      <FileType>Document</FileType>
+    </FxCompile>
     <None Include="Shaders\SurfelUniformGridAccelerationStructure.hlsli">
       <FileType>Document</FileType>
     </None>

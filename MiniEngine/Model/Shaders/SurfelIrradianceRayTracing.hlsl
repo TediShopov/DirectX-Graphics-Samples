@@ -318,19 +318,19 @@ void MyRaygenShader()
      
     
     meanRayDir /= N;
-    float3x3 cov = sumOuter / N - OuterProduct(meanRayDir, meanRayDir);
-    float3x3 inverseCov = InverseMatrix3x3(cov);
+    //float3x3 cov = sumOuter / N - OuterProduct(meanRayDir, meanRayDir);
+    //float3x3 inverseCov = InverseMatrix3x3(cov);
     //
     surfelsUAV[globalIndex].mean = float4(meanRayDir, 0);
 
     //Extract the rows from the covariance matrix
-    surfelsUAV[globalIndex].co1 = float4(inverseCov._m00_m01_m02, 0);
-    surfelsUAV[globalIndex].co2 = float4(inverseCov._m10_m11_m12, 0);
-    surfelsUAV[globalIndex].co3 = float4(inverseCov._m20_m21_m22, 0);
+    //surfelsUAV[globalIndex].co1 = float4(inverseCov._m00_m01_m02, 0);
+    //surfelsUAV[globalIndex].co2 = float4(inverseCov._m10_m11_m12, 0);
+    //surfelsUAV[globalIndex].co3 = float4(inverseCov._m20_m21_m22, 0);
 
 
    //Average
-    accumulatedIrradiance /= surfelsUAV[globalIndex].raySamples.x;
+   accumulatedIrradiance /= surfelsUAV[globalIndex].raySamples.x;
     //Integrate
 
     uint frameOffset = frameIndex - surfelsUAV[globalIndex].padding.x;
@@ -464,6 +464,8 @@ void MyClosestHitShader(inout RayPayload payload, in MyAttributes attr)
             float3 irradiance = surfel.color.rgb; // surfel's accumulated irradiance
             float3 radiance = irradiance * albedo / M_PI;
             payload.color = float4(radiance, 1.0);
+            //uint outO;
+            //InterlockedExchange(surfelsUAV[surfelIndex].contribution.y, frameIndex, outO);
             return;
         }
         
