@@ -6,6 +6,12 @@
 #define M_PI 3.1415926
 
 
+    //uint kPerCellSurfelLimit = 20;
+    //uint gPlacementThreshold = 2;
+    //uint gRemovalThreshold = 0;
+    //uint kTotalSurfelLimit = 20;
+    //float gChancePower = 1.1;
+    //float gChanceMultiply = 15;
 
 
 cbuffer SurfelGenCB : register(b0)
@@ -16,7 +22,18 @@ cbuffer SurfelGenCB : register(b0)
     float  ViewDistThreshold;
     uint   MaxSurfels;
     uint   CurrentSurfelCount;
-    uint2   padding;
+
+    uint kPerCellSurfelLimit = 20;
+    uint gPlacementThreshold = 2;
+
+    uint gRemovalThreshold = 0;
+    float gChancePower = 1.1;
+    float gChanceMultiply = 15;
+    float padding;
+
+    
+    
+    
     UniformGrid Grid;
 };
 
@@ -262,21 +279,6 @@ void main(
 
 
     
-    uint kPerCellSurfelLimit = 20;
-    uint gPlacementThreshold = 2;
-    uint gRemovalThreshold = 0;
-    uint kTotalSurfelLimit = 20;
-
-
-    
-    //float gChancePower = 2;
-    //float gChanceMultiply = 1.5;
-
-    
-    
-    float gChancePower = 1.1;
-    float gChanceMultiply = 15;
-
     
     float linearDepth = LinearizeDepth(depthRaw, depthFar, depthNear);
     float normalizedDepth = RemapFloat(LinearizeDepth(depthRaw, depthNear, depthFar), depthNear, depthFar, 0, 1);
@@ -294,7 +296,6 @@ void main(
                 float changeAgainst = RandomFloat01(threadRandomnessSeed);
 
                 if (changeAgainst < chanceSpawn)
-                //if( chanceSpawn<  changeAgainst)
                 {
                     
 //                //Write data to the surfel data as per the poitner in the surfel stack

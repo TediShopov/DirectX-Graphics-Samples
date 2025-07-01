@@ -164,7 +164,11 @@
 	  m_SurfelGen.CurrentSurfelCount = 0;
 	  m_SurfelGen.NormalThreshold = 0.5;
 	  m_SurfelGen.ViewDistThreshold = 0.75;
-
+	  m_SurfelGen.kPerCellSurfelLimit = 20;
+	  m_SurfelGen.gPlacementThreshold = 2;
+	  m_SurfelGen.gRemovalThreshold = 0;
+	  m_SurfelGen.gChancePower = 1.1;
+	  m_SurfelGen.gChanceMultiply = 15;
 	  m_SurfelGen.UniformGrid.cellSize = Vector4(100, 100, 100, 100);
 	  m_SurfelGen.UniformGrid.gridOrigin = Vector4(-2000, -2000, -2000, -2000);
 	  //m_SurfelGen.UniformGrid.dimensions = Vector4(+2000, +2000, +2000, +2000);

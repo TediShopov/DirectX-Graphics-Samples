@@ -92,8 +92,7 @@ float3 calculateSurfelsContribution_MahalonobisLikeMetric(SurfelData surfel, flo
     float3 tangentOffset = d - dDotN * surfel.normal;
     float3 normalOffset = dDotN * surfel.normal;
 
-    float squash = 2.0f; // faster falloff in normal direction
-    float3 squashOffset = tangentOffset + squash * normalOffset;
+    float3 squashOffset = tangentOffset + squshFactor * normalOffset;
     float D2 = dot(squashOffset, squashOffset);
     D2 /= pow(surfel.radius, relScalingFactor);
     float w = exp(-0.5 * D2); // Spatial weight
@@ -168,7 +167,7 @@ float3 computeRadianceForWorldPos(float3 worldPos)
         uint index = surlfeListUAV[i];
         SurfelData surfel = surfelsUAV[index];
         float3 d = worldPos - surfel.position;
-        float3 colorContribution = calculateSurfelsContribution_MahalonobisLikeMetric(surfel, worldPos);
+        float3 colorContribution = calculateSurfelsContribution_MahalonobisLikeMetric(surfel, worldPos,2,1.5);
 
         //ApplySurfels
         //Color Intensity Contribution
