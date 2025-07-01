@@ -778,6 +778,10 @@ namespace TestRenderer
 
 		++LightIndex;
 	}
+
+
+
+
 	void RenderImGuiUI(GraphicsContext& gfx) {
 		ImGuiIO& io = ImGui::GetIO();
 		bool pressedOne = GameInput::IsPressed(GameInput::kMouse0);
@@ -788,8 +792,30 @@ namespace TestRenderer
 		ImGui::NewFrame();
 
 		// Your ImGui UI code here
-		ImGui::Begin("Example");
-		ImGui::ShowDemoWindow();
+		ImGui::Begin("Surfel Gen CB");
+
+
+		static bool spawnThresholdsCollapsingHeader = true;
+		if (ImGui::CollapsingHeader("Spawning Thresholds", &spawnThresholdsCollapsingHeader))
+		{
+
+			ImGui::DragInt("Per Cell Surfel Limit", &SurfelIllumination->m_SurfelGen.kPerCellSurfelLimit);
+			ImGui::DragInt("Placement Threshold", &SurfelIllumination->m_SurfelGen.gPlacementThreshold);
+			ImGui::DragInt("Removal Threshold", &SurfelIllumination->m_SurfelGen.gRemovalThreshold);
+		}
+
+		static bool spawnChancesCollapsingHeader = true;
+		if(ImGui::CollapsingHeader("Spawn Chances", &spawnChancesCollapsingHeader))
+		{
+			//Used for altering the 0-1 range chance
+			ImGui::DragFloat("Chance Power", &SurfelIllumination->m_SurfelGen.gChancePower);
+			ImGui::DragFloat("Chance Mulitply", &SurfelIllumination->m_SurfelGen.gChanceMultiply);
+
+		}
+
+
+
+		//ImGui::ShowDemoWindow();
 		//ImGui::Text("Hello from ImGui!");
 		ImGui::End();
 		ImGui::Render();

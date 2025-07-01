@@ -11,8 +11,20 @@ cbuffer SurfelGenCB : register(b0)
     float  DepthThreshold;
     float  NormalThreshold;
     float  ViewDistThreshold;
+
     uint   MaxSurfels;
-    uint3   padding;
+    int   CurrentSurfelCount;
+    int kPerCellSurfelLimit = 20;
+    int gPlacementThreshold = 2;
+
+    int gRemovalThreshold = 0;
+    float gChancePower = 1.1;
+    float gChanceMultiply = 15;
+    float padding;
+
+    
+    
+    
     UniformGrid Grid;
 };
 
@@ -81,7 +93,7 @@ void main(
     
     
 
-    //if (rays > raysThreshold && (framesSinceUsed ) > 300 && chance < hSurfelCount)
+    //if (rays > raysThreshold && (framesSinceUsed ) > 300 && chance < hSurfelCount) 
     if (rays> raysThreshold && (framesSinceUsed ) > 60 && chance < hSurfelCount)
     //if (FrameIndex % 60 == 0)
     {
