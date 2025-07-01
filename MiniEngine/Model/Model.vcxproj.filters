@@ -242,6 +242,9 @@
     <None Include="Shaders\SurfelUniformGridAccelerationStructure.hlsli">
       <Filter>Shaders</Filter>
     </None>
+    <None Include="Shaders\CommonSurfelRegisters.hlsli">
+      <Filter>Shaders</Filter>
+    </None>
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="Shaders\DefaultVS.hlsl">
