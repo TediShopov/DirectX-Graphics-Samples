@@ -52,6 +52,7 @@ namespace TestRenderer
 	//--- INITTIALIZATOIN ---
 	void Startup( Math::Camera& camera , HWND hwnd);
 	void InitTriangleModel();
+	void InitQuadModel();
 	void InitSphereModel();
 
 	//--- CLEANUP ---

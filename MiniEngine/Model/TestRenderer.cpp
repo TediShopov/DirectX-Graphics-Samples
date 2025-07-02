@@ -117,6 +117,7 @@ namespace TestRenderer
 
 
 
+	bool m_enableDebugOverlay;
 
 
 	SurfelGI* TestRenderer::SurfelIllumination = new SurfelGI();  // Definition (allocates storage)
@@ -156,20 +157,36 @@ namespace TestRenderer
 	struct ColorVertex { Vector4 position;  Vector4 color; };
 
 	float m_aspectRatio = 16.0f / 9.0f;
-	const float m_triDepthValue = 0.1f;
+	const float m_depthValue = 0.1f;
 	float _TRI_SCALE = 0.3f;
+	float QUAD_SCALE = 0.8f;
 	ColorVertex triangleVertices[3] =
 	{
-		{ { 0.0f, _TRI_SCALE * m_aspectRatio, m_triDepthValue,1}, { 1.0f, 0.0f, 0.0f, 1.0f } },
-		{ { _TRI_SCALE ,-_TRI_SCALE * m_aspectRatio, m_triDepthValue,1}, { 0.0f, 1.0f, 0.0f, 1.0f } },
-		{ { -_TRI_SCALE, -_TRI_SCALE * m_aspectRatio, m_triDepthValue,1}, { 0.0f, 0.0f, 1.0f, 1.0f } }
+		{ { 0.0f, _TRI_SCALE * m_aspectRatio, m_depthValue,1}, { 1.0f, 0.0f, 0.0f, 1.0f } },
+		{ { _TRI_SCALE ,-_TRI_SCALE * m_aspectRatio, m_depthValue,1}, { 0.0f, 1.0f, 0.0f, 1.0f } },
+		{ { -_TRI_SCALE, -_TRI_SCALE * m_aspectRatio, m_depthValue,1}, { 0.0f, 0.0f, 1.0f, 1.0f } }
+	};
+
+	ColorVertex fullScreenQuad[6] =
+	{
+		{ { -QUAD_SCALE, -QUAD_SCALE, m_depthValue,1}, { 1.0f, 0.0f, 0.0f, 1.0f } },
+		{ { QUAD_SCALE, QUAD_SCALE, m_depthValue,1}, { 1.0f, 0.0f, 0.0f, 1.0f } },
+		{ { -QUAD_SCALE, QUAD_SCALE, m_depthValue,1}, { 1.0f, 0.0f, 0.0f, 1.0f } },
+
+		{ { -QUAD_SCALE, -QUAD_SCALE, m_depthValue,1}, { 1.0f, 0.0f, 0.0f, 1.0f } },
+		{ { QUAD_SCALE, QUAD_SCALE, m_depthValue,1}, { 1.0f, 0.0f, 0.0f, 1.0f } },
+		{ { QUAD_SCALE, -QUAD_SCALE, m_depthValue,1}, { 1.0f, 0.0f, 0.0f, 1.0f } },
 	};
 
 	//The triangle geomtry buffer 
 	ByteAddressBuffer m_GeometryBuffer;
+	ByteAddressBuffer m_QuadGB;
 	//The vertex and index resource views
 	D3D12_VERTEX_BUFFER_VIEW    m_VertexBufferView;
 	D3D12_INDEX_BUFFER_VIEW    m_IndexBufferView;
+
+	D3D12_VERTEX_BUFFER_VIEW    m_QuadVB;
+	D3D12_INDEX_BUFFER_VIEW    m_QuadIB;
 
 	D3D12_CPU_DESCRIPTOR_HANDLE cpu_handle;
 	D3D12_GPU_DESCRIPTOR_HANDLE gpu_handle;
@@ -295,6 +312,7 @@ namespace TestRenderer
 		ASSERT(m_Model.Load(L"Sponza/sponza.h3d"), "Failed to load model");
 		ASSERT(m_Model.GetMeshCount() > 0, "Model contains no meshes");
 		InitTriangleModel();
+		InitQuadModel();
 		InitSphereModel();
 		m_Disc = new DiscMesh(10);
 
@@ -472,6 +490,38 @@ namespace TestRenderer
 
 
 	}
+	void InitQuadModel()
+	{
+		uint32_t indices[6] = { 0, 1, 2,3,4,5 };
+
+		size_t vertexStride = sizeof(ColorVertex);
+		size_t vertexDataSize = sizeof(fullScreenQuad);
+		size_t indexDataSize = sizeof(indices);
+
+		// 2. Allocate upload buffer (vertex + index)
+		size_t totalSize = vertexDataSize + indexDataSize;
+		void* uploadMem = _aligned_malloc(totalSize, 16);
+		assert(uploadMem);
+
+		void* vertexData = uploadMem;
+		void* indexData = static_cast<uint8_t*>(uploadMem) + vertexDataSize;
+
+		memcpy(vertexData, fullScreenQuad, vertexDataSize);
+		memcpy(indexData, indices, indexDataSize);
+
+
+//		ColorVertex tempColorVerts[3];
+//		memcpy(tempColorVerts, vertexData, vertexDataSize);
+
+		//--- Upload buffer to GPU
+		m_QuadGB.Create(L"Full Screen Quad", totalSize, 1, uploadMem);
+		//--- Create buffer views
+		m_QuadVB
+			= m_QuadGB.VertexBufferView(0, vertexDataSize, vertexStride);
+		m_QuadIB
+			= m_QuadGB.IndexBufferView(vertexDataSize, indexDataSize, true);
+
+	}
 	void InitTriangleModel()
 	{
 		uint32_t indices[3] = { 0, 1, 2 };
@@ -498,23 +548,11 @@ namespace TestRenderer
 		//--- Upload buffer to GPU
 		m_GeometryBuffer.Create(L"Colored Triangle", totalSize, 1, uploadMem);
 		//--- Create buffer views
-	//   m_VertexBuffer 
-	//        = m_GeometryBuffer.VertexBufferView(0,  (uint32_t)vertexDataSize,vertexStride);
 		m_VertexBufferView
 			= m_GeometryBuffer.VertexBufferView(0, vertexDataSize, vertexStride);
-		//    m_IndexBuffer  
-		//        = m_GeometryBuffer.IndexBufferView((uint32_t)vertexDataSize, DXGI_FORMAT_R16_UINT, (uint32_t)indexDataSize);
-
 		m_IndexBufferView
 			= m_GeometryBuffer.IndexBufferView(vertexDataSize, indexDataSize, true);
 
-		// Optional: store CPU copy (not required if you don't need access)
-	//    m_pVertexData = reinterpret_cast<uint8_t*>(_aligned_malloc(vertexDataSize, 16));
-	//    m_pIndexData  = reinterpret_cast<uint8_t*>(_aligned_malloc(indexDataSize, 16));
-	//    memcpy(m_pVertexData, triangleVerts, vertexDataSize);
-	//    memcpy(m_pIndexData, indices, indexDataSize);
-
-		// Done!
 	}
 	void InitSphereModel()
 	{
@@ -532,6 +570,23 @@ namespace TestRenderer
 		ImGui::DestroyContext(ImGui::GetCurrentContext());
 	}
 
+
+	void RenderFullScreenQuad(GraphicsContext& gfxContext)
+	{
+		//uint32_t VertexStride = m_Model.GetVertexStride();
+		const UINT vertexBufferSize = sizeof(fullScreenQuad);
+
+		//---TEMPORARILY switch index and vertex buffers
+		gfxContext.SetIndexBuffer(m_QuadIB);
+		gfxContext.SetVertexBuffer(0, m_QuadVB);
+
+		//--- Draw three indices of the triangle
+		gfxContext.DrawIndexed(6, 0, 0);
+
+		//--- Switch Back To Sponza model
+		gfxContext.SetIndexBuffer(m_Model.GetIndexBuffer());
+		gfxContext.SetVertexBuffer(0, m_Model.GetVertexBuffer());
+	}
 	///--- RENDERING ---
 	void RenderScreenSpaceTriangle(GraphicsContext& gfxContext)
 	{
@@ -823,6 +878,15 @@ namespace TestRenderer
 
 		}
 
+		static bool debugCollapsingHeader = true;
+		if(ImGui::CollapsingHeader("Debug", &debugCollapsingHeader))
+		{
+			ImGui::Checkbox("Enable Debug Overlay", &m_enableDebugOverlay);
+
+		}
+
+
+
 
 
 		//ImGui::ShowDemoWindow();
@@ -1037,16 +1101,15 @@ namespace TestRenderer
 						RenderSurfels(gfxContext, camera.GetViewProjMatrix(), camera.GetPosition(), TestRenderer::kOpaque);
 					}
 
+					if(m_enableDebugOverlay)
 					{
-						ScopedTimer _prof3(L"Render Triangle", gfxContext);
+						ScopedTimer _prof3(L"Surfel Density Debug Overlay", gfxContext);
 						GridVisualization->SetupRenderStage(gfxContext, viewport, scissor,
 							TestRaytracing::GetOutputBuffer(),
 							camera);
 						SurfelIllumination->SendParametersGraphics(gfxContext, camera);
 						gfxContext.InsertUAVBarrier(SurfelIllumination->m_SurfelGrid);
-
-						RenderScreenSpaceTriangle(gfxContext);
-
+						RenderFullScreenQuad(gfxContext);
 					}
 
 
