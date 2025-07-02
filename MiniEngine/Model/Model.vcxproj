@@ -95,6 +95,7 @@
     <ClInclude Include="ModelH3D.h" />
     <ClInclude Include="ParticleEffects.h" />
     <ClInclude Include="Renderer.h" />
+    <ClInclude Include="SurfelGIOnlyVisualization.h" />
     <ClInclude Include="SurfelIrradianceAccumulation.h" />
     <ClInclude Include="UniformGrid.h" />
     <FxCompile Include="Shaders\RaytracingHlslCompat.h">
@@ -142,6 +143,7 @@
     <ClCompile Include="Renderer.cpp" />
     <ClCompile Include="SponzaRenderer.cpp" />
     <ClCompile Include="SurfelGI.cpp" />
+    <ClCompile Include="SurfelGIOnlyVisualization.cpp" />
     <ClCompile Include="SurfelIrradianceAccumulation.cpp" />
     <ClCompile Include="TestRaytracing.cpp" />
     <ClCompile Include="TestRenderer.cpp" />
@@ -168,6 +170,12 @@
       <FileType>Document</FileType>
     </FxCompile>
     <None Include="Shaders\SurfelASAsserts.hlsli" />
+    <FxCompile Include="Shaders\SurfelGIOnlyPS.hlsl">
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Pixel</ShaderType>
+    </FxCompile>
+    <FxCompile Include="Shaders\SurfelGIOnlyVS.hlsl">
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Vertex</ShaderType>
+    </FxCompile>
     <FxCompile Include="Shaders\SurfelRecyclingCS.hlsli">
       <FileType>Document</FileType>
     </FxCompile>

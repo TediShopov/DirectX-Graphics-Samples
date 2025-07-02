@@ -109,6 +109,7 @@
     <ClCompile Include="Imgui\imgui-master\backends\imgui_impl_win32.cpp">
       <Filter>Imgui</Filter>
     </ClCompile>
+    <ClCompile Include="SurfelGIOnlyVisualization.cpp" />
   </ItemGroup>
   <ItemGroup>
     <Filter Include="Source Files">
@@ -221,6 +222,7 @@
     <ClInclude Include="Imgui\imgui-master\imgui.h">
       <Filter>Imgui</Filter>
     </ClInclude>
+    <ClInclude Include="SurfelGIOnlyVisualization.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="Shaders\Common.hlsli">
@@ -362,6 +364,12 @@
       <Filter>Shaders</Filter>
     </FxCompile>
     <FxCompile Include="Shaders\SurfelRecyclingCS.hlsli">
+      <Filter>Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\SurfelGIOnlyPS.hlsl">
+      <Filter>Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\SurfelGIOnlyVS.hlsl">
       <Filter>Shaders</Filter>
     </FxCompile>
   </ItemGroup>

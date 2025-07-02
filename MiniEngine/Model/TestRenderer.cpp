@@ -20,6 +20,7 @@
 
 #include "SurfelGI.h"
 #include "HashGridVisualization.h"
+#include "SurfelGIOnlyVisualization.h"
 
 
 //Imgui 
@@ -117,11 +118,13 @@ namespace TestRenderer
 
 
 
-	bool m_enableDebugOverlay;
+	bool m_enableDebugOverlay = true;
+	int m_debugOverlayMode = 0;
 
 
 	SurfelGI* TestRenderer::SurfelIllumination = new SurfelGI();  // Definition (allocates storage)
 	HashGridVisualization* TestRenderer::GridVisualization = new HashGridVisualization();  // Definition (allocates storage)
+	SurfelGIOnlyVisualization* TestRenderer::SurfelGIVisualization = new SurfelGIOnlyVisualization();  // Definition (allocates storage)
 	UINT TestRenderer::frameIndex = 0;
 
 	SphereMesh* TestRenderer::m_Sphere = nullptr;
@@ -424,6 +427,10 @@ namespace TestRenderer
 		GridVisualization->Setup(
 			gbuffer,
 			&TestRaytracing::GetOutputBuffer()
+		);
+		SurfelGIVisualization->Setup(
+			gbuffer,
+			&SurfelIllumination->m_OutputTexture
 		);
 
 
@@ -882,6 +889,7 @@ namespace TestRenderer
 		if(ImGui::CollapsingHeader("Debug", &debugCollapsingHeader))
 		{
 			ImGui::Checkbox("Enable Debug Overlay", &m_enableDebugOverlay);
+			ImGui::DragInt("Debug Mode", &m_debugOverlayMode);
 
 		}
 
@@ -1103,13 +1111,41 @@ namespace TestRenderer
 
 					if(m_enableDebugOverlay)
 					{
-						ScopedTimer _prof3(L"Surfel Density Debug Overlay", gfxContext);
-						GridVisualization->SetupRenderStage(gfxContext, viewport, scissor,
-							TestRaytracing::GetOutputBuffer(),
-							camera);
-						SurfelIllumination->SendParametersGraphics(gfxContext, camera);
-						gfxContext.InsertUAVBarrier(SurfelIllumination->m_SurfelGrid);
-						RenderFullScreenQuad(gfxContext);
+						if (m_debugOverlayMode == 0)
+						{
+							ScopedTimer _prof3(L"Surfel Density Debug Overlay", gfxContext);
+							GridVisualization->SetupRenderStage(gfxContext, viewport, scissor,
+								TestRaytracing::GetOutputBuffer(),
+								camera);
+							SurfelIllumination->SendParametersGraphics(gfxContext, camera);
+							gfxContext.InsertUAVBarrier(SurfelIllumination->m_SurfelGrid);
+							RenderFullScreenQuad(gfxContext);
+
+						}
+						else if (m_debugOverlayMode == 1)
+						{
+							ScopedTimer _prof3(L"Surfel GI Only Debug Overlay", gfxContext);
+							gfxContext.TransitionResource(SurfelIllumination->m_OutputTexture, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+							SurfelGIVisualization->SetupRenderStage(gfxContext, viewport, scissor,
+								SurfelIllumination->m_OutputTexture,
+								camera);
+
+
+							gfxContext.InsertUAVBarrier(SurfelIllumination->m_SurfelGrid);
+
+							SurfelGIVisualization->SetRootParameters(gfxContext, SurfelIllumination->m_OutputTexture);
+
+
+
+							RenderFullScreenQuad(gfxContext);
+
+						}
+
+
+
+
+
+
 					}
 
 
