@@ -81,7 +81,7 @@ class SurfelGI
 public:
 
 	UINT _CELL_COUNT_;
-	const UINT _DEBUG_SURFEL_NUM = 1000;
+	int m_surfelNum = 1000;
 
 	//--- PIPELINE STATE OBJECTS --
 
@@ -146,6 +146,8 @@ public:
 	void ApplySurfels(ComputeContext& gfxContext,const Camera& camera);
 	void RecycleSurfels(ComputeContext& gfxContext,const Camera& camera);
 	int GetClosestSurfelToPosition(Vector3 worldPos);
+	void RecreateSurfelListBuffers(int newNum);
+	void TransitionResourcesTo();
 
 protected:
 	void CopyCPUContainersToRespectiveGPUBuffers();

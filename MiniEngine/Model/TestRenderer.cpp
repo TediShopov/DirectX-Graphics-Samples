@@ -782,6 +782,7 @@ namespace TestRenderer
 
 
 
+	int tempSurfelNumber =1000;
 	void RenderImGuiUI(GraphicsContext& gfx) {
 		ImGuiIO& io = ImGui::GetIO();
 		bool pressedOne = GameInput::IsPressed(GameInput::kMouse0);
@@ -793,6 +794,13 @@ namespace TestRenderer
 
 		// Your ImGui UI code here
 		ImGui::Begin("Surfel Gen CB");
+
+		ImGui::SliderInt("Surfel Num", &tempSurfelNumber,0,10000);
+		bool applySurfelNum = false;
+		if (ImGui::Checkbox("Apply New Surfel Num", &applySurfelNum))
+		{
+			SurfelIllumination->RecreateSurfelListBuffers(tempSurfelNumber);
+		}
 
 
 		static bool spawnThresholdsCollapsingHeader = true;
@@ -810,6 +818,8 @@ namespace TestRenderer
 			//Used for altering the 0-1 range chance
 			ImGui::DragFloat("Chance Power", &SurfelIllumination->m_SurfelGen.gChancePower);
 			ImGui::DragFloat("Chance Mulitply", &SurfelIllumination->m_SurfelGen.gChanceMultiply);
+
+
 
 		}
 
@@ -845,7 +855,10 @@ namespace TestRenderer
 	{
 
 
-		//TestRaytracing::DoRaytracing(camera, SurfelIllumination->srvHeap,SurfelIllumination->m_SurfelGen.UniformGrid);
+		ComputeContext& cfx = reinterpret_cast<ComputeContext&>(gfxContext);
+		SurfelIllumination->FillAccelerationStructures(cfx);
+
+		TestRaytracing::DoRaytracing(camera, SurfelIllumination->descriptorHeap,SurfelIllumination->m_SurfelGen.UniformGrid);
 		SurfelIrradianceAccumulation::DoRaytracing(
 			camera,
 			SurfelIllumination->descriptorHeap,
@@ -1030,9 +1043,12 @@ namespace TestRenderer
 							TestRaytracing::GetOutputBuffer(),
 							camera);
 						SurfelIllumination->SendParametersGraphics(gfxContext, camera);
+						gfxContext.InsertUAVBarrier(SurfelIllumination->m_SurfelGrid);
+
 						RenderScreenSpaceTriangle(gfxContext);
 
 					}
+
 
 
 
@@ -1046,17 +1062,16 @@ namespace TestRenderer
 
 		// --- SURFEL PASS
 
-		ComputeContext& cfx = reinterpret_cast<ComputeContext&>(gfxContext);
 
 		frameIndex++;
 		//Set the frame index
 		SurfelIllumination->m_SurfelGen.FrameIndex = frameIndex;
 
-		SurfelIllumination->FillAccelerationStructures(cfx);
-
+//
 		SurfelIllumination->SpawnSurfels(cfx, camera);
-
+//
 		SurfelIllumination->ReadbackSurfelData(gfxContext);
 		SurfelIllumination->ApplySurfels(cfx, camera);
 		SurfelIllumination->RecycleSurfels(cfx, camera);
+
 	}
