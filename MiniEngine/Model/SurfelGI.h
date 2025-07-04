@@ -74,6 +74,13 @@ __declspec(align(16)) struct SurfelData
 
 		UniformGrid UniformGrid;
 	};
+	__declspec(align(16)) struct SurfelDebugData
+	{
+		UINT   PointedCellX;
+		UINT   PointedCellY;
+		UINT   PointedCellZ;
+		UINT   PointedCellW;
+	};
 
 
 class SurfelGI
@@ -97,7 +104,6 @@ public:
 	//--- DESCRIPTOR HEAPS ---
 	DescriptorHeap descriptorHeap;
 	DescriptorHeap nonShaderVisibleHeap;
-	//ID3D12DescriptorHeap* nonShaderVisibleHeap;
 	DescriptorHeap uavHeap;
 
 
@@ -121,10 +127,16 @@ public:
 	StructuredBuffer m_SurfelList;
 	StructuredBuffer m_SurfelGrid;
 	StructuredBuffer m_SurfelStack; //A stack holding unique surfel IDs.Used for spawning and recycling surfels.
+	StructuredBuffer m_SurfelDebug; 
 	ColorBuffer m_OutputTexture; 
+
+	SurfelDebugData m_SurfelDebugActual;
 
 	//GPU->CPU readback buffer
 	ReadbackBuffer m_SurfelDataReadback;
+	ReadbackBuffer m_SurfelGridReadback;
+	ReadbackBuffer m_SurfelListReadback;
+	ReadbackBuffer m_SurfelDebugReadback;
 
 	//CPU->GPU data containers to hold data to pass 
 	std::vector<SurfelData> m_SurfelDataArray;
@@ -143,6 +155,8 @@ public:
 	void SendParametersGraphics(GraphicsContext& gfxContext, const Camera& camera);
 	void FillAccelerationStructures(ComputeContext& gfxContext);
 	void ReadbackSurfelData(GraphicsContext& gfx);
+	void ReadbakcSurfelDebugData(GraphicsContext& gfx);
+	void ReadbackSurfelAccelerationStructure(GraphicsContext& gfx);
 	void ApplySurfels(ComputeContext& gfxContext,const Camera& camera);
 	void RecycleSurfels(ComputeContext& gfxContext,const Camera& camera);
 	int GetClosestSurfelToPosition(Vector3 worldPos);
@@ -150,6 +164,23 @@ public:
 	void TransitionResourcesTo();
 
 protected:
+	template<typename T>
+void CopyReadbackBuffer(GraphicsContext& gfx, ReadbackBuffer& dstReadbackBuffer,  StructuredBuffer& srcBuffer, T& outData)
+{
+    gfx.CopyBuffer(dstReadbackBuffer, srcBuffer);
+    void* mappedData = dstReadbackBuffer.Map();
+    memcpy(&outData, mappedData, sizeof(T));
+    dstReadbackBuffer.Unmap();
+}
+	template<typename T>
+void CopyReadbackBufferMany(GraphicsContext& gfx, ReadbackBuffer& dstReadbackBuffer,  StructuredBuffer& srcBuffer, std::vector<T>& outData, int size = 1)
+{
+	gfx.InsertUAVBarrier(srcBuffer);
+    gfx.CopyBuffer(dstReadbackBuffer, srcBuffer);
+    void* mappedData = dstReadbackBuffer.Map();
+    memcpy(outData.data(), mappedData, sizeof(T) * size);
+    dstReadbackBuffer.Unmap();
+}
 	void CopyCPUContainersToRespectiveGPUBuffers();
 	void CreateHeaps();
 	void InitializePSOs();

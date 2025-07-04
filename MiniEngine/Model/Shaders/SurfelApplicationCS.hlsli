@@ -108,10 +108,8 @@ float angularWeight(float3 worldPos ,float3 surfelPosition, float3 surfelNormal)
 float3 calculateSurfelsContribution_Experimental(SurfelData surfel, float3 worldPos, float3 interpolatedNormal)
 {
     float3 colorContribution = float3(0, 0, 0);
-    float3 d = worldPos - surfel.position;
+    float3 d = length(worldPos - surfel.position);
 
-    //float NdotL = angularWeight(worldPos, surfel.position, surfel.normal);
-    float NdotL = 1;
 
     float w; // Spatial weight
     float maxDistance = surfel.radius; 
@@ -119,13 +117,29 @@ float3 calculateSurfelsContribution_Experimental(SurfelData surfel, float3 world
     float attenuation = smoothstep(0.0, 1.0, 1.0 - t); // Smoothstep attenuation
 
 
-    if (NdotL > 0.0f)
-    {
-        colorContribution = surfel.color * NdotL * attenuation;
-    }
+        colorContribution = surfel.color  * attenuation;
     return colorContribution;
         
 }
+//float3 calculateSurfelsContribution_Experimental2(SurfelData surfel, float3 worldPos, float3 interpolatedNormal)
+//{
+//    float3 colorContribution = float3(0, 0, 0);
+//    float3 d = worldPos - surfel.position;
+//
+//
+//    float3 r      = p_r - p_s;
+//float  r_len  = length(r);
+//float3 d      = r / r_len;
+//
+//float cosTheta_s = saturate(dot(n_s, d));
+//float cosTheta_r = saturate(dot(n_r, -d));
+//
+//// Lambertian BRDF approximation for surfel emitter
+//    float3 Lo = (I_s / PI) * (cosTheta_s * cosTheta_r) / (r_len * r_len);
+//
+//    return Lo;
+//        
+//}
 
 float3 computeRadianceForWorldPos(float3 worldPos, float3 worldNormal)
 {
@@ -214,13 +228,25 @@ void main(
         return;
     uint2 pixelPos = dispatchThreadId.xy;
 
-    float2 uv = float2(dispatchThreadId.xy) / float2(gResolution.x - 1, gResolution.y - 1);
+
+
+    
+
+        float2 uv = float2(dispatchThreadId.xy) / float2(gResolution.x - 1, gResolution.y - 1);
     
     //Reconstruct world-position
     float4 depthRaw = gDepth.SampleLevel(defaultSampler, uv, 0);
     float depthRange = 0.005;
     float3 worldPos = ReconstructWorldPosition(uv, depthRaw.x, invViewProjectionMatrix);
     float3 worldNormal = gNormal.SampleLevel(defaultSampler, uv, 0);
+    //Fill Debug Data
+    if (pixelPos.x == (gResolution.x / 2) &&  pixelPos.y == (gResolution.y / 2))
+    {
+
+        uint3 idx = ComputeGridIndex(worldPos, Grid.gridOrigin, Grid.cellSize);
+        debugUAV[0].pointedCell = uint4(idx.xyz, 1);
+        
+    }
 
 
     //Compute the color for this pixel

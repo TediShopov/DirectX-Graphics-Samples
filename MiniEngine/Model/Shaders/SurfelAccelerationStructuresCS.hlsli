@@ -11,6 +11,8 @@ void main(
     uint3 groupdId: SV_GroupID
 )
 {
+
+
     //Test if the shader is running properly 
     FillAccelerationStructure(Grid, surfelsUAV, surlfeListUAV, surfelGridUAV);
 

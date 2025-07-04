@@ -63,7 +63,7 @@
 
   void SurfelGI::CreateHeaps()
   {
-	  nonShaderVisibleHeap.Create(L"SURFEL SRV HEAP", D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 7,false);
+	  nonShaderVisibleHeap.Create(L"SURFEL SRV HEAP", D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 8,false);
 	  ExtendedUtility::CopyDescriptorsToHeap(nonShaderVisibleHeap, {
 	      m_GBuffer.g_Depth->GetDepthSRV(),
 	      m_GBuffer.g_Normal->GetSRV(),
@@ -71,12 +71,13 @@
 	      m_SurfelList.GetUAV(),
 	      m_SurfelGrid.GetUAV(),
 	      m_SurfelStack.GetUAV(),
-	      m_OutputTexture.GetUAV()
+	      m_OutputTexture.GetUAV(),
+	      m_SurfelDebug.GetUAV()
 	      }
 	  );
 
 
-	  descriptorHeap.Create(L"SURFEL SRV HEAP", D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 7);
+	  descriptorHeap.Create(L"SURFEL SRV HEAP", D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 8);
 
 	  ExtendedUtility::CopyDescriptorsToHeap(descriptorHeap, {
 
@@ -86,7 +87,8 @@
 		  m_SurfelList.GetUAV(),
 		  m_SurfelGrid.GetUAV(),
 		  m_SurfelStack.GetUAV(),
-	      m_OutputTexture.GetUAV()
+	      m_OutputTexture.GetUAV(),
+	      m_SurfelDebug.GetUAV()
 		  }
 	  );
   }
@@ -115,15 +117,23 @@
 
   void SurfelGI::InitializeBuffers()
   {
+
 	  m_ProjectoinBuffer.Create(L"Projectoin Data Buffer", 1, sizeof(ProjectionResources), &m_ProjectionData);
 	  m_SufelSettingBuffer.Create(L"Surfel Gen CBV", 1, sizeof(SurfelGenCB), &m_SurfelGen);
 	  //SURFEL SIZE STATIC BUFFER NUMB
 	  m_SurfelData.Create(L"Surfel Data Buffer", m_surfelNum, sizeof(SurfelData));
 	  m_SurfelDataReadback.Create(L"Surfel Data Readback Buffer", m_surfelNum, sizeof(SurfelData));
+
 	  m_SurfelList.Create(L"Surfel List Buffer", _CELL_COUNT_, sizeof(UINT));
+	  m_SurfelListReadback.Create(L"Surfel List Readback Buffer", _CELL_COUNT_, sizeof(UINT));
+
 	  m_SurfelGrid.Create(L"Surfel Grid Buffer", _CELL_COUNT_, sizeof(UINT));
+	  m_SurfelGridReadback.Create(L"Surfel List Readback Buffer", _CELL_COUNT_, sizeof(UINT));
+
 	  //+1 for the stack pointer itself
 	  m_SurfelStack.Create(L"Surfel Stack", m_surfelNum + 2, sizeof(UINT));
+	  m_SurfelDebug.Create(L"Surfel Debug UAV", 1, sizeof(SurfelDebugData));
+	  m_SurfelDebugReadback.Create(L"Surfel Debug Data Readback Buffer", 1, sizeof(SurfelDebugData));
 	  CreateOutputTexture(&Graphics::g_SceneNormalBuffer);
   }
 
@@ -150,7 +160,7 @@
 	  DefaultSamplerDesc.MaxAnisotropy = 8;
 	  SamplerDesc CubeMapSamplerDesc = DefaultSamplerDesc;
 
-	  m_SurfelGenerationRT.Reset(4, 3);
+	  m_SurfelGenerationRT.Reset(5, 3);
 
 
 	  m_SurfelGenerationRT.InitStaticSampler(10, DefaultSamplerDesc);
@@ -163,6 +173,10 @@
 	  m_SurfelGenerationRT[2].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 2);
 	  //UAVs: 
 	  m_SurfelGenerationRT[3].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 0, 5);
+	  //Bind Debug UAVS at space 1
+	  m_SurfelGenerationRT[4].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 0, 1,D3D12_SHADER_VISIBILITY_ALL,1);
+
+
 	  m_SurfelGenerationRT.Finalize(L"CS Surfel Root Signature");
 
 
@@ -231,6 +245,12 @@ void SurfelGI::FillCPUContainers()
 	m_SurfelDataArray.clear();
 	m_SurfelStackActual.clear();
 	m_SurfelGridActual.clear();
+	m_SurfelListActual.clear();
+
+	m_SurfelDebugActual.PointedCellX = 1;
+	m_SurfelDebugActual.PointedCellY = 2;
+	m_SurfelDebugActual.PointedCellZ = 3;
+	m_SurfelDebugActual.PointedCellW = 4;
 
 	const SurfelData data{
 		Vector4(0, 0, 1,1),
@@ -268,6 +288,7 @@ void SurfelGI::FillCPUContainers()
 	//E.g pointer set to 0 would actually read memory adress at 1.
 	for (int i = 0; i < _CELL_COUNT_; ++i) {
 		m_SurfelGridActual.push_back(0);
+		m_SurfelListActual.push_back(0);
 	}
 
 
@@ -327,6 +348,7 @@ void SurfelGI::CreateOutputTexture(ColorBuffer* outputBuffer)
 	//gfxContext.SetConstantBuffer(1, m_ProjectoinBuffer.GetGpuVirtualAddress());
 	gfxContext.SetDescriptorTable(2, descriptorHeap[0]);
 	gfxContext.SetDescriptorTable(3, descriptorHeap[2]);
+	gfxContext.SetDescriptorTable(4, descriptorHeap[7]);
   }
 
   void SurfelGI::SendParameters(ComputeContext& gfxContext,const Camera& camera)
@@ -344,6 +366,7 @@ void SurfelGI::CreateOutputTexture(ColorBuffer* outputBuffer)
 	gfxContext.SetDynamicConstantBufferView(1, sizeof(ProjectionResources),&m_ProjectionData);
 	gfxContext.SetDescriptorTable(2, descriptorHeap[0]);
 	gfxContext.SetDescriptorTable(3, descriptorHeap[2]);
+	gfxContext.SetDescriptorTable(4, descriptorHeap[7]);
   }
 
   void SurfelGI::FillAccelerationStructures(ComputeContext& gfxContext)
@@ -390,6 +413,34 @@ void SurfelGI::CreateOutputTexture(ColorBuffer* outputBuffer)
 	m_SurfelDataReadback.Unmap();
 
 }
+
+
+  void SurfelGI::ReadbakcSurfelDebugData(GraphicsContext& gfx)
+  {
+
+	  //CopyReadbackBuffer<SurfelDebugData>(gfx, m_SurfelDebugReadback, m_SurfelDebug, m_SurfelDebugActual);
+	  CopyReadbackBuffer<SurfelDebugData>(gfx, m_SurfelDebugReadback, m_SurfelDebug, m_SurfelDebugActual);
+
+
+  }
+
+  void SurfelGI::ReadbackSurfelAccelerationStructure(GraphicsContext& gfx)
+  {
+	  gfx.TransitionResource(m_SurfelGrid, D3D12_RESOURCE_STATE_COPY_SOURCE);
+	  gfx.TransitionResource(m_SurfelList, D3D12_RESOURCE_STATE_COPY_SOURCE);
+	  CopyReadbackBufferMany<UINT>(gfx, m_SurfelListReadback, m_SurfelList, m_SurfelListActual, _CELL_COUNT_);
+	  CopyReadbackBufferMany<UINT>(gfx, m_SurfelGridReadback, m_SurfelGrid, m_SurfelGridActual, _CELL_COUNT_);
+	  for (size_t i = 0; i < m_SurfelGridActual.size(); i++)
+	  {
+		  if(m_SurfelGridActual[i] != 0)
+		  {
+			  int a = 3;
+		  }
+
+	  }
+
+	  //gfx.TransitionResource(m_SurfelGrid, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+  }
 
   void SurfelGI::ApplySurfels(ComputeContext& gfxContext,const Camera& camera)
   {

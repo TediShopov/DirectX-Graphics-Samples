@@ -120,6 +120,8 @@ namespace TestRenderer
 
 	bool m_enableDebugOverlay = true;
 	bool m_stopSurfelUpdate = false;
+	bool m_prevStopSurfelUpdate = false;
+	bool m_renderOnlyCurrentCellSurfels = false;
 	int m_debugOverlayMode = 0;
 
 
@@ -395,7 +397,7 @@ namespace TestRenderer
 		//       TestRaytracing::GetOutputBuffer().GetSRV()
 		g_Device->CopyDescriptors(1, &Renderer::m_CommonTextures, &DestCount, DestCount, SourceTextures, SourceCounts, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 
-		Lighting::CreateRandomLights(m_Model.GetBoundingBox().GetMin(), m_Model.GetBoundingBox().GetMax());
+		//Lighting::CreateRandomLights(m_Model.GetBoundingBox().GetMin(), m_Model.GetBoundingBox().GetMax());
 
 		GBufferPtrs gbuffer{
 			&g_SceneColorBuffer,
@@ -683,6 +685,105 @@ namespace TestRenderer
 		float angle = acosf(dot); // angle between vectors
 		return XMQuaternionRotationAxis(axis, angle);
 	}
+
+	void RenderRelevantSurfels(RENDER_OBJECT_INSTANCE_PARAMS)
+	{
+
+		float modelRadius = Length(m_Model.GetBoundingBox().GetDimensions()) * 0.5f;
+		const Vector3 eye = m_Model.GetBoundingBox().GetCenter() + Vector3(modelRadius * 0.5f, 0.0f, 0.0f);
+		const Vector3 relSphereOffset(0, 0, 0.1);
+		const Vector3 offset = relSphereOffset * modelRadius;
+
+		struct VSConstants
+		{
+			Matrix4 modelToWorld;
+			Matrix4 modelToProjection;
+			Matrix4 modelToShadow;
+			XMFLOAT3 viewerPos;
+		} vsConstants;
+		//vsConstants.modelToWorld        = Matrix4(Math::XMMatrixIdentity());
+		vsConstants.modelToWorld = Matrix4(TestRenderer::m_Transform.getTransformMatrix());
+		vsConstants.modelToProjection = ViewProjMat;
+		vsConstants.modelToShadow = m_SunShadow.GetShadowMatrix();
+		XMStoreFloat3(&vsConstants.viewerPos, viewerPos);
+
+		gfxContext.SetDynamicConstantBufferView(Renderer::kMeshConstants, sizeof(vsConstants), &vsConstants);
+		//uint32_t VertexStride = m_Model.GetVertexStride();
+		const UINT vertexBufferSize = sizeof(triangleVertices);
+		//---TEMPORARILY switch index and vertex buffers
+	//	gfxContext.SetIndexBuffer(m_Sphere->m_IndexBufferView);
+	//	gfxContext.SetVertexBuffer(0, m_Sphere->m_VertexBufferView);
+		gfxContext.SetIndexBuffer(m_Disc->m_IndexBufferView);
+		gfxContext.SetVertexBuffer(0, m_Disc->m_VertexBufferView);
+
+
+		UniformGrid grid = SurfelIllumination->m_SurfelGen.UniformGrid;
+		SurfelDebugData data = SurfelIllumination->m_SurfelDebugActual;
+
+		UINT gridDimX =
+			grid.dimensions.GetX() / grid.cellSize.GetX();
+		UINT gridDimY=
+			grid.dimensions.GetY() / grid.cellSize.GetY();
+
+		UINT gridDimZ =
+			grid.dimensions.GetZ() / grid.cellSize.GetZ();
+
+		UINT linearIndex = data.PointedCellX  +
+           data.PointedCellY * gridDimX   +
+           data.PointedCellZ * gridDimX * gridDimY;
+
+
+		UINT surfelListIndexFrom = SurfelIllumination->m_SurfelGridActual[linearIndex];
+		UINT surfelListIndexTo = SurfelIllumination->m_SurfelGridActual[linearIndex+1];
+
+    
+
+    
+    
+
+		for (size_t i = surfelListIndexFrom; i < surfelListIndexTo; ++i)
+		{
+
+			Transform t;
+			UINT surfelIndex = SurfelIllumination->m_SurfelListActual[i];
+			SurfelData s = SurfelIllumination->m_SurfelDataArray[surfelIndex];
+			Vector4 extrudedPossition = s.position + (s.normal * 1.0f);
+
+
+
+			t.setPosition(extrudedPossition);
+
+			if (XMVector4Length(s.normal).m128_f32[0] > 0.001f)
+			{
+				Vector4 quat = Vector4(GetRotationQuaternionFromUpToDirection(s.normal));
+				t.setQuaternion(quat.GetX(), quat.GetY(), quat.GetZ(), quat.GetW());
+				t.setComposeRotationFromQuaternions(true);
+
+				t.setScale(s.radius.GetX(), s.radius.GetX(), s.radius.GetX());
+
+
+				vsConstants.modelToWorld = Matrix4(t.getTransformMatrix());
+				XMStoreFloat3(&vsConstants.viewerPos, viewerPos);
+
+				gfxContext.SetDynamicConstantBufferView(Renderer::kMeshConstants, sizeof(vsConstants), &vsConstants);
+				//Vector4 customColor = Vector4(0.2f, 0.3f, 1, 1.0f);
+				//Vector4 customColor = Vector4(1.0f, 0.3f, 0, 1.0f);
+				gfxContext.SetDynamicConstantBufferView(Renderer::kCommonCBV, sizeof(Vector4), &s.color);
+				//--- Draw three indices of the triangle
+				gfxContext.DrawIndexed(m_Disc->m_Indices.size(), 0, 0);
+
+			}
+
+		}
+
+
+		int a = 3;
+
+		//--- Switch Back To Sponza model
+		gfxContext.SetIndexBuffer(m_Model.GetIndexBuffer());
+		gfxContext.SetVertexBuffer(0, m_Model.GetVertexBuffer());
+
+	}
 	void RenderSurfels(RENDER_OBJECT_INSTANCE_PARAMS)
 	{
 
@@ -717,8 +818,11 @@ namespace TestRenderer
 		for each (SurfelData s in SurfelIllumination->m_SurfelDataArray)
 		{
 
+
 			Transform t;
 			Vector4 extrudedPossition = s.position + (s.normal * 1.0f);
+
+
 
 			t.setPosition(extrudedPossition);
 
@@ -853,7 +957,10 @@ namespace TestRenderer
 		bool pressedDebugButton = GameInput::IsFirstPressed(GameInput::kKey_f);
 		bool pressedDebugMode = GameInput::IsFirstPressed(GameInput::kKey_g);
 		bool pressedStopButton = GameInput::IsFirstPressed(GameInput::kKey_b);
+		bool pressedOnlyRelevantButton = GameInput::IsFirstPressed(GameInput::kKey_t);
 
+		if (pressedOnlyRelevantButton)
+			m_renderOnlyCurrentCellSurfels = !m_renderOnlyCurrentCellSurfels;
 		if (pressedDebugButton)
 			m_enableDebugOverlay = !m_enableDebugOverlay;
 
@@ -911,6 +1018,7 @@ namespace TestRenderer
 		{
 			ImGui::Checkbox("Enable Debug Overlay", &m_enableDebugOverlay);
 			ImGui::Checkbox("Stop Surfle Spawn Recycle", &m_stopSurfelUpdate);
+			ImGui::Checkbox("Render Only Relevant Surfels", &m_renderOnlyCurrentCellSurfels);
 			ImGui::DragInt("Debug Mode", &m_debugOverlayMode);
 
 		}
@@ -951,6 +1059,14 @@ namespace TestRenderer
 
 		ComputeContext& cfx = reinterpret_cast<ComputeContext&>(gfxContext);
 		SurfelIllumination->FillAccelerationStructures(cfx);
+
+		if(m_stopSurfelUpdate == true && m_stopSurfelUpdate != m_prevStopSurfelUpdate)
+		{
+			SurfelIllumination->ReadbackSurfelAccelerationStructure(gfxContext);
+		}
+
+
+		SurfelIllumination->ReadbakcSurfelDebugData(gfxContext);
 
 		TestRaytracing::DoRaytracing(camera, SurfelIllumination->descriptorHeap,SurfelIllumination->m_SurfelGen.UniformGrid);
 
@@ -1134,7 +1250,13 @@ namespace TestRenderer
 						gfxContext.SetRenderTargets(ARRAYSIZE(rtvs), rtvs, g_SceneDepthBuffer.GetDSV_DepthReadOnly());
 						gfxContext.SetViewportAndScissor(viewport, scissor);
 						RenderSphereObject(gfxContext, camera.GetViewProjMatrix(), camera.GetPosition(), TestRenderer::kOpaque);
-						RenderSurfels(gfxContext, camera.GetViewProjMatrix(), camera.GetPosition(), TestRenderer::kOpaque);
+						if(m_renderOnlyCurrentCellSurfels)
+							RenderRelevantSurfels(gfxContext, camera.GetViewProjMatrix(), camera.GetPosition(), TestRenderer::kOpaque);
+						else
+							RenderSurfels(gfxContext, camera.GetViewProjMatrix(), camera.GetPosition(), TestRenderer::kOpaque);
+
+
+						
 					}
 
 					if(m_enableDebugOverlay)
@@ -1202,5 +1324,7 @@ namespace TestRenderer
 		
 		if (m_stopSurfelUpdate == false)
 			SurfelIllumination->RecycleSurfels(cfx, camera);
+
+		m_prevStopSurfelUpdate = m_stopSurfelUpdate;
 
 	}

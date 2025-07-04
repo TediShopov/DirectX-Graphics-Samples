@@ -24,6 +24,7 @@ cbuffer SurfelGenCB : register(b0)
     
     
     
+    
     UniformGrid Grid;
 };
 
@@ -34,6 +35,10 @@ cbuffer ProjectionData : register(b1)
     float depthFar;
     float fovY;
 }
+struct SurfelDebugData
+{
+    uint4 pointedCell;
+};
 
 // G-buffer input textures
 Texture2D<float4> gDepth : register(t0); // RGB = world pos
@@ -47,3 +52,4 @@ RWStructuredBuffer<uint> surfelGridUAV : register(u2);
 //The first index of this structure is the stack pointer
 RWStructuredBuffer<uint> surfleStackUAV : register(u3); // Stored pointers (indices) to the appropriate surfel data
 RWTexture2D<float4> outputTexture   : register(u4); // RGB = outputTexture
+RWStructuredBuffer<SurfelDebugData> debugUAV : register(u0,space1); 
