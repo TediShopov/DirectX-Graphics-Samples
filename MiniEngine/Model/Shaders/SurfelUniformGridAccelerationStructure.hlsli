@@ -170,6 +170,14 @@ bool ComputeCornerDotProductsWithSurfelPlane(
 //Surfel Sphere of Influence bounding box;
 void SurfelSOIBoundingCells(SurfelData surfel,UniformGrid grid, out uint3 bb[2])
 {
+    if(surfel.radius <= 0)
+    {
+        bb[0] = uint3(1, 1, 1);
+        bb[1] = uint3(0, 0, 0);
+    }
+    
+
+
     float3 minBounds = surfel.position - surfel.radius;
     float3 maxBounds = surfel.position + surfel.radius;
 
@@ -186,6 +194,10 @@ void SurfelSOIBoundingCells(SurfelData surfel,UniformGrid grid, out uint3 bb[2])
 //Max expected overlapp is expected to 128 cells
 void SurfelCountDebug(SurfelData surfel, UniformGrid grid,out uint3 overlappingIndices[128], out uint overlappingCount)
 {
+    if(surfel.radius <= 0)
+    {
+        return;
+    }
     uint3 bb[2];
     SurfelSOIBoundingCells(surfel, grid, bb);
     uint3 minCell = bb[0];
@@ -203,11 +215,13 @@ void SurfelCountDebug(SurfelData surfel, UniformGrid grid,out uint3 overlappingI
                 //uint linearIndex = x + y * gridDim.x + z * gridDim.x * gridDim.y;
                 uint3 idx = uint3(x, y, z);
                 uint linearIndex = HashGridIndex(idx,grid);
-                if (ComputeCornerDotProductsWithSurfelPlane(surfel, grid, idx))
-                {
                     overlappingIndices[overlappingCount] = idx;
                     overlappingCount++;
-                }
+//                if (ComputeCornerDotProductsWithSurfelPlane(surfel, grid, idx))
+//                {
+//                    overlappingIndices[overlappingCount] = idx;
+//                    overlappingCount++;
+//                }
             }
         }
     }
@@ -220,6 +234,10 @@ void SurfelCountDebug(SurfelData surfel, UniformGrid grid,out uint3 overlappingI
 //A funciton to overlap the surfel (disc) with the grid 
 void SurfelCount(SurfelData surfel, UniformGrid grid, RWStructuredBuffer<uint> surfelGrid)
 {
+    if(surfel.radius <= 0)
+    {
+        return;
+    }
     uint3 bb[2];
     SurfelSOIBoundingCells(surfel, grid, bb);
     uint3 minCell = bb[0];
@@ -237,13 +255,14 @@ void SurfelCount(SurfelData surfel, UniformGrid grid, RWStructuredBuffer<uint> s
                 uint3 idx = uint3(x, y, z);
 
                 uint linearIndex = HashGridIndex(idx,grid);
-                if (ComputeCornerDotProductsWithSurfelPlane(surfel, grid, idx))
-                {
-                    //Surfel Overlaps with the grid cell
-                    InterlockedAdd(surfelGrid[linearIndex], 1);
-
-
-                }
+                InterlockedAdd(surfelGrid[linearIndex], 1);
+//                if (ComputeCornerDotProductsWithSurfelPlane(surfel, grid, idx))
+//                {
+//                    //Surfel Overlaps with the grid cell
+//                    InterlockedAdd(surfelGrid[linearIndex], 1);
+//
+//
+//                }
             }
         }
     }
@@ -276,6 +295,10 @@ RWStructuredBuffer<uint> surlfeList,
 RWStructuredBuffer<uint> surfelGrid
 )
 {
+    if(surfel.radius <= 0)
+    {
+        return;
+    }
     
     uint3 bb[2];
     SurfelSOIBoundingCells(surfel, grid, bb);
@@ -294,17 +317,23 @@ RWStructuredBuffer<uint> surfelGrid
                 uint3 idx = uint3(x, y, z);
 
                 uint linearIndex = HashGridIndex(idx,grid);
-                if (ComputeCornerDotProductsWithSurfelPlane(surfel, grid, idx))
-                {
                     //Surfel Overlaps with the grid cell
                     //Decrement the stored index in the grid
                     uint originalValue;
                     InterlockedAdd(surfelGrid[linearIndex], -1, originalValue);
                     //Insert the ID/PTR/OFFSET of the current surfel in the sufle list at the offt
                     surlfeList[originalValue] = surfelIndex;
-
-
-                }
+//                if (ComputeCornerDotProductsWithSurfelPlane(surfel, grid, idx))
+//                {
+//                    //Surfel Overlaps with the grid cell
+//                    //Decrement the stored index in the grid
+//                    uint originalValue;
+//                    InterlockedAdd(surfelGrid[linearIndex], -1, originalValue);
+//                    //Insert the ID/PTR/OFFSET of the current surfel in the sufle list at the offt
+//                    surlfeList[originalValue] = surfelIndex;
+//
+//
+//                }
             }
         }
     }

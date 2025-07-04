@@ -97,9 +97,37 @@ float3 calculateSurfelsContribution_MahalonobisLikeMetricAndAngularFallof(Surfel
     return colorContribution;
         
 }
+float angularWeight(float3 worldPos ,float3 surfelPosition, float3 surfelNormal)
+{
+    float3 L = normalize(worldPos - surfelPosition); // Light Direction out of the surfel
+    return saturate(dot(L, surfelNormal));
+    //return saturate(dot(surfelNormal, L));
+    
+}
+
+float3 calculateSurfelsContribution_Experimental(SurfelData surfel, float3 worldPos, float3 interpolatedNormal)
+{
+    float3 colorContribution = float3(0, 0, 0);
+    float3 d = worldPos - surfel.position;
+
+    //float NdotL = angularWeight(worldPos, surfel.position, surfel.normal);
+    float NdotL = 1;
+
+    float w; // Spatial weight
+    float maxDistance = surfel.radius; 
+    float t = clamp(d / maxDistance, 0.0, 1.0); // Normalize distance
+    float attenuation = smoothstep(0.0, 1.0, 1.0 - t); // Smoothstep attenuation
 
 
-float3 computeRadianceForWorldPos(float3 worldPos)
+    if (NdotL > 0.0f)
+    {
+        colorContribution = surfel.color * NdotL * attenuation;
+    }
+    return colorContribution;
+        
+}
+
+float3 computeRadianceForWorldPos(float3 worldPos, float3 worldNormal)
 {
     
   //Get all for now
@@ -128,7 +156,18 @@ float3 computeRadianceForWorldPos(float3 worldPos)
         uint index = surlfeListUAV[i];
         SurfelData surfel = surfelsUAV[index];
         float3 d = worldPos - surfel.position;
-        float3 colorContribution = calculateSurfelsContribution_MahalonobisLikeMetric(surfel, worldPos,2,1.5);
+        float3 colorContribution ;
+        if(surfel.radius <= 0)
+        {
+            colorContribution = float3(0, 0, 0);
+        }
+        else
+        {
+            colorContribution = calculateSurfelsContribution_Experimental(surfel, worldPos, worldNormal);
+            //colorContribution = calculateSurfelsContribution_MahalonobisLikeMetric(surfel, worldPos);
+        }
+       
+
 
         //ApplySurfels
         //Color Intensity Contribution
@@ -176,16 +215,16 @@ void main(
     uint2 pixelPos = dispatchThreadId.xy;
 
     float2 uv = float2(dispatchThreadId.xy) / float2(gResolution.x - 1, gResolution.y - 1);
-    float4 atNormal = gNormal.SampleLevel(defaultSampler, uv, 0);
-    //Create a random "state" 
     
     //Reconstruct world-position
     float4 depthRaw = gDepth.SampleLevel(defaultSampler, uv, 0);
     float depthRange = 0.005;
     float3 worldPos = ReconstructWorldPosition(uv, depthRaw.x, invViewProjectionMatrix);
+    float3 worldNormal = gNormal.SampleLevel(defaultSampler, uv, 0);
+
 
     //Compute the color for this pixel
-    outputTexture[pixelPos] = float4(computeRadianceForWorldPos(worldPos), 1);
+    outputTexture[pixelPos] = float4(computeRadianceForWorldPos(worldPos, worldNormal), 1);
 
 
 

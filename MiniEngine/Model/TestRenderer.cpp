@@ -119,6 +119,7 @@ namespace TestRenderer
 
 
 	bool m_enableDebugOverlay = true;
+	bool m_stopSurfelUpdate = false;
 	int m_debugOverlayMode = 0;
 
 
@@ -847,6 +848,26 @@ namespace TestRenderer
 	int tempSurfelNumber =1000;
 	void RenderImGuiUI(GraphicsContext& gfx) {
 		ImGuiIO& io = ImGui::GetIO();
+
+
+		bool pressedDebugButton = GameInput::IsFirstPressed(GameInput::kKey_f);
+		bool pressedDebugMode = GameInput::IsFirstPressed(GameInput::kKey_g);
+		bool pressedStopButton = GameInput::IsFirstPressed(GameInput::kKey_b);
+
+		if (pressedDebugButton)
+			m_enableDebugOverlay = !m_enableDebugOverlay;
+
+		if (pressedDebugMode)
+		{
+			m_debugOverlayMode = !((bool)m_debugOverlayMode);
+
+		}
+
+		if (pressedStopButton)
+			m_stopSurfelUpdate = !m_stopSurfelUpdate;
+
+
+
 		bool pressedOne = GameInput::IsPressed(GameInput::kMouse0);
 		io.AddMouseButtonEvent(0, pressedOne);
 
@@ -889,6 +910,7 @@ namespace TestRenderer
 		if(ImGui::CollapsingHeader("Debug", &debugCollapsingHeader))
 		{
 			ImGui::Checkbox("Enable Debug Overlay", &m_enableDebugOverlay);
+			ImGui::Checkbox("Stop Surfle Spawn Recycle", &m_stopSurfelUpdate);
 			ImGui::DragInt("Debug Mode", &m_debugOverlayMode);
 
 		}
@@ -931,11 +953,17 @@ namespace TestRenderer
 		SurfelIllumination->FillAccelerationStructures(cfx);
 
 		TestRaytracing::DoRaytracing(camera, SurfelIllumination->descriptorHeap,SurfelIllumination->m_SurfelGen.UniformGrid);
-		SurfelIrradianceAccumulation::DoRaytracing(
-			camera,
-			SurfelIllumination->descriptorHeap,
-			SurfelIllumination->m_SurfelGen.UniformGrid,
-			SurfelIllumination->m_SurfelDataArray);
+
+		if (m_stopSurfelUpdate == false)
+		{
+			SurfelIrradianceAccumulation::DoRaytracing(
+				camera,
+				SurfelIllumination->descriptorHeap,
+				SurfelIllumination->m_SurfelGen.UniformGrid,
+				SurfelIllumination->m_SurfelDataArray);
+
+		}
+
 		Renderer::UpdateGlobalDescriptors();
 
 		Vector3 pos = camera.GetPosition();
@@ -1166,11 +1194,13 @@ namespace TestRenderer
 		//Set the frame index
 		SurfelIllumination->m_SurfelGen.FrameIndex = frameIndex;
 
-//
-		SurfelIllumination->SpawnSurfels(cfx, camera);
-//
+		if (m_stopSurfelUpdate == false)
+			SurfelIllumination->SpawnSurfels(cfx, camera);
+
 		SurfelIllumination->ReadbackSurfelData(gfxContext);
 		SurfelIllumination->ApplySurfels(cfx, camera);
-		SurfelIllumination->RecycleSurfels(cfx, camera);
+		
+		if (m_stopSurfelUpdate == false)
+			SurfelIllumination->RecycleSurfels(cfx, camera);
 
 	}
