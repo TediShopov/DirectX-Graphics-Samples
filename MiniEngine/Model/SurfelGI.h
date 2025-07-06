@@ -94,7 +94,12 @@ public:
 
 	ComputePSO m_GenerationPassPSO = { (L"Surfel Generation Compute Shader Stage") };
 	ComputePSO m_ApplicationPassPSO = { (L"Surfel Application Compute Shader Stage") };
+
 	ComputePSO m_AccelerationPassPSO = { (L"Surfel Fill Acceleration Structure Pass Compute Shader Stage") };
+	ComputePSO m_AccelerationPassSurfelCountPSO= { (L"Surfel Fill Acceleration Structure Pass 1") };
+	ComputePSO m_AccelerationPassPrefixSumPSO = { (L"Surfel Fill Acceleration Structure Pass 2") };
+	ComputePSO m_AccelerationPassSurfelInsertionPSO = { (L"Surfel Fill Acceleration Structure Pass 3") };
+
 	ComputePSO m_RecyclingPassPSO = { (L"Surfel Recycling Pass PSO") };
 
 	//--- ROOT SIGNATURES

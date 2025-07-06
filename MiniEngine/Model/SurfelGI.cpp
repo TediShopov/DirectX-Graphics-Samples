@@ -5,12 +5,16 @@
 #include <limits>
 #include "UniformGrid.h"
 #include "ColorBuffer.h"
+#include <cmath>
 
 
 #include "CompiledShaders/SurfelAccelerationStructuresCS.h"
 #include "CompiledShaders/SurfelGenerationCS.h"
 #include "CompiledShaders/SurfelApplicationCS.h"
 #include "CompiledShaders/SurfelRecyclingCS.h"
+#include "CompiledShaders/SurfelFASSurfelInclusivePrefixSumCS.h"
+#include "CompiledShaders/SurfelFASSurfelInsertionCS.h"
+#include "CompiledShaders/SurfelFASSurfelCountCS.h"
 
 
   void SurfelGI::UpdateProjection(const Camera& camera)
@@ -108,6 +112,18 @@
 	  m_AccelerationPassPSO.SetRootSignature(m_SurfelGenerationRT);
 	  m_AccelerationPassPSO.SetComputeShader(g_pSurfelAccelerationStructuresCS, sizeof(g_pSurfelAccelerationStructuresCS));
 	  m_AccelerationPassPSO.Finalize();
+
+	  m_AccelerationPassSurfelCountPSO.SetRootSignature(m_SurfelGenerationRT);
+	  m_AccelerationPassSurfelCountPSO.SetComputeShader(g_pSurfelFASSurfelCountCS, sizeof(g_pSurfelFASSurfelCountCS));
+	  m_AccelerationPassSurfelCountPSO.Finalize();
+
+	  m_AccelerationPassPrefixSumPSO.SetRootSignature(m_SurfelGenerationRT);
+	  m_AccelerationPassPrefixSumPSO.SetComputeShader(g_pSurfelFASSurfelInclusivePrefixSumCS, sizeof(g_pSurfelFASSurfelInclusivePrefixSumCS));
+	  m_AccelerationPassPrefixSumPSO.Finalize();
+
+	  m_AccelerationPassSurfelInsertionPSO.SetRootSignature(m_SurfelGenerationRT);
+	  m_AccelerationPassSurfelInsertionPSO.SetComputeShader(g_pSurfelFASSurfelInsertionCS, sizeof(g_pSurfelFASSurfelInsertionCS));
+	  m_AccelerationPassSurfelInsertionPSO.Finalize();
 
 	  m_RecyclingPassPSO.SetRootSignature(m_SurfelGenerationRT);
 	  m_RecyclingPassPSO.SetComputeShader(g_pSurfelRecyclingCS, sizeof(g_pSurfelRecyclingCS));
@@ -380,36 +396,53 @@ void SurfelGI::CreateOutputTexture(ColorBuffer* outputBuffer)
 	gfxContext.SetPipelineState(m_AccelerationPassPSO);
 	gfxContext.SetRootSignature(m_SurfelGenerationRT);
 
-
-	ID3D12DescriptorHeap* heaps[] = {
-		descriptorHeap.GetHeapPointer(),  // This is your SURFEL SRV HEAP
-	};
-
-	gfxContext.GetCommandList()->SetDescriptorHeaps(1, heaps);
-
 	//Reset surfel grid buffer
 	gfxContext.WriteBuffer(m_SurfelGrid, 0, m_SurfelGridActual.data(), (_CELL_COUNT_) * sizeof(UINT));
+	SendParameters(gfxContext);
 
+	FASSurfelCount(gfxContext);
+	FASInclusivePrefixSum(gfxContext);
+	FASSurfelInsertion(gfxContext);
+//	const float groupX = 256.0f;
+//	UINT dispatchX = std::ceil((float)_SURFEL_MAX_COUNT_ / groupX);
 
-	gfxContext.SetDynamicConstantBufferView(0, sizeof(SurfelGenCB),&m_SurfelGen);
-	gfxContext.SetDynamicConstantBufferView(1, sizeof(ProjectionResources),&m_ProjectionData);
-	gfxContext.SetDescriptorTable(2, descriptorHeap[0]);
-	gfxContext.SetDescriptorTable(3, descriptorHeap[2]);
-	gfxContext.Dispatch(1, 1, 1);
-	gfxContext.InsertUAVBarrier(m_SurfelGrid);
+//	gfxContext.Dispatch(1, 1, 1);
 
 }
 
   void SurfelGI::FASSurfelCount(ComputeContext& gfxContext)
   {
+
+	ScopedTimer _prof(L"Surfel Fill Acceleration Structures : SURFEL COUNT", gfxContext);
+	gfxContext.SetPipelineState(m_AccelerationPassSurfelCountPSO);
+	const float groupX = 256.0f;
+	UINT dispatchX = std::ceil((float)_SURFEL_MAX_COUNT_ / groupX);
+
+	gfxContext.Dispatch(groupX, 1, 1);
+	gfxContext.InsertUAVBarrier(m_SurfelGrid);
+	gfxContext.InsertUAVBarrier(m_SurfelList);
+
   }
 
   void SurfelGI::FASInclusivePrefixSum(ComputeContext& gfxContext)
   {
+	ScopedTimer _prof(L"Surfel Fill Acceleration Structures : SURFEL PREFIX SUM", gfxContext);
+	gfxContext.SetPipelineState(m_AccelerationPassPrefixSumPSO);
+	gfxContext.Dispatch(1, 1, 1);
+	gfxContext.InsertUAVBarrier(m_SurfelGrid);
+	gfxContext.InsertUAVBarrier(m_SurfelList);
+
   }
 
   void SurfelGI::FASSurfelInsertion(ComputeContext& gfxContext)
   {
+	ScopedTimer _prof(L"Surfel Fill Acceleration Structures : SURFEL INSERTION", gfxContext);
+	gfxContext.SetPipelineState(m_AccelerationPassSurfelInsertionPSO);
+	const float groupX = 256.0f;
+	UINT dispatchX = std::ceil((float)_SURFEL_MAX_COUNT_ / groupX);
+	gfxContext.Dispatch(groupX, 1, 1);
+	gfxContext.InsertUAVBarrier(m_SurfelGrid);
+	gfxContext.InsertUAVBarrier(m_SurfelList);
 
   }
 

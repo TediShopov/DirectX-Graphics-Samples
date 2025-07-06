@@ -179,6 +179,15 @@
     <FxCompile Include="Shaders\SurfelRecyclingCS.hlsli">
       <FileType>Document</FileType>
     </FxCompile>
+    <FxCompile Include="Shaders\SurfelFASSurfelCountCS.hlsli">
+      <FileType>Document</FileType>
+    </FxCompile>
+    <FxCompile Include="Shaders\SurfelFASSurfelInclusivePrefixSumCS.hlsli">
+      <FileType>Document</FileType>
+    </FxCompile>
+    <FxCompile Include="Shaders\SurfelFASSurfelInsertionCS.hlsli">
+      <FileType>Document</FileType>
+    </FxCompile>
     <None Include="Shaders\SurfelUniformGridAccelerationStructure.hlsli">
       <FileType>Document</FileType>
     </None>

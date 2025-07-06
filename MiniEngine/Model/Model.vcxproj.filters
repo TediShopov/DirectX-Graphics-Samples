@@ -372,5 +372,14 @@
     <FxCompile Include="Shaders\SurfelGIOnlyVS.hlsl">
       <Filter>Shaders</Filter>
     </FxCompile>
+    <FxCompile Include="Shaders\SurfelFASSurfelInclusivePrefixSumCS.hlsli">
+      <Filter>Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\SurfelFASSurfelInsertionCS.hlsli">
+      <Filter>Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\SurfelFASSurfelCountCS.hlsli">
+      <Filter>Shaders</Filter>
+    </FxCompile>
   </ItemGroup>
 </Project>
