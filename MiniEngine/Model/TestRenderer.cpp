@@ -1267,7 +1267,8 @@ namespace TestRenderer
 							GridVisualization->SetupRenderStage(gfxContext, viewport, scissor,
 								TestRaytracing::GetOutputBuffer(),
 								camera);
-							SurfelIllumination->SendParametersGraphics(gfxContext, camera);
+							SurfelIllumination->UpdateProjection(camera);
+							SurfelIllumination->SendParametersGraphics(gfxContext);
 							gfxContext.InsertUAVBarrier(SurfelIllumination->m_SurfelGrid);
 							RenderFullScreenQuad(gfxContext);
 

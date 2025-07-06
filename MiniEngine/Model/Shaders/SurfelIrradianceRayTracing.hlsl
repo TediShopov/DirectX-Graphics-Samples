@@ -283,6 +283,12 @@ void MyRaygenShader()
     float3 meanRayDir = float3(0, 0, 0);
     float3x3 sumOuter = 0;
     float N = surfelsUAV[globalIndex].raySamples.x;
+
+    //TODO debug view of ray dispatch data
+    rayDispatchUUAV[0] = 1;
+    
+    
+    
     for (int i = 0; i < N; i++)
     {
         uint3 index3 = DispatchRaysIndex();
@@ -333,8 +339,9 @@ void MyRaygenShader()
    accumulatedIrradiance /= surfelsUAV[globalIndex].raySamples.x;
     //Integrate
 
-    uint frameOffset = frameIndex - surfelsUAV[globalIndex].padding.x;
-    float alpha = saturate(0.1f / (1.0f + frameIndex * 0.01));
+    //uint frameOffset = frameIndex - surfelsUAV[globalIndex].padding.x;
+    uint rayOffset =   surfelsUAV[globalIndex].raySamples.y*10;
+    float alpha = saturate(0.1f / (1.0f + rayOffset * 0.01));
     surfelsUAV[globalIndex].color = lerp(surfelsUAV[globalIndex].color, float4(accumulatedIrradiance, 1), alpha);
 
     
@@ -464,8 +471,8 @@ void MyClosestHitShader(inout RayPayload payload, in MyAttributes attr)
             float3 irradiance = surfel.color.rgb; // surfel's accumulated irradiance
             float3 radiance = irradiance * albedo / M_PI;
             payload.color = float4(radiance, 1.0);
-            //uint outO;
-            //InterlockedExchange(surfelsUAV[surfelIndex].contribution.y, frameIndex, outO);
+            uint outO;
+            InterlockedExchange(surfelsUAV[surfelIndex].contribution.y, frameIndex, outO);
             return;
         }
         

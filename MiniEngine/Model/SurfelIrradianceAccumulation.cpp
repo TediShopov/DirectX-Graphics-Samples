@@ -830,12 +830,11 @@ namespace SurfelIrradianceAccumulation
 		auto commandList = pCmdList;
 
 		//Update the m_RayDispatch data
-		ComputeRayIndexing(surfels);
+		//ComputeRayIndexing(surfels);
 
 		gfxContext.WriteBuffer(m_RayDispatchBuffer, 0, m_RayDispatchData.data(), sizeof(UINT) * m_RayDispatchData.size());
 
 		commandList->SetComputeRootSignature(m_rtGlobalRootSignature.Get());
-		static const UINT surfelCount = 1000;
 		auto DispatchRays = [&](auto* commandList, auto* stateObject, auto* dispatchDesc)
 			{
 				dispatchDesc->HitGroupTable.StartAddress = m_hitGroupShaderTable->GetGPUVirtualAddress();

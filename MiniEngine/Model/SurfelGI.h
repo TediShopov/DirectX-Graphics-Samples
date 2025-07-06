@@ -88,7 +88,7 @@ class SurfelGI
 public:
 
 	UINT _CELL_COUNT_;
-	int m_surfelNum = 1000;
+	static const int _SURFEL_MAX_COUNT_ = 1000;
 
 	//--- PIPELINE STATE OBJECTS --
 
@@ -151,9 +151,21 @@ public:
 	void Setup(GBufferPtrs gBuff);
 
 	void SpawnSurfels(ComputeContext& gfxContext,const Camera& camera);
-	void SendParameters(ComputeContext& gfxContext,const Camera& camera);
-	void SendParametersGraphics(GraphicsContext& gfxContext, const Camera& camera);
+
+	//void SendParameters(ComputeContext& gfxContext,const Camera& camera);
+	//void SendParametersGraphics(GraphicsContext& gfxContext, const Camera& camera);
+
+	void SendParameters(ComputeContext& gfxContext);
+	void SendParametersGraphics(GraphicsContext& gfxContext);
+	//-FILLING ACCELERATION STRUCTURES -
 	void FillAccelerationStructures(ComputeContext& gfxContext);
+	void FASSurfelCount(ComputeContext& gfxContext);
+	void FASInclusivePrefixSum(ComputeContext& gfxContext);
+	void FASSurfelInsertion(ComputeContext& gfxContext);
+
+
+
+
 	void ReadbackSurfelData(GraphicsContext& gfx);
 	void ReadbakcSurfelDebugData(GraphicsContext& gfx);
 	void ReadbackSurfelAccelerationStructure(GraphicsContext& gfx);
