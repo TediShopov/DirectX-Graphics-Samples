@@ -298,8 +298,8 @@ namespace TestRenderer
 			// Full color pass
 		m_TestSpherePSO = m_DepthPSO;
 		m_TestSpherePSO.SetBlendState(BlendDisable);
-		//m_TestSpherePSO.SetDepthStencilState(DepthStateTestEqual);
-		m_TestSpherePSO.SetRenderTargetFormats(2, formats, DepthFormat);
+		//m_TestSpherePSO.SetRenderTargetFormats(2, formats, DepthFormat);
+		m_TestSpherePSO.SetRenderTargetFormats(1, formats, DepthFormat);
 		m_TestSpherePSO.SetInputLayout(_countof(simpleVertElemnt), simpleVertElemnt);
 		//--- CHANGE THE DEPTH STATE ALWAYS TO DRAW ON TOP OF GEOMETRY
 		//m_TestSpherePSO.SetDepthStencilState(DepthStateDisabled);
@@ -818,6 +818,10 @@ namespace TestRenderer
 
 		for each (SurfelData s in SurfelIllumination->m_SurfelDataArray)
 		{
+			if ((float)s.radius.GetX() == 0)
+			{
+				continue;
+			}
 
 
 			Transform t;
@@ -847,6 +851,10 @@ namespace TestRenderer
 				gfxContext.DrawIndexed(m_Disc->m_Indices.size(), 0, 0);
 
 			}
+			else {
+				int a = 3;
+			}
+
 
 		}
 

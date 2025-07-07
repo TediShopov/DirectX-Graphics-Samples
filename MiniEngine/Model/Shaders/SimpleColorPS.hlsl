@@ -60,6 +60,5 @@ float4 main(PSInput input) : SV_TARGET
     float4 colorBasedOnSurfelCount = float4(redValue, 1-redValue, 0, 1);
     return colorBasedOnSurfelCount;
     
-    float4 finalColor = colorBasedOnSurfelCount;
-    return finalColor;
+    float4 finalColor = colorBasedOnSurfelCount; return finalColor;
 }
