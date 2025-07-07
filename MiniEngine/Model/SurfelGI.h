@@ -88,7 +88,7 @@ class SurfelGI
 public:
 
 	UINT _CELL_COUNT_;
-	static const int _SURFEL_MAX_COUNT_ = 1000;
+	static const int _SURFEL_MAX_COUNT_ = 10000;
 
 	//--- PIPELINE STATE OBJECTS --
 
@@ -233,5 +233,12 @@ void CopyReadbackBufferMany(GraphicsContext& gfx, ReadbackBuffer& dstReadbackBuf
 	void SetDefaultCBData();
 	void FillCPUContainers();
 	void CreateOutputTexture(ColorBuffer* ouputBuffer);
+
+
+	UINT GetVectorizedSize(UINT origSize, UINT vectorLen=4)
+	{
+		return (origSize + 3) / 4;
+	}
+
 };
 

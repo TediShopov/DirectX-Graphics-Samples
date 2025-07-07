@@ -847,7 +847,7 @@ namespace SurfelIrradianceAccumulation
 				dispatchDesc->RayGenerationShaderRecord.SizeInBytes = m_rayGenShaderTable->GetDesc().Width;
 //$				dispatchDesc->Width = Graphics::g_SceneColorBuffer.GetWidth();
 //$				dispatchDesc->Height = Graphics::g_SceneColorBuffer.GetHeight();
-				dispatchDesc->Width = 1000;
+				dispatchDesc->Width = SurfelGI::_SURFEL_MAX_COUNT_;
 				dispatchDesc->Height = 1;
 				dispatchDesc->Depth = 1;
 				commandList->SetPipelineState1(stateObject);

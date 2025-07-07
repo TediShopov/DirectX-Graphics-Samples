@@ -260,7 +260,7 @@
 
 	//CELL_COUTN_ is make multiple of 4
 	_CELL_COUNT_ = grdCells[0] * grdCells[1] * grdCells[2];
-	_CELL_COUNT_ = ((_CELL_COUNT_ + 3) / 4) * 4;
+	_CELL_COUNT_ = GetVectorizedSize(_CELL_COUNT_, 4) * 4;
 
   }
  void SurfelGI::SetDefaultCBData()
@@ -513,29 +513,31 @@ void SurfelGI::CreateOutputTexture(ColorBuffer* outputBuffer)
   void SurfelGI::FASInclusivePrefixSum(ComputeContext& gfxContext)
   {
 
-	  static UINT kmaxDim = 65535;
+	 static UINT kmaxDim = 65535;
 	const float groupX = 256.0f;
-	UINT dispatchX = std::ceil((float)_SURFEL_MAX_COUNT_ / groupX);
+	const float blockDim = 256.0f;
+	
+	//Should the dispatch count be on surlfe max count or ????
+	//UINT dispatchX = std::ceil((float)_SURFEL_MAX_COUNT_ / groupX);
+
+	UINT threadBlocks = std::ceil((float)_CELL_COUNT_ / blockDim);
+
 
 	//k_maxDim = 65535 statically set to the maximum value of unsigned 16-bit integer
 
+	//Full Block (a.k.a non-partial) can fit a full kmaxDim.
+	//If the dispatch count of thread blocks is bigger than kmaxDim.
+	//The dispatch call would look like (kmaxDim, fullBlockCount,1)
+	//where fullBlockCount = threadBlocks / kmaxDim. (Essentially, how many kmaxDim blocks can be dispatched)
 
-	//Non-partial
-	//Two parameters thread blocks and vectorizedSize (UINT32)
-
-	//full_blocks = thread_block / k_maxDim
-	//cmdList->Dispatch(k_maxDim, fullBlocks, 1);
-
-	//Partial
-    //cmdList->Dispatch(partialBlocks, 1, 1);
-
-
-	//m_PrefixSum.e_vectorizedSize = _CELL_COUNT_/4;
-
-
+	//Partial Block - when threadBlocks < kmaxFim
 	//Is Full Block is dispatchX / kmaxDim  -> 16000/65535 <  0 -> partial
-	m_PrefixSum.e_vectorizedSize = _CELL_COUNT_/4;
-	m_PrefixSum.e_threadBlocks = dispatchX;
+	const uint32_t fullBlocks = threadBlocks / kmaxDim;
+	const uint32_t partialBlocks = threadBlocks - fullBlocks * kmaxDim;
+
+
+	m_PrefixSum.e_vectorizedSize = GetVectorizedSize(_CELL_COUNT_,4);
+	m_PrefixSum.e_threadBlocks = threadBlocks;
 	m_PrefixSum.e_isPartial = 1;
 	m_PrefixSum.e_fullDispatches = 0;
 
@@ -568,7 +570,7 @@ void SurfelGI::CreateOutputTexture(ColorBuffer* outputBuffer)
 		  gfxContext.InsertUAVBarrier(m_ReductionBuffer);
 	  gfxContext.InsertUAVBarrier(m_SurfelGrid);
 		  //gfxContext.Dispatch(kmaxDim, dispatchX, 1);
-		  gfxContext.Dispatch(dispatchX, 1, 1);
+		  gfxContext.Dispatch(partialBlocks, 1, 1);
 
 	  }
 
@@ -584,7 +586,7 @@ void SurfelGI::CreateOutputTexture(ColorBuffer* outputBuffer)
 	  gfxContext.InsertUAVBarrier(m_PrefixSumInput);
 	  gfxContext.InsertUAVBarrier(m_ReductionBuffer);
 	  gfxContext.InsertUAVBarrier(m_SurfelGrid);
-		  gfxContext.Dispatch(dispatchX, 1, 1);
+		  gfxContext.Dispatch(1, 1, 1);
 	  }
 
 
@@ -596,7 +598,7 @@ void SurfelGI::CreateOutputTexture(ColorBuffer* outputBuffer)
 		  gfxContext.SetDescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV,reduceThenScanPSHeap.GetHeapPointer());
 		  gfxContext.SetDescriptorTable(1, reduceThenScanPSHeap[0]);
 		  gfxContext.InsertUAVBarrier(m_SurfelGrid);
-		  gfxContext.Dispatch(dispatchX, 1, 1);
+		  gfxContext.Dispatch(partialBlocks, 1, 1);
 	  }
 
 

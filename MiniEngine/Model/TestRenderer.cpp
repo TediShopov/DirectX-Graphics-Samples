@@ -1070,15 +1070,15 @@ namespace TestRenderer
 
 
 		//Determinese which algorithm to use to fill the acceleration structure
-		if (m_useSimpleAlgorithm)
-		{
-			SurfelIllumination->FillAccelerationStructures(cfx);
-		}
-		else
-		{
-			SurfelIllumination->FillAccelerationStructuresReduceThenScan(cfx);
-
-		}
+//		if (m_useSimpleAlgorithm)
+//		{
+//			SurfelIllumination->FillAccelerationStructures(cfx);
+//		}
+//		else
+//		{
+//
+//		}
+		SurfelIllumination->FillAccelerationStructuresReduceThenScan(cfx);
 
 
 
