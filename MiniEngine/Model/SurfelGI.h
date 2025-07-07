@@ -97,17 +97,23 @@ public:
 
 	ComputePSO m_AccelerationPassPSO = { (L"Surfel Fill Acceleration Structure Pass Compute Shader Stage") };
 	ComputePSO m_AccelerationPassSurfelCountPSO= { (L"Surfel Fill Acceleration Structure Pass 1") };
-	ComputePSO m_AccelerationPassPrefixSumPSO = { (L"Surfel Fill Acceleration Structure Pass 2") };
+
+	ComputePSO m_AccelerationPassPrefixSumReducePSO = { (L"Surfel Fill Acceleration Structure Pass 2 - Reduce ") };
+	ComputePSO m_AccelerationPassPrefixSumScanPSO = { (L"Surfel Fill Acceleration Structure Pass 2 - Scan") };
+	ComputePSO m_AccelerationPassPrefixSumInclusivePropagatePSO = { (L"Surfel Fill Acceleration Structure Pass 2 - Inclusive Propagate") };
+
 	ComputePSO m_AccelerationPassSurfelInsertionPSO = { (L"Surfel Fill Acceleration Structure Pass 3") };
 
 	ComputePSO m_RecyclingPassPSO = { (L"Surfel Recycling Pass PSO") };
 
 	//--- ROOT SIGNATURES
 	RootSignature m_SurfelGenerationRT;
+	RootSignature m_ReduceThenScanRT;
 	//RootSignature m_SurfelApplicationRT;
 
 	//--- DESCRIPTOR HEAPS ---
 	DescriptorHeap descriptorHeap;
+	DescriptorHeap reduceThenScanPSHeap;
 	DescriptorHeap nonShaderVisibleHeap;
 	DescriptorHeap uavHeap;
 
@@ -133,6 +139,22 @@ public:
 	StructuredBuffer m_SurfelGrid;
 	StructuredBuffer m_SurfelStack; //A stack holding unique surfel IDs.Used for spawning and recycling surfels.
 	StructuredBuffer m_SurfelDebug; 
+
+
+	__declspec(align(16))
+		struct  PrefixSum {
+		UINT e_vectorizedSize;
+		UINT e_threadBlocks;
+		UINT e_isPartial;
+		UINT e_fullDispatches;
+	};
+	StructuredBuffer m_ReductionBuffer; 
+
+	StructuredBuffer m_PrefixSumBuffer; 
+	StructuredBuffer m_PrefixSumInput; 
+
+	PrefixSum m_PrefixSum; 
+
 	ColorBuffer m_OutputTexture; 
 
 	SurfelDebugData m_SurfelDebugActual;
@@ -164,6 +186,11 @@ public:
 	void SendParametersGraphics(GraphicsContext& gfxContext);
 	//-FILLING ACCELERATION STRUCTURES -
 	void FillAccelerationStructures(ComputeContext& gfxContext);
+
+	//--FILLING ACCELERATIONG STRUCTURES WITH REDUCEN THEN SCAN -
+	void FillAccelerationStructuresReduceThenScan(ComputeContext& gfxContext);
+	void CopyPrefixInput(ComputeContext& gfxContext, StructuredBuffer* srcBuffer,StructuredBuffer* destBuffer);
+
 	void FASSurfelCount(ComputeContext& gfxContext);
 	void FASInclusivePrefixSum(ComputeContext& gfxContext);
 	void FASSurfelInsertion(ComputeContext& gfxContext);

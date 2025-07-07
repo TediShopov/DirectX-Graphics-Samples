@@ -158,6 +158,9 @@
     <None Include="Shaders\FillLightGridCS.hlsli" />
     <None Include="Shaders\LightGrid.hlsli" />
     <None Include="Shaders\Lighting.hlsli" />
+    <None Include="Shaders\ScanCommon.hlsl">
+      <FileType>Document</FileType>
+    </None>
     <FxCompile Include="Shaders\SurfelGenerationCS.hlsli">
       <FileType>Document</FileType>
       <DisableOptimizations Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</DisableOptimizations>
@@ -182,10 +185,16 @@
     <FxCompile Include="Shaders\SurfelFASSurfelCountCS.hlsli">
       <FileType>Document</FileType>
     </FxCompile>
-    <FxCompile Include="Shaders\SurfelFASSurfelInclusivePrefixSumCS.hlsli">
+    <FxCompile Include="Shaders\SurfelFASSurfelInsertionCS.hlsli">
       <FileType>Document</FileType>
     </FxCompile>
-    <FxCompile Include="Shaders\SurfelFASSurfelInsertionCS.hlsli">
+    <FxCompile Include="Shaders\SurfelFASSurfelInclusivePrefixSumIPCS.hlsli">
+      <FileType>Document</FileType>
+    </FxCompile>
+    <FxCompile Include="Shaders\SurfelFASSurfelInclusivePrefixSumRCS.hlsli">
+      <FileType>Document</FileType>
+    </FxCompile>
+    <FxCompile Include="Shaders\SurfelFASSurfelInclusivePrefixSumSCS.hlsli">
       <FileType>Document</FileType>
     </FxCompile>
     <None Include="Shaders\SurfelUniformGridAccelerationStructure.hlsli">

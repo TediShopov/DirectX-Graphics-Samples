@@ -122,6 +122,7 @@ namespace TestRenderer
 	bool m_stopSurfelUpdate = false;
 	bool m_prevStopSurfelUpdate = false;
 	bool m_renderOnlyCurrentCellSurfels = false;
+	bool m_useSimpleAlgorithm = true;
 	int m_debugOverlayMode = 0;
 
 
@@ -958,6 +959,13 @@ namespace TestRenderer
 		bool pressedDebugMode = GameInput::IsFirstPressed(GameInput::kKey_g);
 		bool pressedStopButton = GameInput::IsFirstPressed(GameInput::kKey_b);
 		bool pressedOnlyRelevantButton = GameInput::IsFirstPressed(GameInput::kKey_t);
+		bool pressedToggleFillAccelerationStructure = GameInput::IsFirstPressed(GameInput::kKey_z);
+
+		if (pressedToggleFillAccelerationStructure)
+		{
+			m_useSimpleAlgorithm = !m_useSimpleAlgorithm;
+
+		}
 
 		if (pressedOnlyRelevantButton)
 			m_renderOnlyCurrentCellSurfels = !m_renderOnlyCurrentCellSurfels;
@@ -1018,6 +1026,7 @@ namespace TestRenderer
 		{
 			ImGui::Checkbox("Enable Debug Overlay", &m_enableDebugOverlay);
 			ImGui::Checkbox("Stop Surfle Spawn Recycle", &m_stopSurfelUpdate);
+			ImGui::Checkbox("Fill Acceleration Structures Simple Algorithm", &m_useSimpleAlgorithm);
 			ImGui::Checkbox("Render Only Relevant Surfels", &m_renderOnlyCurrentCellSurfels);
 			ImGui::DragInt("Debug Mode", &m_debugOverlayMode);
 
@@ -1058,7 +1067,21 @@ namespace TestRenderer
 
 
 		ComputeContext& cfx = reinterpret_cast<ComputeContext&>(gfxContext);
-		SurfelIllumination->FillAccelerationStructures(cfx);
+
+
+		//Determinese which algorithm to use to fill the acceleration structure
+		if (m_useSimpleAlgorithm)
+		{
+			SurfelIllumination->FillAccelerationStructures(cfx);
+		}
+		else
+		{
+			SurfelIllumination->FillAccelerationStructuresReduceThenScan(cfx);
+
+		}
+
+
+
 
 		if(m_stopSurfelUpdate == true && m_stopSurfelUpdate != m_prevStopSurfelUpdate)
 		{

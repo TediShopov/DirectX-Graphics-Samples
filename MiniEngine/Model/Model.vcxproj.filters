@@ -247,6 +247,9 @@
     <None Include="Shaders\CommonSurfelRegisters.hlsli">
       <Filter>Shaders</Filter>
     </None>
+    <None Include="Shaders\ScanCommon.hlsl">
+      <Filter>Shaders</Filter>
+    </None>
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="Shaders\DefaultVS.hlsl">
@@ -372,13 +375,19 @@
     <FxCompile Include="Shaders\SurfelGIOnlyVS.hlsl">
       <Filter>Shaders</Filter>
     </FxCompile>
-    <FxCompile Include="Shaders\SurfelFASSurfelInclusivePrefixSumCS.hlsli">
-      <Filter>Shaders</Filter>
-    </FxCompile>
     <FxCompile Include="Shaders\SurfelFASSurfelInsertionCS.hlsli">
       <Filter>Shaders</Filter>
     </FxCompile>
     <FxCompile Include="Shaders\SurfelFASSurfelCountCS.hlsli">
+      <Filter>Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\SurfelFASSurfelInclusivePrefixSumIPCS.hlsli">
+      <Filter>Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\SurfelFASSurfelInclusivePrefixSumRCS.hlsli">
+      <Filter>Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\SurfelFASSurfelInclusivePrefixSumSCS.hlsli">
       <Filter>Shaders</Filter>
     </FxCompile>
   </ItemGroup>

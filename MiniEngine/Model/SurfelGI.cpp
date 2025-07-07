@@ -6,13 +6,19 @@
 #include "UniformGrid.h"
 #include "ColorBuffer.h"
 #include <cmath>
+#include <d3dcompiler.h>
 
 
 #include "CompiledShaders/SurfelAccelerationStructuresCS.h"
 #include "CompiledShaders/SurfelGenerationCS.h"
 #include "CompiledShaders/SurfelApplicationCS.h"
 #include "CompiledShaders/SurfelRecyclingCS.h"
-#include "CompiledShaders/SurfelFASSurfelInclusivePrefixSumCS.h"
+//Reduce step of of Reduce-Scan prefix sum
+#include "CompiledShaders/SurfelFASSurfelInclusivePrefixSumRCS.h"
+//Scan step of of Reduce-Scan prefix sum
+#include "CompiledShaders/SurfelFASSurfelInclusivePrefixSumSCS.h"
+//Inclusive Propagate step of of Reduce-Scan prefix sum
+#include "CompiledShaders/SurfelFASSurfelInclusivePrefixSumIPCS.h"
 #include "CompiledShaders/SurfelFASSurfelInsertionCS.h"
 #include "CompiledShaders/SurfelFASSurfelCountCS.h"
 
@@ -95,6 +101,18 @@
 	      m_SurfelDebug.GetUAV()
 		  }
 	  );
+
+
+	  reduceThenScanPSHeap.Create(L"Reduce Then Scan  HEAP", D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 3);
+
+	  ExtendedUtility::CopyDescriptorsToHeap(reduceThenScanPSHeap, {
+		  m_PrefixSumInput.GetUAV(),
+		  m_SurfelGrid.GetUAV(),
+		  m_ReductionBuffer.GetUAV()
+		  }
+	  );
+
+
   }
 
   void SurfelGI::InitializePSOs()
@@ -113,13 +131,23 @@
 	  m_AccelerationPassPSO.SetComputeShader(g_pSurfelAccelerationStructuresCS, sizeof(g_pSurfelAccelerationStructuresCS));
 	  m_AccelerationPassPSO.Finalize();
 
+
+
 	  m_AccelerationPassSurfelCountPSO.SetRootSignature(m_SurfelGenerationRT);
 	  m_AccelerationPassSurfelCountPSO.SetComputeShader(g_pSurfelFASSurfelCountCS, sizeof(g_pSurfelFASSurfelCountCS));
 	  m_AccelerationPassSurfelCountPSO.Finalize();
 
-	  m_AccelerationPassPrefixSumPSO.SetRootSignature(m_SurfelGenerationRT);
-	  m_AccelerationPassPrefixSumPSO.SetComputeShader(g_pSurfelFASSurfelInclusivePrefixSumCS, sizeof(g_pSurfelFASSurfelInclusivePrefixSumCS));
-	  m_AccelerationPassPrefixSumPSO.Finalize();
+	  m_AccelerationPassPrefixSumReducePSO.SetRootSignature(m_ReduceThenScanRT);
+	  m_AccelerationPassPrefixSumReducePSO.SetComputeShader(g_pSurfelFASSurfelInclusivePrefixSumRCS, sizeof(g_pSurfelFASSurfelInclusivePrefixSumRCS));
+	  m_AccelerationPassPrefixSumReducePSO.Finalize();
+
+	  m_AccelerationPassPrefixSumScanPSO.SetRootSignature(m_ReduceThenScanRT);
+	  m_AccelerationPassPrefixSumScanPSO.SetComputeShader(g_pSurfelFASSurfelInclusivePrefixSumSCS, sizeof(g_pSurfelFASSurfelInclusivePrefixSumSCS));
+	  m_AccelerationPassPrefixSumScanPSO.Finalize();
+
+	  m_AccelerationPassPrefixSumInclusivePropagatePSO.SetRootSignature(m_ReduceThenScanRT);
+	  m_AccelerationPassPrefixSumInclusivePropagatePSO.SetComputeShader(g_pSurfelFASSurfelInclusivePrefixSumIPCS, sizeof(g_pSurfelFASSurfelInclusivePrefixSumIPCS));
+	  m_AccelerationPassPrefixSumInclusivePropagatePSO.Finalize();
 
 	  m_AccelerationPassSurfelInsertionPSO.SetRootSignature(m_SurfelGenerationRT);
 	  m_AccelerationPassSurfelInsertionPSO.SetComputeShader(g_pSurfelFASSurfelInsertionCS, sizeof(g_pSurfelFASSurfelInsertionCS));
@@ -145,6 +173,12 @@
 
 	  m_SurfelGrid.Create(L"Surfel Grid Buffer", _CELL_COUNT_, sizeof(UINT));
 	  m_SurfelGridReadback.Create(L"Surfel List Readback Buffer", _CELL_COUNT_, sizeof(UINT));
+
+	  m_ReductionBuffer.Create(L"ReduceThenScan Reduction Buffer", _CELL_COUNT_, sizeof(UINT));
+
+	  m_PrefixSumInput.Create(L"ReduceThenScan Prefix Sum Input Copy", _CELL_COUNT_, sizeof(UINT));
+
+	  m_PrefixSumBuffer.Create(L"ReduceThenScan Prefix Sum Buffer", 1, sizeof(PrefixSum));
 
 	  //+1 for the stack pointer itself
 	  m_SurfelStack.Create(L"Surfel Stack", _SURFEL_MAX_COUNT_ + 2, sizeof(UINT));
@@ -196,18 +230,13 @@
 	  m_SurfelGenerationRT.Finalize(L"CS Surfel Root Signature");
 
 
-//	  //Appliacatoin Root Signature
-//
-//	  m_SurfelGenerationRT.Reset(4, 3);
-//
-//	  m_SurfelGenerationRT.InitStaticSampler(10, DefaultSamplerDesc);
-//	  m_SurfelGenerationRT.InitStaticSampler(11, Graphics::SamplerShadowDesc);
-//	  m_SurfelGenerationRT.InitStaticSampler(12, CubeMapSamplerDesc);
-//
-//	  m_SurfelGenerationRT[0].InitAsConstantBuffer(0);
-//	  m_SurfelGenerationRT[1].InitAsConstantBuffer(1);
-//	  //SRVs: Position and Normal
-//	  
+	  m_ReduceThenScanRT.Reset(2, 0);
+	  m_ReduceThenScanRT[0].InitAsConstantBuffer(0);
+	  //SRVs: Position and Normal
+	  m_ReduceThenScanRT[1].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 0, 3);
+	  m_ReduceThenScanRT.Finalize(L"CS Reduthe Then Scan Root Signature");
+
+
 	  m_SurfelGen.CurrentSurfelCount = 0;
 	  m_SurfelGen.NormalThreshold = 0.5;
 	  m_SurfelGen.ViewDistThreshold = 0.75;
@@ -228,7 +257,10 @@
 	};
 	auto grid = m_SurfelGen.UniformGrid;
 
+
+	//CELL_COUTN_ is make multiple of 4
 	_CELL_COUNT_ = grdCells[0] * grdCells[1] * grdCells[2];
+	_CELL_COUNT_ = ((_CELL_COUNT_ + 3) / 4) * 4;
 
   }
  void SurfelGI::SetDefaultCBData()
@@ -392,57 +424,205 @@ void SurfelGI::CreateOutputTexture(ColorBuffer* outputBuffer)
 	gfxContext.TransitionResource(*m_GBuffer.g_Depth, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, false);
 	gfxContext.TransitionResource(*m_GBuffer.g_Normal, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, true);
 
-	//Switch to the appropriate PSO
-	gfxContext.SetPipelineState(m_AccelerationPassPSO);
-	gfxContext.SetRootSignature(m_SurfelGenerationRT);
 
-	//Reset surfel grid buffer
-	gfxContext.WriteBuffer(m_SurfelGrid, 0, m_SurfelGridActual.data(), (_CELL_COUNT_) * sizeof(UINT));
+	gfxContext.SetRootSignature(m_SurfelGenerationRT);
+	gfxContext.SetPipelineState(m_AccelerationPassPSO);
+
 	SendParameters(gfxContext);
+	
+	gfxContext.WriteBuffer(m_SurfelGrid, 0, m_SurfelGridActual.data(), (_CELL_COUNT_) * sizeof(UINT));
+//	const float groupX = 256.0f;
+//	UINT dispatchX = std::ceil((float)_SURFEL_MAX_COUNT_ / groupX);
+	gfxContext.InsertUAVBarrier(m_SurfelGrid);
+	gfxContext.InsertUAVBarrier(m_SurfelList);
+
+	gfxContext.Dispatch(1, 1, 1);
+
+
+}
+
+  void SurfelGI::FillAccelerationStructuresReduceThenScan(ComputeContext& gfxContext)
+  {
+
+	ScopedTimer _prof(L"Disaptch Surfel Fill Acceleration Structures", gfxContext);
+
+	//Transition resources from render target to CS 
+	//NON-PIXEL SHADER RESOURCE should cover the ComputeShader stage
+	gfxContext.TransitionResource(*m_GBuffer.g_Depth, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, false);
+	gfxContext.TransitionResource(*m_GBuffer.g_Normal, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, true);
 
 	FASSurfelCount(gfxContext);
-	FASInclusivePrefixSum(gfxContext);
+	 FASInclusivePrefixSum(gfxContext);
 	FASSurfelInsertion(gfxContext);
 //	const float groupX = 256.0f;
 //	UINT dispatchX = std::ceil((float)_SURFEL_MAX_COUNT_ / groupX);
 
 //	gfxContext.Dispatch(1, 1, 1);
 
-}
+  }
+
+  void SurfelGI::CopyPrefixInput(ComputeContext& context, StructuredBuffer* srcBuffer,StructuredBuffer* destBuffer)
+  {
+	  //GraphicsContext& context = gfxContext::Begin(L"Copy Structured Buffer");
+	  ScopedTimer _prof(L"Surfel Copy Grid To Input Buffer", context);
+
+	  context.TransitionResource(*srcBuffer, D3D12_RESOURCE_STATE_COPY_SOURCE,true);
+	  context.TransitionResource(*destBuffer, D3D12_RESOURCE_STATE_COPY_DEST,true);
+
+	  // Issue the copy
+	  context.GetCommandList()->CopyBufferRegion(
+		  destBuffer->GetResource(),
+		  0,
+		  srcBuffer->GetResource(),
+		  0,
+		  srcBuffer->GetBufferSize()
+	  );
+
+	  context.TransitionResource(*srcBuffer, D3D12_RESOURCE_STATE_UNORDERED_ACCESS,true);
+	  context.TransitionResource(*destBuffer, D3D12_RESOURCE_STATE_UNORDERED_ACCESS,true);
+
+	  // Close and execute
+	  //context.Finish(true);
+  }
 
   void SurfelGI::FASSurfelCount(ComputeContext& gfxContext)
   {
 
-	ScopedTimer _prof(L"Surfel Fill Acceleration Structures : SURFEL COUNT", gfxContext);
-	gfxContext.SetPipelineState(m_AccelerationPassSurfelCountPSO);
-	const float groupX = 256.0f;
-	UINT dispatchX = std::ceil((float)_SURFEL_MAX_COUNT_ / groupX);
+	  gfxContext.InsertUAVBarrier(m_SurfelGrid);
+	  gfxContext.WriteBuffer(m_SurfelGrid, 0, m_SurfelGridActual.data(), (_CELL_COUNT_) * sizeof(UINT));
 
-	gfxContext.Dispatch(groupX, 1, 1);
-	gfxContext.InsertUAVBarrier(m_SurfelGrid);
-	gfxContext.InsertUAVBarrier(m_SurfelList);
+	  //Switch to the appropriate PSO
+	  gfxContext.SetPipelineState(m_AccelerationPassSurfelCountPSO);
+	  gfxContext.SetRootSignature(m_SurfelGenerationRT);
+
+	  //Reset surfel grid buffer
+	  SendParameters(gfxContext);
+
+
+	  ScopedTimer _prof(L"Surfel Fill Acceleration Structures : SURFEL COUNT", gfxContext);
+	  const float groupX = 256.0f;
+	  UINT dispatchX = std::ceil((float)_SURFEL_MAX_COUNT_ / groupX);
+
+	  gfxContext.InsertUAVBarrier(m_SurfelGrid);
+	  gfxContext.InsertUAVBarrier(m_SurfelList);
+
+	  gfxContext.Dispatch(groupX, 1, 1);
 
   }
 
   void SurfelGI::FASInclusivePrefixSum(ComputeContext& gfxContext)
   {
-	ScopedTimer _prof(L"Surfel Fill Acceleration Structures : SURFEL PREFIX SUM", gfxContext);
-	gfxContext.SetPipelineState(m_AccelerationPassPrefixSumPSO);
-	gfxContext.Dispatch(1, 1, 1);
-	gfxContext.InsertUAVBarrier(m_SurfelGrid);
-	gfxContext.InsertUAVBarrier(m_SurfelList);
+
+	  static UINT kmaxDim = 65535;
+	const float groupX = 256.0f;
+	UINT dispatchX = std::ceil((float)_SURFEL_MAX_COUNT_ / groupX);
+
+	//k_maxDim = 65535 statically set to the maximum value of unsigned 16-bit integer
+
+
+	//Non-partial
+	//Two parameters thread blocks and vectorizedSize (UINT32)
+
+	//full_blocks = thread_block / k_maxDim
+	//cmdList->Dispatch(k_maxDim, fullBlocks, 1);
+
+	//Partial
+    //cmdList->Dispatch(partialBlocks, 1, 1);
+
+
+	//m_PrefixSum.e_vectorizedSize = _CELL_COUNT_/4;
+
+
+	//Is Full Block is dispatchX / kmaxDim  -> 16000/65535 <  0 -> partial
+	m_PrefixSum.e_vectorizedSize = _CELL_COUNT_/4;
+	m_PrefixSum.e_threadBlocks = dispatchX;
+	m_PrefixSum.e_isPartial = 1;
+	m_PrefixSum.e_fullDispatches = 0;
+
+
+
+
+
+	CopyPrefixInput(gfxContext, &m_SurfelGrid, &m_PrefixSumInput);
+
+
+
+
+
+
+	  //A GPU multi-threaded prefix sum.
+	  //Reduce then scan approach
+
+	  {
+
+
+
+
+		  ScopedTimer _prof(L"Surfel Fill Acceleration Structures : SURFEL PREFIX SUM : REDUCE", gfxContext);
+		  gfxContext.SetPipelineState(m_AccelerationPassPrefixSumReducePSO);
+		  gfxContext.SetRootSignature(m_ReduceThenScanRT);
+		  gfxContext.SetDynamicConstantBufferView(0, sizeof(PrefixSum), &m_PrefixSum);
+		  gfxContext.SetDescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV,reduceThenScanPSHeap.GetHeapPointer());
+		  gfxContext.SetDescriptorTable(1, reduceThenScanPSHeap[0]);
+
+		  gfxContext.InsertUAVBarrier(m_ReductionBuffer);
+	  gfxContext.InsertUAVBarrier(m_SurfelGrid);
+		  //gfxContext.Dispatch(kmaxDim, dispatchX, 1);
+		  gfxContext.Dispatch(dispatchX, 1, 1);
+
+	  }
+
+
+
+	  {
+		  ScopedTimer _prof(L"Surfel Fill Acceleration Structures : SURFEL PREFIX SUM : SCAN", gfxContext);
+		  gfxContext.SetPipelineState(m_AccelerationPassPrefixSumScanPSO);
+		  gfxContext.SetRootSignature(m_ReduceThenScanRT);
+		  gfxContext.SetDynamicConstantBufferView(0, sizeof(PrefixSum), &m_PrefixSum);
+		  gfxContext.SetDescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV,reduceThenScanPSHeap.GetHeapPointer());
+		  gfxContext.SetDescriptorTable(1, reduceThenScanPSHeap[0]);
+	  gfxContext.InsertUAVBarrier(m_PrefixSumInput);
+	  gfxContext.InsertUAVBarrier(m_ReductionBuffer);
+	  gfxContext.InsertUAVBarrier(m_SurfelGrid);
+		  gfxContext.Dispatch(dispatchX, 1, 1);
+	  }
+
+
+	  {
+		  ScopedTimer _prof(L"Surfel Fill Acceleration Structures : SURFEL PREFIX SUM : PROPAGATE INCLUSIVE", gfxContext);
+		  gfxContext.SetPipelineState(m_AccelerationPassPrefixSumInclusivePropagatePSO);
+		  gfxContext.SetRootSignature(m_ReduceThenScanRT);
+		  gfxContext.SetDynamicConstantBufferView(0, sizeof(PrefixSum), &m_PrefixSum);
+		  gfxContext.SetDescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV,reduceThenScanPSHeap.GetHeapPointer());
+		  gfxContext.SetDescriptorTable(1, reduceThenScanPSHeap[0]);
+		  gfxContext.InsertUAVBarrier(m_SurfelGrid);
+		  gfxContext.Dispatch(dispatchX, 1, 1);
+	  }
+
+
+
+
+
+
 
   }
 
   void SurfelGI::FASSurfelInsertion(ComputeContext& gfxContext)
   {
-	ScopedTimer _prof(L"Surfel Fill Acceleration Structures : SURFEL INSERTION", gfxContext);
+
+	//Switch to the appropriate PSO
 	gfxContext.SetPipelineState(m_AccelerationPassSurfelInsertionPSO);
+	gfxContext.SetRootSignature(m_SurfelGenerationRT);
+
+	//Reset surfel grid buffer
+	SendParameters(gfxContext);
+	  
+	ScopedTimer _prof(L"Surfel Fill Acceleration Structures : SURFEL INSERTION", gfxContext);
 	const float groupX = 256.0f;
 	UINT dispatchX = std::ceil((float)_SURFEL_MAX_COUNT_ / groupX);
-	gfxContext.Dispatch(groupX, 1, 1);
 	gfxContext.InsertUAVBarrier(m_SurfelGrid);
 	gfxContext.InsertUAVBarrier(m_SurfelList);
+	gfxContext.Dispatch(groupX, 1, 1);
 
   }
 
