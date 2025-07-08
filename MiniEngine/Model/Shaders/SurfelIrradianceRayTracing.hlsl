@@ -89,6 +89,25 @@ struct RayPayload
 {
     float4 color;
 };
+
+float3 GetWorldNormal(float3 localNormal, float3 surfaceNormal)
+{
+    // Cartesian coordinates in tangent space
+
+    // Create orthonormal basis (TBN)
+    float3 up = abs(surfaceNormal.z) < 0.999f ? float3(0, 0, 1) : float3(1, 0, 0);
+    float3 tangent = normalize(cross(up, surfaceNormal));
+    float3 bitangent = cross(surfaceNormal, tangent);
+
+    // Transform from tangent space to world space
+    float3 worldDir =
+        tangent * localNormal.x +
+        bitangent * localNormal.y +
+        surfaceNormal * localNormal.z;
+    return worldDir;
+
+    
+}
 // Generates a direction in a hemisphere around a normal
 float3 SampleHemisphere(float2 rand, float3 normal)
 {
@@ -99,19 +118,19 @@ float3 SampleHemisphere(float2 rand, float3 normal)
 
     // Cartesian coordinates in tangent space
     float3 tangentSample = float3(cos(phi) * sinTheta, sin(phi) * sinTheta, cosTheta);
+    return normalize(GetWorldNormal(tangentSample, normal));
 
-    // Create orthonormal basis (TBN)
-    float3 up = abs(normal.z) < 0.999f ? float3(0, 0, 1) : float3(1, 0, 0);
-    float3 tangent = normalize(cross(up, normal));
-    float3 bitangent = cross(normal, tangent);
-
-    // Transform from tangent space to world space
-    float3 worldDir =
-        tangent * tangentSample.x +
-        bitangent * tangentSample.y +
-        normal * tangentSample.z;
-
-    return normalize(worldDir);
+}
+float3 CosineSampleHemisphere(float2 rand, float3 normal)
+{
+    const float r = sqrt(rand.x);
+    const float theta = 2 * M_PI * rand.y;
+ 
+    const float x = r * cos(theta);
+    const float y = r * sin(theta);
+ 
+    float3 tangentSample = float3(x, y, sqrt(max(0.0f, 1 - rand.x)));
+    return normalize(GetWorldNormal(tangentSample, normal));
 }
 
 
@@ -297,7 +316,7 @@ void MyRaygenShader()
         float2 rnd;
         rnd.x = RandomFloat01(seed);
         rnd.y = RandomFloat01(seed);
-        float3 rayDir = SampleHemisphere(rnd, surfelsUAV[globalIndex].normal);
+        float3 rayDir = CosineSampleHemisphere(rnd, surfelsUAV[globalIndex].normal);
 
         meanRayDir += rayDir;
         sumOuter += OuterProduct(rayDir, rayDir);
@@ -315,7 +334,8 @@ void MyRaygenShader()
         float3 rayHitWorldPos = payload.color;
         float3 Li = payload.color; // returned radiance
         float cosTheta = saturate(dot(rayDir, surfelsUAV[globalIndex].normal));
-        float3 radiance = Li * cosTheta * (2.0f * M_PI);
+        //float3 radiance = Li * cosTheta * (2.0f * M_PI);
+        float3 radiance = Li * M_PI;
         accumulatedIrradiance += radiance;
         
     }

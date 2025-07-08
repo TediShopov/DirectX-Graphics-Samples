@@ -83,6 +83,7 @@ void main(
     uint surfelIdTo = surfelGridUAV[flattenedIndex + 1];
 
     uint surfelCount = surfelIdTo - surfelIdFrom;
+
     //
 
      // Evaluate min coverage value and pixel position.
@@ -123,7 +124,8 @@ void main(
             if (dist2 < surfel.radius * surfel.radius)
             {
                 float3 normal = normalize(surfel.normal);
-                float dotN = dot((float3) atNormal, normal);
+                //float dotN = dot((float3) atNormal, normal);
+                float dotN = dot(normalize(bias), normal);
 
                 //If normal from GBuffer dotted with surfel normal is positive
                 //-> Is surfel facing the general direction of the reconstructed surface
