@@ -266,7 +266,7 @@ void main(
                         float calcProjArea = calcProjectArea(10, 250, fovY, gResolution.xy);
                         float varRadius = calcSurfelRadius(v, fovY, gResolution.xy, calcProjArea,100000);
 
-                        newSurfel.position = float4(worldPos, 1);
+                        newSurfel.position = float4(worldPos, 1) + atNormal * 1.0f;
                         newSurfel.normal = atNormal;
                         newSurfel.radius = varRadius;
                         //newSurfel.padding = float3(0, 0, 0);

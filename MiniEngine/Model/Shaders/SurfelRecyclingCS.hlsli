@@ -46,8 +46,8 @@ void main(
     
 
     //if (rays > raysThreshold && (framesSinceUsed ) > 300 && chance < hSurfelCount) 
-    //if (rays > raysThreshold && (framesSinceUsed ) > 60 && chance < hSurfelCount)
-    if ((framesSinceUsed ) > 60 && chance < hSurfelCount)
+    if (rays > raysThreshold && (framesSinceUsed ) > 60 && chance < hSurfelCount)
+    //if ((framesSinceUsed ) > 3000 && chance < hSurfelCount)
     //if (FrameIndex % 60 == 0)
     {
         //Recycle the surfle the surfel

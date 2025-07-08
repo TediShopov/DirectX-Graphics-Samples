@@ -21,6 +21,7 @@
 #include "SurfelGI.h"
 #include "HashGridVisualization.h"
 #include "SurfelGIOnlyVisualization.h"
+#include <sstream>
 
 
 //Imgui 
@@ -687,6 +688,30 @@ namespace TestRenderer
 		return XMQuaternionRotationAxis(axis, angle);
 	}
 
+
+	void GetRelevantSurfels( UINT& from, UINT& to )
+	{
+		UniformGrid grid = SurfelIllumination->m_SurfelGen.UniformGrid;
+		SurfelDebugData data = SurfelIllumination->m_SurfelDebugActual;
+
+		UINT gridDimX =
+			grid.dimensions.GetX() / grid.cellSize.GetX();
+		UINT gridDimY=
+			grid.dimensions.GetY() / grid.cellSize.GetY();
+
+		UINT gridDimZ =
+			grid.dimensions.GetZ() / grid.cellSize.GetZ();
+
+		UINT linearIndex = data.PointedCellX  +
+           data.PointedCellY * gridDimX   +
+           data.PointedCellZ * gridDimX * gridDimY;
+
+
+		 from = SurfelIllumination->m_SurfelGridActual[linearIndex];
+		 to = SurfelIllumination->m_SurfelGridActual[linearIndex+1];
+
+	}
+
 	void RenderRelevantSurfels(RENDER_OBJECT_INSTANCE_PARAMS)
 	{
 
@@ -718,7 +743,12 @@ namespace TestRenderer
 		gfxContext.SetVertexBuffer(0, m_Disc->m_VertexBufferView);
 
 
-		UniformGrid grid = SurfelIllumination->m_SurfelGen.UniformGrid;
+
+//		UINT surfelListIndexFrom ;
+//		UINT surfelListIndexTo ;
+//		GetRelevantSurfels(surfelListIndexFrom, surfelListIndexTo);
+
+			UniformGrid grid = SurfelIllumination->m_SurfelGen.UniformGrid;
 		SurfelDebugData data = SurfelIllumination->m_SurfelDebugActual;
 
 		UINT gridDimX =
@@ -825,7 +855,7 @@ namespace TestRenderer
 
 
 			Transform t;
-			Vector4 extrudedPossition = s.position + (s.normal * 1.0f);
+			Vector4 extrudedPossition = s.position ;
 
 
 
@@ -1040,6 +1070,29 @@ namespace TestRenderer
 
 		}
 
+		std::stringstream ss;
+		int testa = 3;
+		UINT from, to;
+		GetRelevantSurfels(from, to);
+		SurfelDebugData dd = SurfelIllumination->m_SurfelDebugActual;
+		ss << "Surfel In Pointed Cell: " << dd.PointedCellX << " " << dd.PointedCellY << " " << dd.PointedCellZ;
+		ss << "\n";
+
+		for (size_t i = from; i < to; i++)
+		{
+			UINT surfelIndex = SurfelIllumination->m_SurfelListActual[i];
+			SurfelData s = SurfelIllumination->m_SurfelDataArray[surfelIndex];
+			ss << "	S ID:	" << surfelIndex << "	POS:" << s.position.GetX() << "," << s.position.GetY() << "," << s.position.GetZ() << ",";
+			ss << "\n";
+
+
+
+
+		}
+
+
+		ImGui::Text(ss.str().c_str());
+
 
 
 
@@ -1086,6 +1139,7 @@ namespace TestRenderer
 //		{
 //
 //		}
+			//SurfelIllumination->FillAccelerationStructures(cfx);
 		SurfelIllumination->FillAccelerationStructuresReduceThenScan(cfx);
 
 

@@ -653,6 +653,10 @@ void SurfelGI::CreateOutputTexture(ColorBuffer* outputBuffer)
   {
 	  gfx.TransitionResource(m_SurfelGrid, D3D12_RESOURCE_STATE_COPY_SOURCE);
 	  gfx.TransitionResource(m_SurfelList, D3D12_RESOURCE_STATE_COPY_SOURCE);
+
+	  gfx.InsertUAVBarrier(m_SurfelGrid);
+	  gfx.InsertUAVBarrier(m_SurfelList);
+
 	  CopyReadbackBufferMany<UINT>(gfx, m_SurfelListReadback, m_SurfelList, m_SurfelListActual, _CELL_COUNT_);
 	  CopyReadbackBufferMany<UINT>(gfx, m_SurfelGridReadback, m_SurfelGrid, m_SurfelGridActual, _CELL_COUNT_);
 	  for (size_t i = 0; i < m_SurfelGridActual.size(); i++)
@@ -664,7 +668,8 @@ void SurfelGI::CreateOutputTexture(ColorBuffer* outputBuffer)
 
 	  }
 
-	  //gfx.TransitionResource(m_SurfelGrid, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+	  gfx.TransitionResource(m_SurfelGrid, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+	  gfx.TransitionResource(m_SurfelList, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
   }
 
   void SurfelGI::ApplySurfels(ComputeContext& gfxContext,const Camera& camera)

@@ -325,6 +325,7 @@ void MyRaygenShader()
     // Trace the ray.
         RayDesc ray;
         ray.Origin = surfelsUAV[globalIndex].position;
+
         ray.Direction = rayDir;
         ray.TMin = 0.001;
         ray.TMax = 10000.0;
