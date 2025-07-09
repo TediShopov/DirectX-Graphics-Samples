@@ -246,7 +246,9 @@
 	  m_SurfelGen.MaxSurfels = _SURFEL_MAX_COUNT_;
 	  m_SurfelGen.CurrentSurfelCount = 0;
 	  m_SurfelGen.NormalThreshold = 0.5;
-	  m_SurfelGen.kPerCellSurfelLimit = 50;
+	  m_SurfelGen.kPerCellSurfelLimit = 35;
+	  m_SurfelGen.minRadius = 30;
+	  m_SurfelGen.maxRadius = 90;
 
 	  m_SurfelGen.UniformGrid.cellSize = Vector4(100, 100, 100, 100);
 	  m_SurfelGen.UniformGrid.gridOrigin = Vector4(-2000, -2000, -2000, -2000);

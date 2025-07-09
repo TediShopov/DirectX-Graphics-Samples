@@ -71,7 +71,7 @@ __declspec(align(16)) struct SurfelData
 		UINT   FrameIndex;
 		float  DepthThreshold;
 		float  NormalThreshold;
-		float  ViewDistThreshold;
+		float  minRadius;
 
 		UINT   MaxSurfels;
 		// Makes sure the struct after is properly aligned
@@ -82,7 +82,8 @@ __declspec(align(16)) struct SurfelData
 		int gRemovalThreshold = 0;
 		float gChancePower = 1.1;
 		float gChanceMultiply = 15;
-		float padding;
+
+		float maxRadius;
 
 		UniformGrid UniformGrid;
 	};

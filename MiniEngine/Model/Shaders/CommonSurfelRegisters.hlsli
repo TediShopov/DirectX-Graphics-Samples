@@ -9,7 +9,7 @@ cbuffer SurfelGenCB : register(b0)
     uint   FrameIndex;
     float  DepthThreshold;
     float  NormalThreshold;
-    float  ViewDistThreshold;
+    float  minRadius;
 
     uint   MaxSurfels;
     int   CurrentSurfelCount;
@@ -19,8 +19,8 @@ cbuffer SurfelGenCB : register(b0)
     int gRemovalThreshold = 0;
     float gChancePower = 1.1;
     float gChanceMultiply = 15;
-    float padding;
 
+    float maxRadius;
     
     
     

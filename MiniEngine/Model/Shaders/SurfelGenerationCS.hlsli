@@ -264,7 +264,7 @@ void main(
                         //float v = 1 - depthRaw;
                         float v = linearDepth;
                         float calcProjArea = calcProjectArea(10, 250, fovY, gResolution.xy);
-                        float varRadius = calcSurfelRadius(v, fovY, gResolution.xy, calcProjArea,100000);
+                        float varRadius = clamp(calcSurfelRadius(v, fovY, gResolution.xy, calcProjArea, 100000),minRadius,maxRadius);
 
                         newSurfel.position = float4(worldPos, 1) + atNormal * 1.0f;
                         newSurfel.normal = atNormal;
