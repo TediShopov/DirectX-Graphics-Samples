@@ -165,6 +165,7 @@
 	  m_ProjectoinBuffer.Create(L"Projectoin Data Buffer", 1, sizeof(ProjectionResources), &m_ProjectionData);
 	  m_SufelSettingBuffer.Create(L"Surfel Gen CBV", 1, sizeof(SurfelGenCB), &m_SurfelGen);
 	  //SURFEL SIZE STATIC BUFFER NUMB
+	  size_t sizeOfSurfel = sizeof(SurfelData);
 	  m_SurfelData.Create(L"Surfel Data Buffer", _SURFEL_MAX_COUNT_, sizeof(SurfelData));
 	  m_SurfelDataReadback.Create(L"Surfel Data Readback Buffer", _SURFEL_MAX_COUNT_, sizeof(SurfelData));
 
@@ -328,7 +329,23 @@ void SurfelGI::FillCPUContainers()
 //		m_SurfelDataArray[i].covarianceRow0 = XMFLOAT4(1,0,0,0);
 //		m_SurfelDataArray[i].covarianceRow1 = XMFLOAT4(0,2,0,0);
 //		m_SurfelDataArray[i].covarianceRow2 = XMFLOAT4(0,0,3,0);
-		m_SurfelDataArray[i].mean = Math::Vector4(0,1,2,3);
+		m_SurfelDataArray[i].meanOne = Math::Vector4(0,1,2,3);
+
+		m_SurfelDataArray[i].mean = Math::Vector4(0, 0, 0, 0);
+//		m_SurfelDataArray[i].shortMean = Math::Vector3(0, 0, 0);
+//		m_SurfelDataArray[i].variance = Math::Vector3(1e-4,1e-4,1e-4);
+//		m_SurfelDataArray[i].inconsistency = 0;
+//		m_SurfelDataArray[i].vbbr = 1;
+
+//		MSME msme;
+//		msme.mean = Math::Vector4(0, 0, 0, 0);
+//		msme.shortMean = Math::Vector3(0, 0, 0);
+//		msme.variance = Math::Vector3(1e-4,1e-4,1e-4);
+//		msme.inconsistency = 0;
+//		msme.vbbr = 1;
+//
+//		m_SurfelDataArray[i].msme = msme;
+
 	}
 
 	//Fill the surfle stack buffer

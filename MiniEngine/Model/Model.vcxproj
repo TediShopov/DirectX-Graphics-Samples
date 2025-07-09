@@ -98,6 +98,9 @@
     <ClInclude Include="SurfelGIOnlyVisualization.h" />
     <ClInclude Include="SurfelIrradianceAccumulation.h" />
     <ClInclude Include="UniformGrid.h" />
+    <None Include="Shaders\MultiscaleMeanEstimator.hlsl">
+      <FileType>Document</FileType>
+    </None>
     <FxCompile Include="Shaders\RaytracingHlslCompat.h">
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Library</ShaderType>
       <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">6.3</ShaderModel>

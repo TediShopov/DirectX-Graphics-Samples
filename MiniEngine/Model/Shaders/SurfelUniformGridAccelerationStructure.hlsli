@@ -1,4 +1,6 @@
 
+#include "MultiscaleMeanEstimator.hlsl"
+
 struct SurfelData
 {
     float4 position;
@@ -9,20 +11,13 @@ struct SurfelData
     uint2 pixelPos;
     float4 randomValues;
 
-
     float4 color;
     uint4 raySamples; 
 
     float4 mean;
-//    uint contribution;
-//    uint frameLastUsed;
-//    uint2 contributionPadding;
     uint4 contribution;
-//    float4 co1;
-//    float4 co2;
-//    float4 co3;
-    //float3x3 covariance;
 
+    MultiscaleMeanEstimatorData msme;
 };
 struct UniformGrid
 {

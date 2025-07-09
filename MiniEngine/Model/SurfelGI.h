@@ -20,16 +20,30 @@
 using namespace DirectX;
 using namespace Math;
 
+__declspec(align(16)) struct MSME
+{
+  Vector4 mean;
+
+  Vector3 shortMean;
+  float vbbr;
+
+  Vector3 variance;
+  float inconsistency;
+
+};
 
 __declspec(align(16)) struct SurfelData
 {
 	Vector4 position;
 	Vector4 normal;
 	Vector4 radius;
+
 	UINT tilePosX;
 	UINT tilePosY;
 	UINT pixelPosX;
 	UINT pixelPosY;
+	
+
 	Vector4 randomFloats;
 	Vector4 color;
 
@@ -38,20 +52,18 @@ __declspec(align(16)) struct SurfelData
 	UINT pad2;
 	UINT pad3;
 
-	Vector4 mean;
+	Vector4 meanOne;
+	//16
+
 	UINT contribution0;
 	UINT contribution1;
 	UINT contribution2;
 	UINT contribution3;
-	 //DirectX::XMFLOAT4 mean;           
-//    DirectX::XMFLOAT4 covarianceRow0;  // 16 bytes
-//	DirectX::XMFLOAT4 covarianceRow1;  // 16 bytes
-//    DirectX::XMFLOAT4 covarianceRow2;  // 16 bytes
 
-//    DirectX::XMFLOAT3 covarianceRow0; float pad4; // 16 bytes
-//    DirectX::XMFLOAT3 covarianceRow1; float pad5; // 16 bytes
-//    DirectX::XMFLOAT3 covarianceRow2; float pad6; // 16 bytes
-
+	Vector4 mean;
+	Vector4 shortMeanAndVBBR;
+	Vector4 varianceAndInconsistency;
+	//16
 
 };
 	__declspec(align(16)) struct SurfelGenCB

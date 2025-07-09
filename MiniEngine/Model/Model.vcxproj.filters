@@ -250,6 +250,9 @@
     <None Include="Shaders\ScanCommon.hlsl">
       <Filter>Shaders</Filter>
     </None>
+    <None Include="Shaders\MultiscaleMeanEstimator.hlsl">
+      <Filter>Shaders</Filter>
+    </None>
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="Shaders\DefaultVS.hlsl">
