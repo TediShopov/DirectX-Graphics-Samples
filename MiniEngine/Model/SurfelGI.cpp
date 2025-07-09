@@ -238,44 +238,18 @@
 	  m_ReduceThenScanRT.Finalize(L"CS Reduthe Then Scan Root Signature");
 
 
-	  m_SurfelGen.CurrentSurfelCount = 0;
-	  m_SurfelGen.NormalThreshold = 0.5;
-	  m_SurfelGen.ViewDistThreshold = 0.75;
-	  m_SurfelGen.kPerCellSurfelLimit = 20;
-	  m_SurfelGen.gPlacementThreshold = 2;
-	  m_SurfelGen.gRemovalThreshold = 0;
-	  m_SurfelGen.gChancePower = 1.1;
-	  m_SurfelGen.gChanceMultiply = 15;
-	  m_SurfelGen.UniformGrid.cellSize = Vector4(100, 100, 100, 100);
-	  m_SurfelGen.UniformGrid.gridOrigin = Vector4(-2000, -2000, -2000, -2000);
-	  //m_SurfelGen.UniformGrid.dimensions = Vector4(+2000, +2000, +2000, +2000);
-	  m_SurfelGen.UniformGrid.dimensions = Vector4(4000,4000,4000,4000);
-
-	UINT grdCells[3] = {
-		m_SurfelGen.UniformGrid.dimensions.GetX() / m_SurfelGen.UniformGrid.cellSize.GetX(),
-		m_SurfelGen.UniformGrid.dimensions.GetY() / m_SurfelGen.UniformGrid.cellSize.GetY(),
-		m_SurfelGen.UniformGrid.dimensions.GetZ() / m_SurfelGen.UniformGrid.cellSize.GetZ()
-	};
-	auto grid = m_SurfelGen.UniformGrid;
-
-
-	//CELL_COUTN_ is make multiple of 4
-	_CELL_COUNT_ = grdCells[0] * grdCells[1] * grdCells[2];
-	_CELL_COUNT_ = GetVectorizedSize(_CELL_COUNT_, 4) * 4;
-
   }
  void SurfelGI::SetDefaultCBData()
   {
 	  m_SurfelGen.DepthThreshold = 0.1;
 	  m_SurfelGen.FrameIndex = 0;
-	  m_SurfelGen.MaxSurfels = 1000;
+	  m_SurfelGen.MaxSurfels = _SURFEL_MAX_COUNT_;
 	  m_SurfelGen.CurrentSurfelCount = 0;
 	  m_SurfelGen.NormalThreshold = 0.5;
-	  m_SurfelGen.ViewDistThreshold = 0.75;
+	  m_SurfelGen.kPerCellSurfelLimit = 50;
 
 	  m_SurfelGen.UniformGrid.cellSize = Vector4(100, 100, 100, 100);
 	  m_SurfelGen.UniformGrid.gridOrigin = Vector4(-2000, -2000, -2000, -2000);
-	  //m_SurfelGen.UniformGrid.dimensions = Vector4(+2000, +2000, +2000, +2000);
 	  m_SurfelGen.UniformGrid.dimensions = Vector4(4000,4000,4000,4000);
 
 	UINT grdCells[3] = {
@@ -286,6 +260,7 @@
 	auto grid = m_SurfelGen.UniformGrid;
 
 	_CELL_COUNT_ = grdCells[0] * grdCells[1] * grdCells[2];
+	_CELL_COUNT_ = GetVectorizedSize(_CELL_COUNT_, 4) * 4;
 
   }
 
@@ -315,7 +290,7 @@ void SurfelGI::FillCPUContainers()
 	for (int i = 0; i < _SURFEL_MAX_COUNT_; ++i) {
 		m_SurfelDataArray[i].position =
 			Math::Vector4(float(i) * m_SurfelGen.UniformGrid.cellSize.GetX(), 0.0f, 0.0f, 1.0f);
-		m_SurfelDataArray[i].radius = Math::Vector4(0.5f, 0.5f, 0.5f, 0.5f);
+		m_SurfelDataArray[i].radius = Math::Vector4(0,0,0,0);
 		m_SurfelDataArray[i].normal = Math::Vector4(0.0f, 1.0f, 0.0f, 1.0f);
 		m_SurfelDataArray[i].pixelPosX = 0;
 		m_SurfelDataArray[i].pixelPosY = 0;
@@ -326,26 +301,8 @@ void SurfelGI::FillCPUContainers()
 		m_SurfelDataArray[i].contribution1= 0;
 		m_SurfelDataArray[i].contribution3 = 0;
 		m_SurfelDataArray[i].contribution2 = 0;
-//		m_SurfelDataArray[i].covarianceRow0 = XMFLOAT4(1,0,0,0);
-//		m_SurfelDataArray[i].covarianceRow1 = XMFLOAT4(0,2,0,0);
-//		m_SurfelDataArray[i].covarianceRow2 = XMFLOAT4(0,0,3,0);
-		m_SurfelDataArray[i].meanOne = Math::Vector4(0,1,2,3);
-
+		m_SurfelDataArray[i].meanOne = Math::Vector4(0,0,0,0);
 		m_SurfelDataArray[i].mean = Math::Vector4(0, 0, 0, 0);
-//		m_SurfelDataArray[i].shortMean = Math::Vector3(0, 0, 0);
-//		m_SurfelDataArray[i].variance = Math::Vector3(1e-4,1e-4,1e-4);
-//		m_SurfelDataArray[i].inconsistency = 0;
-//		m_SurfelDataArray[i].vbbr = 1;
-
-//		MSME msme;
-//		msme.mean = Math::Vector4(0, 0, 0, 0);
-//		msme.shortMean = Math::Vector3(0, 0, 0);
-//		msme.variance = Math::Vector3(1e-4,1e-4,1e-4);
-//		msme.inconsistency = 0;
-//		msme.vbbr = 1;
-//
-//		m_SurfelDataArray[i].msme = msme;
-
 	}
 
 	//Fill the surfle stack buffer

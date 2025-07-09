@@ -301,7 +301,15 @@ void MyRaygenShader()
     float3 accumulatedIrradiance = float3(0, 0, 0);
     float3 meanRayDir = float3(0, 0, 0);
     float3x3 sumOuter = 0;
-    float N = surfelsUAV[globalIndex].raySamples.x;
+
+    float variance = surfelsUAV[globalIndex].msme.vbbr;
+    float minRays = 1;
+    float maxRays = 30;
+    float N = lerp(minRays, maxRays, variance);
+    surfelsUAV[globalIndex].raySamples.x = N;
+    
+    
+    //float N = surfelsUAV[globalIndex].raySamples.x;
 
     //TODO debug view of ray dispatch data
     rayDispatchUUAV[0] = 1;

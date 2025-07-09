@@ -42,11 +42,16 @@ void main(
     //Surfel coverage - measures local density. If too high surfels are candidates for recycling
     //Surfe Count Pressure - global cap on surfel count. When near limit recycling should be more aggressive
     //Probabilistc recycling
+
+    float irradianceLenght = length(surfelsUAV[surfelID].color);
+    
+    
     
     
 
     //if (rays > raysThreshold && (framesSinceUsed ) > 300 && chance < hSurfelCount) 
-    if (rays > raysThreshold && (framesSinceUsed ) > 60 && chance < hSurfelCount)
+    //if (rays > raysThreshold && (framesSinceUsed ) > 60 && chance < hSurfelCount)
+    if (irradianceLenght<=0.3f && rays > raysThreshold && (framesSinceUsed ) > 60 && chance < hSurfelCount)
     //if ((framesSinceUsed ) > 3000 && chance < hSurfelCount)
     //if (FrameIndex % 60 == 0)
     {
