@@ -19,6 +19,7 @@ namespace Math
 }
 class SurfelGI;
 class HashGridVisualization;
+class MSMEVisualization;
 class SurfelGIOnlyVisualization;
 using namespace Math;
 
@@ -37,6 +38,7 @@ namespace TestRenderer
 
 	extern SurfelGI* SurfelIllumination;
 	extern HashGridVisualization* GridVisualization;
+	extern MSMEVisualization* GridMSMEVisualization;
 	extern SurfelGIOnlyVisualization* SurfelGIVisualization;
 
 	extern SphereMesh* m_Sphere;

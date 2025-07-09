@@ -110,6 +110,7 @@
       <Filter>Imgui</Filter>
     </ClCompile>
     <ClCompile Include="SurfelGIOnlyVisualization.cpp" />
+    <ClCompile Include="MSMEVisualization.cpp" />
   </ItemGroup>
   <ItemGroup>
     <Filter Include="Source Files">
@@ -223,6 +224,7 @@
       <Filter>Imgui</Filter>
     </ClInclude>
     <ClInclude Include="SurfelGIOnlyVisualization.h" />
+    <ClInclude Include="MSMEVisualization.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="Shaders\Common.hlsli">
@@ -391,6 +393,9 @@
       <Filter>Shaders</Filter>
     </FxCompile>
     <FxCompile Include="Shaders\SurfelFASSurfelInclusivePrefixSumSCS.hlsli">
+      <Filter>Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\MSMEDebugOverlayPS.hlsl">
       <Filter>Shaders</Filter>
     </FxCompile>
   </ItemGroup>

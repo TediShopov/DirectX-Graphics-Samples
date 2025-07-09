@@ -72,7 +72,7 @@ void Setup(GBufferPtrs gbuffer,ColorBuffer* rayTracingOutColor);
 
 
 protected:
-	void InitializePSO( DXGI_FORMAT formats[2], DXGI_FORMAT depthFormat);
+	virtual void InitializePSO( DXGI_FORMAT formats[2], DXGI_FORMAT depthFormat);
 	void InitializeRootSignature();
 
 	void InitializeDescriptorHeap(ColorBuffer* rayTracingOutColor);

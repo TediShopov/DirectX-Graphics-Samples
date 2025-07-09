@@ -20,6 +20,7 @@
 
 #include "SurfelGI.h"
 #include "HashGridVisualization.h"
+#include "MSMEVisualization.h"
 #include "SurfelGIOnlyVisualization.h"
 #include <sstream>
 
@@ -128,8 +129,9 @@ namespace TestRenderer
 
 
 	SurfelGI* TestRenderer::SurfelIllumination = new SurfelGI();  // Definition (allocates storage)
-	HashGridVisualization* TestRenderer::GridVisualization = new HashGridVisualization();  // Definition (allocates storage)
-	SurfelGIOnlyVisualization* TestRenderer::SurfelGIVisualization = new SurfelGIOnlyVisualization();  // Definition (allocates storage)
+	HashGridVisualization* TestRenderer::GridVisualization = new HashGridVisualization();  
+	MSMEVisualization* TestRenderer::GridMSMEVisualization = new MSMEVisualization();  
+	SurfelGIOnlyVisualization* TestRenderer::SurfelGIVisualization = new SurfelGIOnlyVisualization();  
 	UINT TestRenderer::frameIndex = 0;
 
 	SphereMesh* TestRenderer::m_Sphere = nullptr;
@@ -430,6 +432,10 @@ namespace TestRenderer
 
 
 		GridVisualization->Setup(
+			gbuffer,
+			&TestRaytracing::GetOutputBuffer()
+		);
+		GridMSMEVisualization->Setup(
 			gbuffer,
 			&TestRaytracing::GetOutputBuffer()
 		);
@@ -1012,7 +1018,11 @@ namespace TestRenderer
 
 		if (pressedDebugMode)
 		{
-			m_debugOverlayMode = !((bool)m_debugOverlayMode);
+			m_debugOverlayMode++;
+			if (m_debugOverlayMode > 2)
+				m_debugOverlayMode = 0;
+			
+			//m_debugOverlayMode = !((bool)m_debugOverlayMode);
 
 		}
 
@@ -1365,14 +1375,19 @@ namespace TestRenderer
 							SurfelGIVisualization->SetupRenderStage(gfxContext, viewport, scissor,
 								SurfelIllumination->m_OutputTexture,
 								camera);
-
-
 							gfxContext.InsertUAVBarrier(SurfelIllumination->m_SurfelGrid);
-
 							SurfelGIVisualization->SetRootParameters(gfxContext, SurfelIllumination->m_OutputTexture);
-
-
-
+							RenderFullScreenQuad(gfxContext);
+						}
+						else if (m_debugOverlayMode == 2)
+						{
+							ScopedTimer _prof3(L"Surfel MSME Debug Overlay", gfxContext);
+							GridMSMEVisualization->SetupRenderStage(gfxContext, viewport, scissor,
+								TestRaytracing::GetOutputBuffer(),
+								camera);
+							SurfelIllumination->UpdateProjection(camera);
+							SurfelIllumination->SendParametersGraphics(gfxContext);
+							gfxContext.InsertUAVBarrier(SurfelIllumination->m_SurfelGrid);
 							RenderFullScreenQuad(gfxContext);
 
 						}

@@ -93,6 +93,7 @@
     <ClInclude Include="Model.h" />
     <ClInclude Include="ModelLoader.h" />
     <ClInclude Include="ModelH3D.h" />
+    <ClInclude Include="MSMEVisualization.h" />
     <ClInclude Include="ParticleEffects.h" />
     <ClInclude Include="Renderer.h" />
     <ClInclude Include="SurfelGIOnlyVisualization.h" />
@@ -101,6 +102,9 @@
     <None Include="Shaders\MultiscaleMeanEstimator.hlsl">
       <FileType>Document</FileType>
     </None>
+    <FxCompile Include="Shaders\MSMEDebugOverlayPS.hlsl">
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Pixel</ShaderType>
+    </FxCompile>
     <FxCompile Include="Shaders\RaytracingHlslCompat.h">
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Library</ShaderType>
       <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">6.3</ShaderModel>
@@ -142,6 +146,7 @@
     <ClCompile Include="ModelConvert.cpp" />
     <ClCompile Include="ModelH3D.cpp" />
     <ClCompile Include="ModelLoader.cpp" />
+    <ClCompile Include="MSMEVisualization.cpp" />
     <ClCompile Include="ParticleEffects.cpp" />
     <ClCompile Include="Renderer.cpp" />
     <ClCompile Include="SponzaRenderer.cpp" />
