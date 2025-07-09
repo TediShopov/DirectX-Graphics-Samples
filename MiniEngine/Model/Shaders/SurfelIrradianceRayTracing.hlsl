@@ -340,36 +340,28 @@ void MyRaygenShader()
         accumulatedIrradiance += radiance;
         
     }
-
-    
-     
-    
     meanRayDir /= N;
-    //float3x3 cov = sumOuter / N - OuterProduct(meanRayDir, meanRayDir);
-    //float3x3 inverseCov = InverseMatrix3x3(cov);
-    //
     surfelsUAV[globalIndex].mean = float4(meanRayDir, 0);
+    accumulatedIrradiance /= surfelsUAV[globalIndex].raySamples.x;
 
-    //Extract the rows from the covariance matrix
-    //surfelsUAV[globalIndex].co1 = float4(inverseCov._m00_m01_m02, 0);
-    //surfelsUAV[globalIndex].co2 = float4(inverseCov._m10_m11_m12, 0);
-    //surfelsUAV[globalIndex].co3 = float4(inverseCov._m20_m21_m22, 0);
-
-
-   //Average
-   accumulatedIrradiance /= surfelsUAV[globalIndex].raySamples.x;
-    //Integrate
-
-    //uint frameOffset = frameIndex - surfelsUAV[globalIndex].padding.x;
-    uint rayOffset =   surfelsUAV[globalIndex].raySamples.y*10;
-    float alpha = saturate(0.1f / (1.0f + rayOffset * 0.01));
-    surfelsUAV[globalIndex].color = lerp(surfelsUAV[globalIndex].color, float4(accumulatedIrradiance, 1), alpha);
-
-    
-    
-    
-    
     InterlockedAdd(surfelsUAV[globalIndex].raySamples.y, surfelsUAV[globalIndex].raySamples.x);
+
+    //First time irradiance is accumulated
+    if( surfelsUAV[globalIndex].raySamples.y <= surfelsUAV[globalIndex].raySamples.x)
+    {
+        surfelsUAV[globalIndex].msme.mean = float4(accumulatedIrradiance, 1);
+        surfelsUAV[globalIndex].msme.shortMean = accumulatedIrradiance;
+    }
+    else
+    {
+        surfelsUAV[globalIndex].color = float4(MultiscaleMeanEstimator(accumulatedIrradiance, surfelsUAV[globalIndex].msme, 0.08), 1);
+    }
+
+
+    
+    
+    
+    
 
 
 
