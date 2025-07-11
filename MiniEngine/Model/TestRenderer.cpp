@@ -332,6 +332,10 @@ UINT TestRenderer::frameIndex = 0;
 		InitSphereModel();
 
 		OBJModel.Load(L"D:/MScSurfelBasedGI/DirectX-Graphics-Samples/MiniEngine/Model/OBJ/Bunny.obj");
+		OBJModel.CreateModelData();
+
+
+
 
 		m_Disc = new DiscMesh(10);
 

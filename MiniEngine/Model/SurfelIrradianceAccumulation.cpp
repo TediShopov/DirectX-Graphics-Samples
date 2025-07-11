@@ -752,8 +752,7 @@ namespace SurfelIrradianceAccumulation
 			materialTemp.specularStrength = mat.specularStrength;
 			materialTemp.padding = 5;
 
-			m_perInstanceMaterial[i].Create(L"PerInstance CB", 1, sizeof(PerInstanceCB), &materialTemp);
-		}
+			m_perInstanceMaterial[i].Create(L"PerInstance CB", 1, sizeof(PerInstanceCB), &materialTemp); }
 	}
 
 

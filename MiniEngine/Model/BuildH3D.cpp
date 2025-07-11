@@ -19,8 +19,7 @@ bool FileExists( const std::wstring& fileName )
 
 bool ModelH3D::BuildModel(ModelData& model, const std::wstring& basePath) const
 {
-    model.m_SceneGraph.resize(1);
-
+    model.m_SceneGraph.resize(1); 
     GraphNode& node = model.m_SceneGraph[0];
     node.xform = Matrix4(kIdentity);
     node.rotation = Quaternion(kIdentity);
