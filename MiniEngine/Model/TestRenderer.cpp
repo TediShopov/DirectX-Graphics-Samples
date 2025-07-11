@@ -62,14 +62,12 @@ using namespace Graphics;
 using namespace std;
 //using namespace DX;
 
-namespace TestRenderer
-{
 	//--- DATA ---
 #pragma region DATA
 
 #pragma region			ImGuiDecriptor
 
-	struct ExampleDescriptorHeapAllocator
+struct ExampleDescriptorHeapAllocator
 	{
 		ID3D12DescriptorHeap* Heap = nullptr;
 		D3D12_DESCRIPTOR_HEAP_TYPE  HeapType = D3D12_DESCRIPTOR_HEAP_TYPE_NUM_TYPES;
@@ -113,71 +111,74 @@ namespace TestRenderer
 		}
 	};
 
-	static ID3D12DescriptorHeap* g_pd3dSrvDescHeap = nullptr;
-	ExampleDescriptorHeapAllocator	g_pd3dSrvDescHeapAlloc;
+static ID3D12DescriptorHeap* g_pd3dSrvDescHeap = nullptr;
+ExampleDescriptorHeapAllocator	g_pd3dSrvDescHeapAlloc;
 
 #pragma endregion
 
 
 
-	bool m_enableDebugOverlay = true;
-	bool m_stopSurfelUpdate = false;
-	bool m_prevStopSurfelUpdate = false;
-	bool m_renderOnlyCurrentCellSurfels = false;
-	bool m_useSimpleAlgorithm = true;
-	int m_debugOverlayMode = 0;
 
 
-	SurfelGI* TestRenderer::SurfelIllumination = new SurfelGI();  // Definition (allocates storage)
-	HashGridVisualization* TestRenderer::GridVisualization = new HashGridVisualization();  
-	MSMEVisualization* TestRenderer::GridMSMEVisualization = new MSMEVisualization();  
-	SurfelGIOnlyVisualization* TestRenderer::SurfelGIVisualization = new SurfelGIOnlyVisualization();  
-	UINT TestRenderer::frameIndex = 0;
+#pragma endregion
 
-	SphereMesh* TestRenderer::m_Sphere = nullptr;
-	DiscMesh* TestRenderer::m_Disc = nullptr;
-	Transform TestRenderer::m_Transform = Transform();
+UINT TestRenderer::frameIndex = 0;
+
+	 SurfelGI* TestRenderer::SurfelIllumination = nullptr;
+ HashGridVisualization* TestRenderer::GridVisualization = nullptr;
+	 MSMEVisualization* TestRenderer::GridMSMEVisualization = nullptr;
+	 SurfelGIOnlyVisualization* TestRenderer::SurfelGIVisualization = nullptr;
+
+	 ModelH3D* TestRenderer::m_Model = nullptr;
+
+	 SphereMesh* TestRenderer::m_Sphere = nullptr;
+	 DiscMesh* TestRenderer::m_Disc = nullptr;
+	 Transform TestRenderer::m_Transform;
+
+	//-- DIRECTIONAL LIGHT PROPERTIES
+	 Math::Vector3 TestRenderer::m_SunDirection;
+	 ShadowCamera TestRenderer::m_SunShadow;
+	 ExpVar TestRenderer::m_AmbientIntensity = ExpVar("Ambient Light Intensity",0.1f);
+	 ExpVar TestRenderer::m_SunLightIntensity = ExpVar("Sun Light Intensity",1.0f);
+
+	NumVar m_SunOrientation = NumVar("Sponza/Lighting/Sun Orientation", -0.5f, -100.0f, 100.0f, 0.1f);
+	NumVar m_SunInclination = NumVar("Sponza/Lighting/Sun Inclination", 0.75f, 0.0f, 1.0f, 0.01f);
+	NumVar ShadowDimX = NumVar("Sponza/Lighting/Shadow Dim X", 5000, 1000, 10000, 100);
+	NumVar ShadowDimY= NumVar("Sponza/Lighting/Shadow Dim Y", 3000, 1000, 10000, 100);
+	NumVar ShadowDimZ= NumVar("Sponza/Lighting/Shadow Dim Z", 3000, 1000, 10000, 100);
+
+	 bool m_enableDebugOverlay = true;
+	 bool m_stopSurfelUpdate = false;
+	 bool m_prevStopSurfelUpdate = false;
+	 bool m_renderOnlyCurrentCellSurfels = false;
+	 bool m_useSimpleAlgorithm = true;
+	 int m_debugOverlayMode = 0;
 
 	DescriptorHeap renderTargetHeap;
-
-
 	GraphicsPSO m_DepthPSO = { (L"Sponza: Depth PSO") };
 	GraphicsPSO m_ModelPSO = { (L"Sponza: Color PSO") };
-	//GraphicsPSO m_TestPSO = { (L"Sponza: Triangel Test PSO") };
 	GraphicsPSO m_TestSpherePSO = { (L"Sponza: Sphere Test PSO") };
 	GraphicsPSO m_CutoutDepthPSO = { (L"Sponza: Cutout Depth PSO") };
 	GraphicsPSO m_CutoutModelPSO = { (L"Sponza: Cutout Color PSO") };
-	GraphicsPSO m_ShadowPSO(L"Sponza: Shadow PSO");
-	GraphicsPSO m_CutoutShadowPSO(L"Sponza: Cutout Shadow PSO");
+	GraphicsPSO m_ShadowPSO = (L"Sponza: Shadow PSO");
+	GraphicsPSO m_CutoutShadowPSO = (L"Sponza: Cutout Shadow PSO");
 
-	ModelH3D m_Model;
 	std::vector<bool> m_pMaterialIsCutout;
 
-	Vector3 m_SunDirection;
-	ShadowCamera m_SunShadow;
 
-	ExpVar m_AmbientIntensity("Sponza/Lighting/Ambient Intensity", 0.1f, -16.0f, 16.0f, 0.1f);
-	ExpVar m_SunLightIntensity("Sponza/Lighting/Sun Light Intensity", 4.0f, 0.0f, 16.0f, 0.1f);
-	NumVar m_SunOrientation("Sponza/Lighting/Sun Orientation", -0.5f, -100.0f, 100.0f, 0.1f);
-	NumVar m_SunInclination("Sponza/Lighting/Sun Inclination", 0.75f, 0.0f, 1.0f, 0.01f);
-	NumVar ShadowDimX("Sponza/Lighting/Shadow Dim X", 5000, 1000, 10000, 100);
-	NumVar ShadowDimY("Sponza/Lighting/Shadow Dim Y", 3000, 1000, 10000, 100);
-	NumVar ShadowDimZ("Sponza/Lighting/Shadow Dim Z", 3000, 1000, 10000, 100);
-
-	struct ColorVertex { Vector4 position;  Vector4 color; };
-
-	float m_aspectRatio = 16.0f / 9.0f;
-	const float m_depthValue = 0.1f;
-	float _TRI_SCALE = 0.3f;
-	float QUAD_SCALE = 0.8f;
-	ColorVertex triangleVertices[3] =
+	 struct ColorVertex { Vector4 position;  Vector4 color; };
+	 float m_aspectRatio = 16.0f / 9.0f;
+	  float m_depthValue = 0.1f;
+	  float _TRI_SCALE = 0.3f;
+	  float QUAD_SCALE = 0.8f;
+	 ColorVertex triangleVertices[3] =
 	{
 		{ { 0.0f, _TRI_SCALE * m_aspectRatio, m_depthValue,1}, { 1.0f, 0.0f, 0.0f, 1.0f } },
 		{ { _TRI_SCALE ,-_TRI_SCALE * m_aspectRatio, m_depthValue,1}, { 0.0f, 1.0f, 0.0f, 1.0f } },
 		{ { -_TRI_SCALE, -_TRI_SCALE * m_aspectRatio, m_depthValue,1}, { 0.0f, 0.0f, 1.0f, 1.0f } }
 	};
 
-	ColorVertex fullScreenQuad[6] =
+	 ColorVertex fullScreenQuad[6] =
 	{
 		{ { -QUAD_SCALE, -QUAD_SCALE, m_depthValue,1}, { 1.0f, 0.0f, 0.0f, 1.0f } },
 		{ { QUAD_SCALE, QUAD_SCALE, m_depthValue,1}, { 1.0f, 0.0f, 0.0f, 1.0f } },
@@ -200,12 +201,20 @@ namespace TestRenderer
 
 	D3D12_CPU_DESCRIPTOR_HANDLE cpu_handle;
 	D3D12_GPU_DESCRIPTOR_HANDLE gpu_handle;
-#pragma endregion
-
 
 	///--- INTIIALIZATION ---
-	void Startup(Math::Camera& camera, HWND hwnd)
+	void TestRenderer::Startup(Math::Camera& camera, HWND hwnd)
 	{
+
+		SurfelIllumination = new SurfelGI();  // Definition (allocates storage)
+		GridVisualization = new HashGridVisualization();
+		GridMSMEVisualization = new MSMEVisualization();
+		SurfelGIVisualization = new SurfelGIOnlyVisualization();
+		frameIndex = 0;
+
+		m_Sphere = nullptr;
+		m_Disc = nullptr;
+		m_Transform = Transform();
 
 		DXGI_FORMAT ColorFormat = g_SceneColorBuffer.GetFormat();
 		DXGI_FORMAT NormalFormat = g_SceneNormalBuffer.GetFormat();
@@ -318,20 +327,21 @@ namespace TestRenderer
 
 		m_TestSpherePSO.Finalize();
 
+		m_Model = new ModelH3D();
 		// LOADING SPONZA AS WELL
-		ASSERT(m_Model.Load(L"Sponza/sponza.h3d"), "Failed to load model");
-		ASSERT(m_Model.GetMeshCount() > 0, "Model contains no meshes");
+		ASSERT(m_Model->Load(L"Sponza/sponza.h3d"), "Failed to load model");
+		ASSERT(m_Model->GetMeshCount() > 0, "Model contains no meshes");
 		InitTriangleModel();
 		InitQuadModel();
 		InitSphereModel();
 		m_Disc = new DiscMesh(10);
 
 		// The caller of this function can override which materials are considered cutouts
-		m_pMaterialIsCutout.resize(m_Model.GetMaterialCount());
-		for (uint32_t i = 0; i < m_Model.GetMaterialCount(); ++i)
+		m_pMaterialIsCutout.resize(m_Model->GetMaterialCount());
+		for (uint32_t i = 0; i < m_Model->GetMaterialCount(); ++i)
 		{
 
-			const ModelH3D::Material& mat = m_Model.GetMaterial(i);
+			const ModelH3D::Material& mat = m_Model->GetMaterial(i);
 			XMVECTOR(mat.ambient).m128_f32[0] = 0;
 			XMVECTOR(mat.ambient).m128_f32[1] = 0;
 			if (std::string(mat.texDiffusePath).find("thorn") != std::string::npos ||
@@ -349,13 +359,13 @@ namespace TestRenderer
 		ParticleEffects::InitFromJSON(L"Sponza/particles.json");
 
 		//Camera Setup needed ? 
-		float modelRadius = Length(m_Model.GetBoundingBox().GetDimensions()) * 0.5f;
-		const Vector3 eye = m_Model.GetBoundingBox().GetCenter() + Vector3(modelRadius * 0.5f, 0.0f, 0.0f);
+		float modelRadius = Length(m_Model->GetBoundingBox().GetDimensions()) * 0.5f;
+		const Vector3 eye = m_Model->GetBoundingBox().GetCenter() + Vector3(modelRadius * 0.5f, 0.0f, 0.0f);
 		camera.SetEyeAtUp(eye, Vector3(kZero), Vector3(kYUnitVector));
 
 
 		int a = 3;
-		uint32_t VertexStride = m_Model.GetVertexStride();
+		uint32_t VertexStride = m_Model->GetVertexStride();
 
 
 
@@ -368,8 +378,8 @@ namespace TestRenderer
 	//        m_Transform,
 	//        //m_Sphere->m_VertexBufferView,
 	//        //m_Sphere->m_IndexBufferView,
-	//        m_Model.m_VertexBuffer,
-	//        m_Model.m_IndexBuffer,
+	//        m_Model->m_VertexBuffer,
+	//        m_Model->m_IndexBuffer,
 	//        //m_VertexBufferView,
 	//        //m_IndexBufferView,
 	//        &Graphics::g_SceneColorBuffer
@@ -401,7 +411,7 @@ namespace TestRenderer
 		//       TestRaytracing::GetOutputBuffer().GetSRV()
 		g_Device->CopyDescriptors(1, &Renderer::m_CommonTextures, &DestCount, DestCount, SourceTextures, SourceCounts, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 
-		//Lighting::CreateRandomLights(m_Model.GetBoundingBox().GetMin(), m_Model.GetBoundingBox().GetMax());
+		//Lighting::CreateRandomLights(m_Model->GetBoundingBox().GetMin(), m_Model->GetBoundingBox().GetMax());
 
 		GBufferPtrs gbuffer{
 			&g_SceneColorBuffer,
@@ -416,14 +426,14 @@ namespace TestRenderer
 
 		TestRaytracing::CreateDeviceDependentResources(
 			m_Transform,
-			m_Model,
+			*m_Model,
 			&Graphics::g_SceneColorBuffer,
 			SurfelIllumination->nonShaderVisibleHeap
 			//SurfelIllumination->srvHeap
 		);
 		SurfelIrradianceAccumulation::CreateDeviceDependentResources(
 			m_Transform,
-			m_Model,
+			*m_Model,
 			&Graphics::g_SceneColorBuffer,
 			SurfelIllumination->nonShaderVisibleHeap
 			//SurfelIllumination->srvHeap
@@ -508,7 +518,7 @@ namespace TestRenderer
 
 
 	}
-	void InitQuadModel()
+	void TestRenderer::InitQuadModel()
 	{
 		uint32_t indices[6] = { 0, 1, 2,3,4,5 };
 
@@ -540,7 +550,7 @@ namespace TestRenderer
 			= m_QuadGB.IndexBufferView(vertexDataSize, indexDataSize, true);
 
 	}
-	void InitTriangleModel()
+	void TestRenderer::InitTriangleModel()
 	{
 		uint32_t indices[3] = { 0, 1, 2 };
 
@@ -572,15 +582,15 @@ namespace TestRenderer
 			= m_GeometryBuffer.IndexBufferView(vertexDataSize, indexDataSize, true);
 
 	}
-	void InitSphereModel()
+	void TestRenderer::InitSphereModel()
 	{
 		m_Sphere = new SphereMesh(2);
 	}
 
 	///---	CLEANUP ---
-	void Cleanup(void)
+	void TestRenderer::Cleanup(void)
 	{
-		m_Model.Clear();
+		m_Model->Clear();
 		Lighting::Shutdown();
 		TextureManager::Shutdown();
 		ImGui_ImplDX12_Shutdown();
@@ -589,9 +599,9 @@ namespace TestRenderer
 	}
 
 
-	void RenderFullScreenQuad(GraphicsContext& gfxContext)
+	void TestRenderer::RenderFullScreenQuad(GraphicsContext& gfxContext)
 	{
-		//uint32_t VertexStride = m_Model.GetVertexStride();
+		//uint32_t VertexStride = m_Model->GetVertexStride();
 		const UINT vertexBufferSize = sizeof(fullScreenQuad);
 
 		//---TEMPORARILY switch index and vertex buffers
@@ -602,13 +612,13 @@ namespace TestRenderer
 		gfxContext.DrawIndexed(6, 0, 0);
 
 		//--- Switch Back To Sponza model
-		gfxContext.SetIndexBuffer(m_Model.GetIndexBuffer());
-		gfxContext.SetVertexBuffer(0, m_Model.GetVertexBuffer());
+		gfxContext.SetIndexBuffer(m_Model->GetIndexBuffer());
+		gfxContext.SetVertexBuffer(0, m_Model->GetVertexBuffer());
 	}
 	///--- RENDERING ---
-	void RenderScreenSpaceTriangle(GraphicsContext& gfxContext)
+	void TestRenderer::RenderScreenSpaceTriangle(GraphicsContext& gfxContext)
 	{
-		//uint32_t VertexStride = m_Model.GetVertexStride();
+		//uint32_t VertexStride = m_Model->GetVertexStride();
 		const UINT vertexBufferSize = sizeof(triangleVertices);
 
 		//---TEMPORARILY switch index and vertex buffers
@@ -619,14 +629,14 @@ namespace TestRenderer
 		gfxContext.DrawIndexed(3, 0, 0);
 
 		//--- Switch Back To Sponza model
-		gfxContext.SetIndexBuffer(m_Model.GetIndexBuffer());
-		gfxContext.SetVertexBuffer(0, m_Model.GetVertexBuffer());
+		gfxContext.SetIndexBuffer(m_Model->GetIndexBuffer());
+		gfxContext.SetVertexBuffer(0, m_Model->GetVertexBuffer());
 	}
-	void RenderSphereObject(RENDER_OBJECT_INSTANCE_PARAMS)
+	void TestRenderer::RenderSphereObject(RENDER_OBJECT_INSTANCE_PARAMS)
 	{
 
-		float modelRadius = Length(m_Model.GetBoundingBox().GetDimensions()) * 0.5f;
-		const Vector3 eye = m_Model.GetBoundingBox().GetCenter() + Vector3(modelRadius * 0.5f, 0.0f, 0.0f);
+		float modelRadius = Length(m_Model->GetBoundingBox().GetDimensions()) * 0.5f;
+		const Vector3 eye = m_Model->GetBoundingBox().GetCenter() + Vector3(modelRadius * 0.5f, 0.0f, 0.0f);
 		const Vector3 relSphereOffset(0, 0, 0.1);
 		const Vector3 offset = relSphereOffset * modelRadius;
 
@@ -644,7 +654,7 @@ namespace TestRenderer
 		XMStoreFloat3(&vsConstants.viewerPos, viewerPos);
 
 		gfxContext.SetDynamicConstantBufferView(Renderer::kMeshConstants, sizeof(vsConstants), &vsConstants);
-		//uint32_t VertexStride = m_Model.GetVertexStride();
+		//uint32_t VertexStride = m_Model->GetVertexStride();
 		const UINT vertexBufferSize = sizeof(triangleVertices);
 		//---TEMPORARILY switch index and vertex buffers
 		gfxContext.SetIndexBuffer(m_Sphere->m_IndexBufferView);
@@ -657,11 +667,11 @@ namespace TestRenderer
 		gfxContext.DrawIndexed(m_Sphere->m_Indices.size(), 0, 0);
 
 		//--- Switch Back To Sponza model
-		gfxContext.SetIndexBuffer(m_Model.GetIndexBuffer());
-		gfxContext.SetVertexBuffer(0, m_Model.GetVertexBuffer());
+		gfxContext.SetIndexBuffer(m_Model->GetIndexBuffer());
+		gfxContext.SetVertexBuffer(0, m_Model->GetVertexBuffer());
 
 	}
-	XMVECTOR GetRotationQuaternionFromUpToDirection(FXMVECTOR targetDirection)
+	XMVECTOR TestRenderer::GetRotationQuaternionFromUpToDirection(FXMVECTOR targetDirection)
 	{
 		const XMVECTOR up = XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f); // original surfel normal
 		XMVECTOR dir = XMVector3Normalize(targetDirection);
@@ -695,7 +705,7 @@ namespace TestRenderer
 	}
 
 
-	void GetRelevantSurfels( UINT& from, UINT& to )
+	void TestRenderer::GetRelevantSurfels( UINT& from, UINT& to )
 	{
 		UniformGrid grid = SurfelIllumination->m_SurfelGen.UniformGrid;
 		SurfelDebugData data = SurfelIllumination->m_SurfelDebugActual;
@@ -718,11 +728,11 @@ namespace TestRenderer
 
 	}
 
-	void RenderRelevantSurfels(RENDER_OBJECT_INSTANCE_PARAMS)
+	void TestRenderer::RenderRelevantSurfels(RENDER_OBJECT_INSTANCE_PARAMS)
 	{
 
-		float modelRadius = Length(m_Model.GetBoundingBox().GetDimensions()) * 0.5f;
-		const Vector3 eye = m_Model.GetBoundingBox().GetCenter() + Vector3(modelRadius * 0.5f, 0.0f, 0.0f);
+		float modelRadius = Length(m_Model->GetBoundingBox().GetDimensions()) * 0.5f;
+		const Vector3 eye = m_Model->GetBoundingBox().GetCenter() + Vector3(modelRadius * 0.5f, 0.0f, 0.0f);
 		const Vector3 relSphereOffset(0, 0, 0.1);
 		const Vector3 offset = relSphereOffset * modelRadius;
 
@@ -740,7 +750,7 @@ namespace TestRenderer
 		XMStoreFloat3(&vsConstants.viewerPos, viewerPos);
 
 		gfxContext.SetDynamicConstantBufferView(Renderer::kMeshConstants, sizeof(vsConstants), &vsConstants);
-		//uint32_t VertexStride = m_Model.GetVertexStride();
+		//uint32_t VertexStride = m_Model->GetVertexStride();
 		const UINT vertexBufferSize = sizeof(triangleVertices);
 		//---TEMPORARILY switch index and vertex buffers
 	//	gfxContext.SetIndexBuffer(m_Sphere->m_IndexBufferView);
@@ -817,15 +827,15 @@ namespace TestRenderer
 		int a = 3;
 
 		//--- Switch Back To Sponza model
-		gfxContext.SetIndexBuffer(m_Model.GetIndexBuffer());
-		gfxContext.SetVertexBuffer(0, m_Model.GetVertexBuffer());
+		gfxContext.SetIndexBuffer(m_Model->GetIndexBuffer());
+		gfxContext.SetVertexBuffer(0, m_Model->GetVertexBuffer());
 
 	}
-	void RenderSurfels(RENDER_OBJECT_INSTANCE_PARAMS)
+	void TestRenderer::RenderSurfels(RENDER_OBJECT_INSTANCE_PARAMS)
 	{
 
-		float modelRadius = Length(m_Model.GetBoundingBox().GetDimensions()) * 0.5f;
-		const Vector3 eye = m_Model.GetBoundingBox().GetCenter() + Vector3(modelRadius * 0.5f, 0.0f, 0.0f);
+		float modelRadius = Length(m_Model->GetBoundingBox().GetDimensions()) * 0.5f;
+		const Vector3 eye = m_Model->GetBoundingBox().GetCenter() + Vector3(modelRadius * 0.5f, 0.0f, 0.0f);
 		const Vector3 relSphereOffset(0, 0, 0.1);
 		const Vector3 offset = relSphereOffset * modelRadius;
 
@@ -843,7 +853,7 @@ namespace TestRenderer
 		XMStoreFloat3(&vsConstants.viewerPos, viewerPos);
 
 		gfxContext.SetDynamicConstantBufferView(Renderer::kMeshConstants, sizeof(vsConstants), &vsConstants);
-		//uint32_t VertexStride = m_Model.GetVertexStride();
+		//uint32_t VertexStride = m_Model->GetVertexStride();
 		const UINT vertexBufferSize = sizeof(triangleVertices);
 		//---TEMPORARILY switch index and vertex buffers
 	//	gfxContext.SetIndexBuffer(m_Sphere->m_IndexBufferView);
@@ -901,11 +911,11 @@ namespace TestRenderer
 		int a = 3;
 
 		//--- Switch Back To Sponza model
-		gfxContext.SetIndexBuffer(m_Model.GetIndexBuffer());
-		gfxContext.SetVertexBuffer(0, m_Model.GetVertexBuffer());
+		gfxContext.SetIndexBuffer(m_Model->GetIndexBuffer());
+		gfxContext.SetVertexBuffer(0, m_Model->GetVertexBuffer());
 
 	}
-	void RenderObjects(RENDER_OBJECT_INSTANCE_PARAMS)
+	void TestRenderer::RenderObjects(RENDER_OBJECT_INSTANCE_PARAMS)
 	{
 		struct VSConstants
 		{
@@ -921,11 +931,11 @@ namespace TestRenderer
 
 		__declspec(align(16)) uint32_t materialIdx = 0xFFFFFFFFul;
 
-		uint32_t VertexStride = m_Model.GetVertexStride();
+		uint32_t VertexStride = m_Model->GetVertexStride();
 
-		for (uint32_t meshIndex = 0; meshIndex < m_Model.GetMeshCount(); meshIndex++)
+		for (uint32_t meshIndex = 0; meshIndex < m_Model->GetMeshCount(); meshIndex++)
 		{
-			const ModelH3D::Mesh& mesh = m_Model.GetMesh(meshIndex);
+			const ModelH3D::Mesh& mesh = m_Model->GetMesh(meshIndex);
 
 			uint32_t indexCount = mesh.indexCount;
 			uint32_t startIndex = mesh.indexDataByteOffset / sizeof(uint16_t);
@@ -938,7 +948,7 @@ namespace TestRenderer
 					continue;
 
 				materialIdx = mesh.materialIndex;
-				gfxContext.SetDescriptorTable(Renderer::kMaterialSRVs, m_Model.GetSRVs(materialIdx));
+				gfxContext.SetDescriptorTable(Renderer::kMaterialSRVs, m_Model->GetSRVs(materialIdx));
 
 				//auto r = TestRaytracing::m_raytracingOutput.Get();
 				//auto r = TestRaytracing::m_raytracingColorBuffer.GetResource();
@@ -961,7 +971,7 @@ namespace TestRenderer
 			gfxContext.DrawIndexed(indexCount, startIndex, baseVertex);
 		}
 	}
-	void RenderLightShadows(GraphicsContext& gfxContext, const Camera& camera)
+	void TestRenderer::RenderLightShadows(GraphicsContext& gfxContext, const Camera& camera)
 	{
 		using namespace Lighting;
 
@@ -995,7 +1005,7 @@ namespace TestRenderer
 
 
 	int tempSurfelNumber =1000;
-	void RenderImGuiUI(GraphicsContext& gfx) {
+	void TestRenderer::RenderImGuiUI(GraphicsContext& gfx) {
 		ImGuiIO& io = ImGui::GetIO();
 
 
@@ -1123,10 +1133,9 @@ namespace TestRenderer
 
 	const ModelH3D& TestRenderer::GetModel()
 	{
-		return TestRenderer::m_Model;
+		return *TestRenderer::m_Model;
 	}
 
-}
 	void TestRenderer::RenderScene(
 		GraphicsContext& gfxContext,
 		const Camera& camera,
@@ -1228,8 +1237,8 @@ namespace TestRenderer
 				gfxContext.SetRootSignature(Renderer::m_RootSig);
 				gfxContext.SetDescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, Renderer::s_TextureHeap.GetHeapPointer());
 				gfxContext.SetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-				gfxContext.SetIndexBuffer(m_Model.GetIndexBuffer());
-				gfxContext.SetVertexBuffer(0, m_Model.GetVertexBuffer());
+				gfxContext.SetIndexBuffer(m_Model->GetIndexBuffer());
+				gfxContext.SetVertexBuffer(0, m_Model->GetVertexBuffer());
 			};
 
 		pfnSetupGraphicsState();
