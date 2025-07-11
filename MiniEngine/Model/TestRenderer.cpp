@@ -117,11 +117,6 @@ ExampleDescriptorHeapAllocator	g_pd3dSrvDescHeapAlloc;
 #pragma endregion
 
 
-
-
-
-#pragma endregion
-
 UINT TestRenderer::frameIndex = 0;
 
 	 SurfelGI* TestRenderer::SurfelIllumination = nullptr;
@@ -163,6 +158,8 @@ UINT TestRenderer::frameIndex = 0;
 	GraphicsPSO m_ShadowPSO = (L"Sponza: Shadow PSO");
 	GraphicsPSO m_CutoutShadowPSO = (L"Sponza: Cutout Shadow PSO");
 
+	TestRenderer::PSConstants TestRenderer::psConstants = TestRenderer::PSConstants{};
+
 	std::vector<bool> m_pMaterialIsCutout;
 
 
@@ -202,6 +199,11 @@ UINT TestRenderer::frameIndex = 0;
 	D3D12_CPU_DESCRIPTOR_HANDLE cpu_handle;
 	D3D12_GPU_DESCRIPTOR_HANDLE gpu_handle;
 
+
+
+#pragma endregion
+
+
 	///--- INTIIALIZATION ---
 	void TestRenderer::Startup(Math::Camera& camera, HWND hwnd)
 	{
@@ -219,7 +221,7 @@ UINT TestRenderer::frameIndex = 0;
 		DXGI_FORMAT ColorFormat = g_SceneColorBuffer.GetFormat();
 		DXGI_FORMAT NormalFormat = g_SceneNormalBuffer.GetFormat();
 		DXGI_FORMAT DepthFormat = g_SceneDepthBuffer.GetFormat();
-		//DXGI_FORMAT ShadowFormat = g_ShadowBuffer.GetFormat();
+		DXGI_FORMAT ShadowFormat = g_ShadowBuffer.GetFormat();
 
 		//m_Transform.setScale(50,50,50);
 		m_Transform.setScale(100, 100, 100);
@@ -289,23 +291,9 @@ UINT TestRenderer::frameIndex = 0;
 		m_ModelPSO.SetPixelShader(g_pTestRendererPS, sizeof(g_pTestRendererPS));
 		m_ModelPSO.Finalize();
 
-		//    m_CutoutModelPSO = m_ModelPSO;
-		//    m_CutoutModelPSO.SetRasterizerState(RasterizerTwoSided);
-		//    m_CutoutModelPSO.Finalize();
-
-
-
-			//--- DEMO PASS FOR RENDERING TRIANGLE ---
-			// Full color pass
-			//InitTestRootSignature();
-
-
-
-			//--- DEMO PASS FOR GENERATING SURFEL WITH COMPUTE SHADER ---
-
-
-
-
+		m_CutoutModelPSO = m_ModelPSO;
+		m_CutoutModelPSO.SetRasterizerState(RasterizerTwoSided);
+		m_CutoutModelPSO.Finalize();
 			//--- DEMO PASS FOR RENDERING SPHERE ---
 			// Full color pass
 		m_TestSpherePSO = m_DepthPSO;
@@ -331,9 +319,11 @@ UINT TestRenderer::frameIndex = 0;
 		// LOADING SPONZA AS WELL
 		ASSERT(m_Model->Load(L"Sponza/sponza.h3d"), "Failed to load model");
 		ASSERT(m_Model->GetMeshCount() > 0, "Model contains no meshes");
+
 		InitTriangleModel();
 		InitQuadModel();
 		InitSphereModel();
+
 		m_Disc = new DiscMesh(10);
 
 		// The caller of this function can override which materials are considered cutouts
@@ -364,27 +354,7 @@ UINT TestRenderer::frameIndex = 0;
 		camera.SetEyeAtUp(eye, Vector3(kZero), Vector3(kYUnitVector));
 
 
-		int a = 3;
 		uint32_t VertexStride = m_Model->GetVertexStride();
-
-
-
-
-
-
-
-		//Create device dependent resource for ray tracing for the triangle 
-	//    TestRaytracing::CreateDeviceDependentResources(
-	//        m_Transform,
-	//        //m_Sphere->m_VertexBufferView,
-	//        //m_Sphere->m_IndexBufferView,
-	//        m_Model->m_VertexBuffer,
-	//        m_Model->m_IndexBuffer,
-	//        //m_VertexBufferView,
-	//        //m_IndexBufferView,
-	//        &Graphics::g_SceneColorBuffer
-	//    );
-
 		//Allocate just and extra descriptor table entry
 		uint32_t DestCount = 9;
 		// Allocate a descriptor table for the common textures
@@ -411,7 +381,6 @@ UINT TestRenderer::frameIndex = 0;
 		//       TestRaytracing::GetOutputBuffer().GetSRV()
 		g_Device->CopyDescriptors(1, &Renderer::m_CommonTextures, &DestCount, DestCount, SourceTextures, SourceCounts, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 
-		//Lighting::CreateRandomLights(m_Model->GetBoundingBox().GetMin(), m_Model->GetBoundingBox().GetMax());
 
 		GBufferPtrs gbuffer{
 			&g_SceneColorBuffer,
@@ -509,14 +478,6 @@ UINT TestRenderer::frameIndex = 0;
 			};
 
 		bool t = ImGui_ImplDX12_Init(&info);
-
-
-
-
-
-
-
-
 	}
 	void TestRenderer::InitQuadModel()
 	{
@@ -536,11 +497,6 @@ UINT TestRenderer::frameIndex = 0;
 
 		memcpy(vertexData, fullScreenQuad, vertexDataSize);
 		memcpy(indexData, indices, indexDataSize);
-
-
-//		ColorVertex tempColorVerts[3];
-//		memcpy(tempColorVerts, vertexData, vertexDataSize);
-
 		//--- Upload buffer to GPU
 		m_QuadGB.Create(L"Full Screen Quad", totalSize, 1, uploadMem);
 		//--- Create buffer views
@@ -598,6 +554,16 @@ UINT TestRenderer::frameIndex = 0;
 		ImGui::DestroyContext(ImGui::GetCurrentContext());
 	}
 
+	TestRenderer::VSConstants TestRenderer::SetupObjectVSConstants(RENDER_OBJECT_INSTANCE_PARAMS)
+	{
+		VSConstants vsConstants;
+		vsConstants.modelToWorld = Matrix4(TestRenderer::m_Transform.getTransformMatrix());
+		vsConstants.modelToProjection = ViewProjMat;
+		vsConstants.modelToShadow = m_SunShadow.GetShadowMatrix();
+		XMStoreFloat3(&vsConstants.viewerPos, viewerPos);
+		return vsConstants;
+
+	}
 
 	void TestRenderer::RenderFullScreenQuad(GraphicsContext& gfxContext)
 	{
@@ -634,35 +600,12 @@ UINT TestRenderer::frameIndex = 0;
 	}
 	void TestRenderer::RenderSphereObject(RENDER_OBJECT_INSTANCE_PARAMS)
 	{
-
-		float modelRadius = Length(m_Model->GetBoundingBox().GetDimensions()) * 0.5f;
-		const Vector3 eye = m_Model->GetBoundingBox().GetCenter() + Vector3(modelRadius * 0.5f, 0.0f, 0.0f);
-		const Vector3 relSphereOffset(0, 0, 0.1);
-		const Vector3 offset = relSphereOffset * modelRadius;
-
-		struct VSConstants
-		{
-			Matrix4 modelToWorld;
-			Matrix4 modelToProjection;
-			Matrix4 modelToShadow;
-			XMFLOAT3 viewerPos;
-		} vsConstants;
-		//vsConstants.modelToWorld        = Matrix4(Math::XMMatrixIdentity());
-		vsConstants.modelToWorld = Matrix4(TestRenderer::m_Transform.getTransformMatrix());
-		vsConstants.modelToProjection = ViewProjMat;
-		vsConstants.modelToShadow = m_SunShadow.GetShadowMatrix();
-		XMStoreFloat3(&vsConstants.viewerPos, viewerPos);
-
+		VSConstants vsConstants = SetupObjectVSConstants(gfxContext, ViewProjMat, viewerPos, Filter);
 		gfxContext.SetDynamicConstantBufferView(Renderer::kMeshConstants, sizeof(vsConstants), &vsConstants);
-		//uint32_t VertexStride = m_Model->GetVertexStride();
+		
 		const UINT vertexBufferSize = sizeof(triangleVertices);
-		//---TEMPORARILY switch index and vertex buffers
 		gfxContext.SetIndexBuffer(m_Sphere->m_IndexBufferView);
 		gfxContext.SetVertexBuffer(0, m_Sphere->m_VertexBufferView);
-
-
-
-
 		//--- Draw three indices of the triangle
 		gfxContext.DrawIndexed(m_Sphere->m_Indices.size(), 0, 0);
 
@@ -730,63 +673,15 @@ UINT TestRenderer::frameIndex = 0;
 
 	void TestRenderer::RenderRelevantSurfels(RENDER_OBJECT_INSTANCE_PARAMS)
 	{
+		VSConstants vsConstants =SetupObjectVSConstants(gfxContext, ViewProjMat, viewerPos, Filter);
 
-		float modelRadius = Length(m_Model->GetBoundingBox().GetDimensions()) * 0.5f;
-		const Vector3 eye = m_Model->GetBoundingBox().GetCenter() + Vector3(modelRadius * 0.5f, 0.0f, 0.0f);
-		const Vector3 relSphereOffset(0, 0, 0.1);
-		const Vector3 offset = relSphereOffset * modelRadius;
-
-		struct VSConstants
-		{
-			Matrix4 modelToWorld;
-			Matrix4 modelToProjection;
-			Matrix4 modelToShadow;
-			XMFLOAT3 viewerPos;
-		} vsConstants;
-		//vsConstants.modelToWorld        = Matrix4(Math::XMMatrixIdentity());
-		vsConstants.modelToWorld = Matrix4(TestRenderer::m_Transform.getTransformMatrix());
-		vsConstants.modelToProjection = ViewProjMat;
-		vsConstants.modelToShadow = m_SunShadow.GetShadowMatrix();
-		XMStoreFloat3(&vsConstants.viewerPos, viewerPos);
-
-		gfxContext.SetDynamicConstantBufferView(Renderer::kMeshConstants, sizeof(vsConstants), &vsConstants);
-		//uint32_t VertexStride = m_Model->GetVertexStride();
 		const UINT vertexBufferSize = sizeof(triangleVertices);
-		//---TEMPORARILY switch index and vertex buffers
-	//	gfxContext.SetIndexBuffer(m_Sphere->m_IndexBufferView);
-	//	gfxContext.SetVertexBuffer(0, m_Sphere->m_VertexBufferView);
 		gfxContext.SetIndexBuffer(m_Disc->m_IndexBufferView);
 		gfxContext.SetVertexBuffer(0, m_Disc->m_VertexBufferView);
 
-
-
-//		UINT surfelListIndexFrom ;
-//		UINT surfelListIndexTo ;
-//		GetRelevantSurfels(surfelListIndexFrom, surfelListIndexTo);
-
-			UniformGrid grid = SurfelIllumination->m_SurfelGen.UniformGrid;
-		SurfelDebugData data = SurfelIllumination->m_SurfelDebugActual;
-
-		UINT gridDimX =
-			grid.dimensions.GetX() / grid.cellSize.GetX();
-		UINT gridDimY=
-			grid.dimensions.GetY() / grid.cellSize.GetY();
-
-		UINT gridDimZ =
-			grid.dimensions.GetZ() / grid.cellSize.GetZ();
-
-		UINT linearIndex = data.PointedCellX  +
-           data.PointedCellY * gridDimX   +
-           data.PointedCellZ * gridDimX * gridDimY;
-
-
-		UINT surfelListIndexFrom = SurfelIllumination->m_SurfelGridActual[linearIndex];
-		UINT surfelListIndexTo = SurfelIllumination->m_SurfelGridActual[linearIndex+1];
-
-    
-
-    
-    
+		UINT surfelListIndexFrom ;
+		UINT surfelListIndexTo ;
+		GetRelevantSurfels(surfelListIndexFrom, surfelListIndexTo);
 
 		for (size_t i = surfelListIndexFrom; i < surfelListIndexTo; ++i)
 		{
@@ -813,8 +708,6 @@ UINT TestRenderer::frameIndex = 0;
 				XMStoreFloat3(&vsConstants.viewerPos, viewerPos);
 
 				gfxContext.SetDynamicConstantBufferView(Renderer::kMeshConstants, sizeof(vsConstants), &vsConstants);
-				//Vector4 customColor = Vector4(0.2f, 0.3f, 1, 1.0f);
-				//Vector4 customColor = Vector4(1.0f, 0.3f, 0, 1.0f);
 				gfxContext.SetDynamicConstantBufferView(Renderer::kCommonCBV, sizeof(Vector4), &s.color);
 				//--- Draw three indices of the triangle
 				gfxContext.DrawIndexed(m_Disc->m_Indices.size(), 0, 0);
@@ -822,10 +715,6 @@ UINT TestRenderer::frameIndex = 0;
 			}
 
 		}
-
-
-		int a = 3;
-
 		//--- Switch Back To Sponza model
 		gfxContext.SetIndexBuffer(m_Model->GetIndexBuffer());
 		gfxContext.SetVertexBuffer(0, m_Model->GetVertexBuffer());
@@ -839,28 +728,11 @@ UINT TestRenderer::frameIndex = 0;
 		const Vector3 relSphereOffset(0, 0, 0.1);
 		const Vector3 offset = relSphereOffset * modelRadius;
 
-		struct VSConstants
-		{
-			Matrix4 modelToWorld;
-			Matrix4 modelToProjection;
-			Matrix4 modelToShadow;
-			XMFLOAT3 viewerPos;
-		} vsConstants;
-		//vsConstants.modelToWorld        = Matrix4(Math::XMMatrixIdentity());
-		vsConstants.modelToWorld = Matrix4(TestRenderer::m_Transform.getTransformMatrix());
-		vsConstants.modelToProjection = ViewProjMat;
-		vsConstants.modelToShadow = m_SunShadow.GetShadowMatrix();
-		XMStoreFloat3(&vsConstants.viewerPos, viewerPos);
-
-		gfxContext.SetDynamicConstantBufferView(Renderer::kMeshConstants, sizeof(vsConstants), &vsConstants);
-		//uint32_t VertexStride = m_Model->GetVertexStride();
+		VSConstants vsConstants = SetupObjectVSConstants(gfxContext, ViewProjMat, viewerPos, Filter);
 		const UINT vertexBufferSize = sizeof(triangleVertices);
 		//---TEMPORARILY switch index and vertex buffers
-	//	gfxContext.SetIndexBuffer(m_Sphere->m_IndexBufferView);
-	//	gfxContext.SetVertexBuffer(0, m_Sphere->m_VertexBufferView);
 		gfxContext.SetIndexBuffer(m_Disc->m_IndexBufferView);
 		gfxContext.SetVertexBuffer(0, m_Disc->m_VertexBufferView);
-
 
 		for each (SurfelData s in SurfelIllumination->m_SurfelDataArray)
 		{
@@ -882,17 +754,14 @@ UINT TestRenderer::frameIndex = 0;
 				Vector4 quat = Vector4(GetRotationQuaternionFromUpToDirection(s.normal));
 				t.setQuaternion(quat.GetX(), quat.GetY(), quat.GetZ(), quat.GetW());
 				t.setComposeRotationFromQuaternions(true);
-
 				t.setScale(s.radius.GetX(), s.radius.GetX(), s.radius.GetX());
-
 
 				vsConstants.modelToWorld = Matrix4(t.getTransformMatrix());
 				XMStoreFloat3(&vsConstants.viewerPos, viewerPos);
 
 				gfxContext.SetDynamicConstantBufferView(Renderer::kMeshConstants, sizeof(vsConstants), &vsConstants);
-				//Vector4 customColor = Vector4(0.2f, 0.3f, 1, 1.0f);
-				//Vector4 customColor = Vector4(1.0f, 0.3f, 0, 1.0f);
 				gfxContext.SetDynamicConstantBufferView(Renderer::kCommonCBV, sizeof(Vector4), &s.color);
+
 				//--- Draw three indices of the triangle
 				gfxContext.DrawIndexed(m_Disc->m_Indices.size(), 0, 0);
 
@@ -903,13 +772,6 @@ UINT TestRenderer::frameIndex = 0;
 
 
 		}
-
-
-		//Vector3 explicitWorldPosition = (699.0f, 630.0f, 109.0f);
-		//int a = GetClosestSurfelToPosition(explicitWorldPosition);
-
-		int a = 3;
-
 		//--- Switch Back To Sponza model
 		gfxContext.SetIndexBuffer(m_Model->GetIndexBuffer());
 		gfxContext.SetVertexBuffer(0, m_Model->GetVertexBuffer());
@@ -949,22 +811,6 @@ UINT TestRenderer::frameIndex = 0;
 
 				materialIdx = mesh.materialIndex;
 				gfxContext.SetDescriptorTable(Renderer::kMaterialSRVs, m_Model->GetSRVs(materialIdx));
-
-				//auto r = TestRaytracing::m_raytracingOutput.Get();
-				//auto r = TestRaytracing::m_raytracingColorBuffer.GetResource();
-				//gfxContext.SetDescriptorTable(Renderer::kCommonSRVs, TestRaytracing::GetHandle());
-				//Graphics::g_SceneColorBuffer
-
-
-	//            Graphics::g_Device->CreateShaderResourceView(
-	//                TestRaytracing::m_raytracingOutput.Get(),
-	//                nullptr,
-	//                nullptr
-	//            )
-
-				//gfxContext.SetDescriptorTable(Renderer::kCommonSRVs, Graphics::g_SceneColorBuffer.GetGpuVirtualAddress());
-				//gfxContext.SetDescriptorTable(Renderer::kCommonSRVs, Graphics::g_SceneColorBuffer.GetSRV());
-
 				gfxContext.SetDynamicConstantBufferView(Renderer::kCommonCBV, sizeof(uint32_t), &materialIdx);
 			}
 
@@ -984,27 +830,24 @@ UINT TestRenderer::frameIndex = 0;
 		m_LightShadowTempBuffer.BeginRendering(gfxContext);
 		{
 			gfxContext.SetPipelineState(m_ShadowPSO);
-			//RenderObjects(gfxContext, m_LightShadowMatrix[LightIndex], camera.GetPosition(), kOpaque);
+			RenderObjects(gfxContext, m_LightShadowMatrix[LightIndex], camera.GetPosition(), kOpaque);
 			gfxContext.SetPipelineState(m_CutoutShadowPSO);
-			//RenderObjects(gfxContext, m_LightShadowMatrix[LightIndex], camera.GetPosition(), kCutout);
+			RenderObjects(gfxContext, m_LightShadowMatrix[LightIndex], camera.GetPosition(), kCutout);
 		}
 		m_LightShadowTempBuffer.EndRendering(gfxContext);
 
 		gfxContext.TransitionResource(m_LightShadowTempBuffer, D3D12_RESOURCE_STATE_COPY_SOURCE);
 		gfxContext.TransitionResource(m_LightShadowArray, D3D12_RESOURCE_STATE_COPY_DEST);
 
-
 		gfxContext.CopySubresource(m_LightShadowArray, LightIndex, m_LightShadowTempBuffer, 0);
 
 		gfxContext.TransitionResource(m_LightShadowArray, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
-
 		++LightIndex;
 	}
 
 
 
 
-	int tempSurfelNumber =1000;
 	void TestRenderer::RenderImGuiUI(GraphicsContext& gfx) {
 		ImGuiIO& io = ImGui::GetIO();
 
@@ -1051,12 +894,12 @@ UINT TestRenderer::frameIndex = 0;
 		// Your ImGui UI code here
 		ImGui::Begin("Surfel Gen CB");
 
-		ImGui::SliderInt("Surfel Num", &tempSurfelNumber,0,10000);
-		bool applySurfelNum = false;
-		if (ImGui::Checkbox("Apply New Surfel Num", &applySurfelNum))
-		{
-			SurfelIllumination->RecreateSurfelListBuffers(tempSurfelNumber);
-		}
+		//ImGui::SliderInt("Surfel Num", &tempSurfelNumber,0,10000);
+//		bool applySurfelNum = false;
+//		if (ImGui::Checkbox("Apply New Surfel Num", &applySurfelNum))
+//		{
+//			SurfelIllumination->RecreateSurfelListBuffers(tempSurfelNumber);
+//		}
 
 
 		static bool spawnThresholdsCollapsingHeader = true;
@@ -1091,7 +934,6 @@ UINT TestRenderer::frameIndex = 0;
 		}
 
 		std::stringstream ss;
-		int testa = 3;
 		UINT from, to;
 		GetRelevantSurfels(from, to);
 		SurfelDebugData dd = SurfelIllumination->m_SurfelDebugActual;
@@ -1104,10 +946,6 @@ UINT TestRenderer::frameIndex = 0;
 			SurfelData s = SurfelIllumination->m_SurfelDataArray[surfelIndex];
 			ss << "	S ID:	" << surfelIndex << "	POS:" << s.position.GetX() << "," << s.position.GetY() << "," << s.position.GetZ() << ",";
 			ss << "\n";
-
-
-
-
 		}
 
 
@@ -1136,39 +974,110 @@ UINT TestRenderer::frameIndex = 0;
 		return *TestRenderer::m_Model;
 	}
 
-	void TestRenderer::RenderScene(
-		GraphicsContext& gfxContext,
-		const Camera& camera,
-		const D3D12_VIEWPORT& viewport,
-		const D3D12_RECT& scissor,
-		bool skipDiffusePass,
-		bool skipShadowMap)
+
+	 void TestRenderer::RenderColor(RENDER_SCENE_PARAMS)
+	 {
+		 {
+			 ScopedTimer _prof2(L"Render Color", gfxContext);
+
+			 gfxContext.TransitionResource(g_SSAOFullScreen, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+			 //gfxContext.TransitionResource(TestRaytracing::GetOutputBuffer(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+
+			 gfxContext.SetDescriptorTable(Renderer::kCommonSRVs, Renderer::m_CommonTextures);
+			 gfxContext.SetDynamicConstantBufferView(Renderer::kMaterialConstants, sizeof(psConstants), &psConstants);
+
+			 {
+				 gfxContext.SetPipelineState(m_ModelPSO);
+				 gfxContext.TransitionResource(g_SceneDepthBuffer, D3D12_RESOURCE_STATE_DEPTH_READ);
+				 D3D12_CPU_DESCRIPTOR_HANDLE rtvs[]{ g_SceneColorBuffer.GetRTV(), g_SceneNormalBuffer.GetRTV() };
+				 gfxContext.SetRenderTargets(ARRAYSIZE(rtvs), rtvs, g_SceneDepthBuffer.GetDSV_DepthReadOnly());
+				 gfxContext.SetViewportAndScissor(viewport, scissor);
+			 }
+			 RenderObjects(gfxContext, camera.GetViewProjMatrix(), camera.GetPosition(), TestRenderer::kOpaque);
+
+
+			 {
+				 ScopedTimer _prof3(L"Render Sphere", gfxContext);
+				 gfxContext.SetPipelineState(m_TestSpherePSO);
+				 gfxContext.SetRootSignature(m_TestSpherePSO.GetRootSignature());
+				 gfxContext.TransitionResource(g_SceneColorBuffer, D3D12_RESOURCE_STATE_RENDER_TARGET);
+				 gfxContext.TransitionResource(g_SceneNormalBuffer, D3D12_RESOURCE_STATE_RENDER_TARGET);
+				 gfxContext.TransitionResource(g_SceneDepthBuffer, D3D12_RESOURCE_STATE_DEPTH_READ);
+				 D3D12_CPU_DESCRIPTOR_HANDLE rtvs[]{ g_SceneColorBuffer.GetRTV(), g_SceneNormalBuffer.GetRTV() };
+				 gfxContext.SetRenderTargets(ARRAYSIZE(rtvs), rtvs, g_SceneDepthBuffer.GetDSV_DepthReadOnly());
+				 gfxContext.SetViewportAndScissor(viewport, scissor);
+				 RenderSphereObject(gfxContext, camera.GetViewProjMatrix(), camera.GetPosition(), TestRenderer::kOpaque);
+				 if (m_renderOnlyCurrentCellSurfels)
+					 RenderRelevantSurfels(gfxContext, camera.GetViewProjMatrix(), camera.GetPosition(), TestRenderer::kOpaque);
+				 else
+					 RenderSurfels(gfxContext, camera.GetViewProjMatrix(), camera.GetPosition(), TestRenderer::kOpaque);
+
+
+
+			 }
+
+
+		 }
+
+	 }
+
+	 void TestRenderer::RenderDebugOverlay(RENDER_SCENE_PARAMS)
+	 {
+		 if (m_debugOverlayMode == 0)
+		 {
+			 ScopedTimer _prof3(L"Surfel Density Debug Overlay", gfxContext);
+			 GridVisualization->SetupRenderStage(gfxContext, viewport, scissor,
+				 TestRaytracing::GetOutputBuffer(),
+				 camera);
+			 SurfelIllumination->UpdateProjection(camera);
+			 SurfelIllumination->SendParametersGraphics(gfxContext);
+			 gfxContext.InsertUAVBarrier(SurfelIllumination->m_SurfelGrid);
+			 RenderFullScreenQuad(gfxContext);
+
+		 }
+		 else if (m_debugOverlayMode == 1)
+		 {
+			 ScopedTimer _prof3(L"Surfel GI Only Debug Overlay", gfxContext);
+			 gfxContext.TransitionResource(SurfelIllumination->m_OutputTexture, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+			 SurfelGIVisualization->SetupRenderStage(gfxContext, viewport, scissor,
+				 SurfelIllumination->m_OutputTexture,
+				 camera);
+			 gfxContext.InsertUAVBarrier(SurfelIllumination->m_SurfelGrid);
+			 SurfelGIVisualization->SetRootParameters(gfxContext, SurfelIllumination->m_OutputTexture);
+			 RenderFullScreenQuad(gfxContext);
+		 }
+		 else if (m_debugOverlayMode == 2)
+		 {
+			 ScopedTimer _prof3(L"Surfel MSME Debug Overlay", gfxContext);
+			 GridMSMEVisualization->SetupRenderStage(gfxContext, viewport, scissor,
+				 TestRaytracing::GetOutputBuffer(),
+				 camera);
+			 SurfelIllumination->UpdateProjection(camera);
+			 SurfelIllumination->SendParametersGraphics(gfxContext);
+			 gfxContext.InsertUAVBarrier(SurfelIllumination->m_SurfelGrid);
+			 RenderFullScreenQuad(gfxContext);
+
+		 }
+
+
+
+
+
+
+
+
+	 }
+	void TestRenderer::RenderScene(RENDER_SCENE_PARAMS)
 	{
 
 
 		ComputeContext& cfx = reinterpret_cast<ComputeContext&>(gfxContext);
-
-
-		//Determinese which algorithm to use to fill the acceleration structure
-//		if (m_useSimpleAlgorithm)
-//		{
-//			SurfelIllumination->FillAccelerationStructures(cfx);
-//		}
-//		else
-//		{
-//
-//		}
-			//SurfelIllumination->FillAccelerationStructures(cfx);
 		SurfelIllumination->FillAccelerationStructuresReduceThenScan(cfx);
-
-
-
 
 		if(m_stopSurfelUpdate == true && m_stopSurfelUpdate != m_prevStopSurfelUpdate)
 		{
 			SurfelIllumination->ReadbackSurfelAccelerationStructure(gfxContext);
 		}
-
 
 		SurfelIllumination->ReadbakcSurfelDebugData(gfxContext);
 
@@ -1196,21 +1105,7 @@ UINT TestRenderer::frameIndex = 0;
 		float sinphi = sinf(m_SunInclination * 3.14159f * 0.5f);
 		m_SunDirection = Normalize(Vector3(costheta * cosphi, sinphi, sintheta * cosphi));
 
-		__declspec(align(16)) struct
-		{
-			Vector3 sunDirection;
-			Vector3 sunLight;
-			Vector3 ambientLight;
-			float ShadowTexelSize[4];
 
-			float InvTileDim[4];
-			uint32_t TileCount[4];
-			uint32_t FirstLightIndex[4];
-
-			uint32_t FrameIndexMod2;
-		} psConstants;
-
-		//TestRaytracing::directionalLightData.sunDirection = XMFLOAT4(m_SunDirection[0], m_SunDirection.GetY(), m_SunDirection.GetZ(), 1);
 
 		psConstants.sunDirection = m_SunDirection;
 		psConstants.sunLight = Vector3(1.0f, 1.0f, 1.0f) * m_SunLightIntensity;
@@ -1324,104 +1219,20 @@ UINT TestRenderer::frameIndex = 0;
 					g_CommandManager.GetGraphicsQueue().StallForProducer(g_CommandManager.GetComputeQueue());
 				}
 
+				RenderColor(gfxContext, camera, viewport, scissor, skipDiffusePass, skipShadowMap);
+
+				if (m_enableDebugOverlay)
 				{
-					ScopedTimer _prof2(L"Render Color", gfxContext);
-
-					gfxContext.TransitionResource(g_SSAOFullScreen, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
-					//gfxContext.TransitionResource(TestRaytracing::GetOutputBuffer(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
-
-					gfxContext.SetDescriptorTable(Renderer::kCommonSRVs, Renderer::m_CommonTextures);
-					gfxContext.SetDynamicConstantBufferView(Renderer::kMaterialConstants, sizeof(psConstants), &psConstants);
-
-					{
-						gfxContext.SetPipelineState(m_ModelPSO);
-						gfxContext.TransitionResource(g_SceneDepthBuffer, D3D12_RESOURCE_STATE_DEPTH_READ);
-						D3D12_CPU_DESCRIPTOR_HANDLE rtvs[]{ g_SceneColorBuffer.GetRTV(), g_SceneNormalBuffer.GetRTV() };
-						gfxContext.SetRenderTargets(ARRAYSIZE(rtvs), rtvs, g_SceneDepthBuffer.GetDSV_DepthReadOnly());
-						gfxContext.SetViewportAndScissor(viewport, scissor);
-					}
-					RenderObjects(gfxContext, camera.GetViewProjMatrix(), camera.GetPosition(), TestRenderer::kOpaque);
-
-
-					{
-						ScopedTimer _prof3(L"Render Sphere", gfxContext);
-						gfxContext.SetPipelineState(m_TestSpherePSO);
-						gfxContext.SetRootSignature(m_TestSpherePSO.GetRootSignature());
-						gfxContext.TransitionResource(g_SceneColorBuffer, D3D12_RESOURCE_STATE_RENDER_TARGET);
-						gfxContext.TransitionResource(g_SceneNormalBuffer, D3D12_RESOURCE_STATE_RENDER_TARGET);
-						gfxContext.TransitionResource(g_SceneDepthBuffer, D3D12_RESOURCE_STATE_DEPTH_READ);
-						D3D12_CPU_DESCRIPTOR_HANDLE rtvs[]{ g_SceneColorBuffer.GetRTV(), g_SceneNormalBuffer.GetRTV() };
-						gfxContext.SetRenderTargets(ARRAYSIZE(rtvs), rtvs, g_SceneDepthBuffer.GetDSV_DepthReadOnly());
-						gfxContext.SetViewportAndScissor(viewport, scissor);
-						RenderSphereObject(gfxContext, camera.GetViewProjMatrix(), camera.GetPosition(), TestRenderer::kOpaque);
-						if(m_renderOnlyCurrentCellSurfels)
-							RenderRelevantSurfels(gfxContext, camera.GetViewProjMatrix(), camera.GetPosition(), TestRenderer::kOpaque);
-						else
-							RenderSurfels(gfxContext, camera.GetViewProjMatrix(), camera.GetPosition(), TestRenderer::kOpaque);
-
-
-						
-					}
-
-					if(m_enableDebugOverlay)
-					{
-						if (m_debugOverlayMode == 0)
-						{
-							ScopedTimer _prof3(L"Surfel Density Debug Overlay", gfxContext);
-							GridVisualization->SetupRenderStage(gfxContext, viewport, scissor,
-								TestRaytracing::GetOutputBuffer(),
-								camera);
-							SurfelIllumination->UpdateProjection(camera);
-							SurfelIllumination->SendParametersGraphics(gfxContext);
-							gfxContext.InsertUAVBarrier(SurfelIllumination->m_SurfelGrid);
-							RenderFullScreenQuad(gfxContext);
-
-						}
-						else if (m_debugOverlayMode == 1)
-						{
-							ScopedTimer _prof3(L"Surfel GI Only Debug Overlay", gfxContext);
-							gfxContext.TransitionResource(SurfelIllumination->m_OutputTexture, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
-							SurfelGIVisualization->SetupRenderStage(gfxContext, viewport, scissor,
-								SurfelIllumination->m_OutputTexture,
-								camera);
-							gfxContext.InsertUAVBarrier(SurfelIllumination->m_SurfelGrid);
-							SurfelGIVisualization->SetRootParameters(gfxContext, SurfelIllumination->m_OutputTexture);
-							RenderFullScreenQuad(gfxContext);
-						}
-						else if (m_debugOverlayMode == 2)
-						{
-							ScopedTimer _prof3(L"Surfel MSME Debug Overlay", gfxContext);
-							GridMSMEVisualization->SetupRenderStage(gfxContext, viewport, scissor,
-								TestRaytracing::GetOutputBuffer(),
-								camera);
-							SurfelIllumination->UpdateProjection(camera);
-							SurfelIllumination->SendParametersGraphics(gfxContext);
-							gfxContext.InsertUAVBarrier(SurfelIllumination->m_SurfelGrid);
-							RenderFullScreenQuad(gfxContext);
-
-						}
-
-
-
-
-
-
-					}
-
-
-
-
-
-					//                --- SKIP NORMAL CUTOUTS---
-					//                gfxContext.SetPipelineState(m_CutoutModelPSO);
-					//                RenderObjects( gfxContext, camera.GetViewProjMatrix(), camera.GetPosition(), TestRenderer::kCutout );
+					RenderDebugOverlay(gfxContext, camera, viewport, scissor, skipDiffusePass, skipShadowMap);
 				}
+				//                --- SKIP NORMAL CUTOUTS---
+				//gfxContext.SetPipelineState(m_CutoutModelPSO);
+				//RenderObjects( gfxContext, camera.GetViewProjMatrix(), camera.GetPosition(), TestRenderer::kCutout );
+
 			}
 		}
 
 		// --- SURFEL PASS
-
-
 		frameIndex++;
 		//Set the frame index
 		SurfelIllumination->m_SurfelGen.FrameIndex = frameIndex;

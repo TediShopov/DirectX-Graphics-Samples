@@ -31,6 +31,8 @@ public:
 
 	enum eObjectFilter { kOpaque = 0x1, kCutout = 0x2, kTransparent = 0x4, kAll = 0xF, kNone = 0x0 };
 
+#define RENDER_SCENE_DEFAULT_PARAMS GraphicsContext& gfxContext, const Math::Camera& camera,const D3D12_VIEWPORT& viewport,const D3D12_RECT& scissor,bool skipDiffusePass = false,bool skipShadowMap = false
+#define RENDER_SCENE_PARAMS GraphicsContext& gfxContext, const Math::Camera& camera,const D3D12_VIEWPORT& viewport,const D3D12_RECT& scissor,bool skipDiffusePass ,bool skipShadowMap
 #define RENDER_OBJECT_INSTANCE_PARAMS GraphicsContext& gfxContext, const Matrix4& ViewProjMat, const Vector3& viewerPos, eObjectFilter Filter
 
 
@@ -62,14 +64,7 @@ public:
 	static void Cleanup(void);
 
 	//--- RENDERING ---
-	static void RenderScene(
-		GraphicsContext& gfxContext,
-		const Math::Camera& camera,
-		const D3D12_VIEWPORT& viewport,
-		const D3D12_RECT& scissor,
-		bool skipDiffusePass = false,
-		bool skipShadowMap = false);
-
+	static void RenderScene(RENDER_SCENE_DEFAULT_PARAMS);
 
 	//-- UI SPECIFIC --
 	static void RenderImGuiUI(GraphicsContext& gfx);
@@ -81,14 +76,44 @@ protected:
 	static void InitSphereModel();
 
 
+	//Model Rendering VS Constants
+	struct VSConstants
+	{
+		Matrix4 modelToWorld;
+		Matrix4 modelToProjection;
+		Matrix4 modelToShadow;
+		XMFLOAT3 viewerPos;
+	};
+	__declspec(align(16)) struct PSConstants
+	{
+		Vector3 sunDirection;
+		Vector3 sunLight;
+		Vector3 ambientLight;
+		float ShadowTexelSize[4];
+
+		float InvTileDim[4];
+		uint32_t TileCount[4];
+		uint32_t FirstLightIndex[4];
+
+		uint32_t FrameIndexMod2;
+	};
+	static PSConstants psConstants;
 
 	//--- RENDERING PASSES ---
+
 	static void RenderLightShadows(GraphicsContext& gfxContext, const Camera& camera);
 	static void RenderScreenSpaceTriangle(GraphicsContext& Context);
 	static void RenderSphereObject(RENDER_OBJECT_INSTANCE_PARAMS);
 	static void RenderObjects(RENDER_OBJECT_INSTANCE_PARAMS);
-	static void RenderSurfels(RENDER_OBJECT_INSTANCE_PARAMS);
 	static void RenderRelevantSurfels(RENDER_OBJECT_INSTANCE_PARAMS);
+	static void RenderSurfels(RENDER_OBJECT_INSTANCE_PARAMS);
+
+	static void RenderColor(RENDER_SCENE_PARAMS);
+	static void RenderDebugOverlay(RENDER_SCENE_PARAMS);
+
+
+	static VSConstants SetupObjectVSConstants(RENDER_OBJECT_INSTANCE_PARAMS);
+	
 
 
 	static void RenderFullScreenQuad(GraphicsContext& gfxContext);
