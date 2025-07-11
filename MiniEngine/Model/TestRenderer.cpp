@@ -31,8 +31,10 @@
 #include "backends/imgui_impl_dx12.h"
 
 
+
 // From Model
 #include "ModelH3D.h"
+#include "ModelOBJ.h"
 
 // From ModelViewer
 
@@ -158,6 +160,9 @@ UINT TestRenderer::frameIndex = 0;
 	GraphicsPSO m_ShadowPSO = (L"Sponza: Shadow PSO");
 	GraphicsPSO m_CutoutShadowPSO = (L"Sponza: Cutout Shadow PSO");
 
+
+	ModelOBJ OBJModel;
+
 	TestRenderer::PSConstants TestRenderer::psConstants = TestRenderer::PSConstants{};
 
 	std::vector<bool> m_pMaterialIsCutout;
@@ -207,6 +212,8 @@ UINT TestRenderer::frameIndex = 0;
 	///--- INTIIALIZATION ---
 	void TestRenderer::Startup(Math::Camera& camera, HWND hwnd)
 	{
+//		DragonModel.Load(L"OBJ/Dragon.obj");
+//		DragonModel.Load(L"D:/MScSurfelBasedGI/DirectX-Graphics-Samples/MiniEngine/Model/OBJ/Dragon.obj");
 
 		SurfelIllumination = new SurfelGI();  // Definition (allocates storage)
 		GridVisualization = new HashGridVisualization();
@@ -224,7 +231,7 @@ UINT TestRenderer::frameIndex = 0;
 		DXGI_FORMAT ShadowFormat = g_ShadowBuffer.GetFormat();
 
 		//m_Transform.setScale(50,50,50);
-		m_Transform.setScale(100, 100, 100);
+		m_Transform.setScale(1000, 1000, 1000);
 
 		D3D12_INPUT_ELEMENT_DESC vertElem[] =
 		{
@@ -323,6 +330,8 @@ UINT TestRenderer::frameIndex = 0;
 		InitTriangleModel();
 		InitQuadModel();
 		InitSphereModel();
+
+		OBJModel.Load(L"D:/MScSurfelBasedGI/DirectX-Graphics-Samples/MiniEngine/Model/OBJ/Bunny.obj");
 
 		m_Disc = new DiscMesh(10);
 
@@ -598,6 +607,22 @@ UINT TestRenderer::frameIndex = 0;
 		gfxContext.SetIndexBuffer(m_Model->GetIndexBuffer());
 		gfxContext.SetVertexBuffer(0, m_Model->GetVertexBuffer());
 	}
+	void TestRenderer::RenderOBJObject(RENDER_OBJECT_INSTANCE_PARAMS)
+	{
+		VSConstants vsConstants = SetupObjectVSConstants(gfxContext, ViewProjMat, viewerPos, Filter);
+		gfxContext.SetDynamicConstantBufferView(Renderer::kMeshConstants, sizeof(vsConstants), &vsConstants);
+		
+		gfxContext.SetIndexBuffer(OBJModel.GetIndexBuffer());
+		gfxContext.SetVertexBuffer(0,OBJModel.GetVertexBuffer());
+		//--- Draw three indices of the triangle
+		gfxContext.DrawIndexed(OBJModel.m_pIndices.size(), 0, 0);
+
+		//--- Switch Back To Sponza model
+		gfxContext.SetIndexBuffer(m_Model->GetIndexBuffer());
+		gfxContext.SetVertexBuffer(0, m_Model->GetVertexBuffer());
+
+
+	}
 	void TestRenderer::RenderSphereObject(RENDER_OBJECT_INSTANCE_PARAMS)
 	{
 		VSConstants vsConstants = SetupObjectVSConstants(gfxContext, ViewProjMat, viewerPos, Filter);
@@ -614,6 +639,7 @@ UINT TestRenderer::frameIndex = 0;
 		gfxContext.SetVertexBuffer(0, m_Model->GetVertexBuffer());
 
 	}
+
 	XMVECTOR TestRenderer::GetRotationQuaternionFromUpToDirection(FXMVECTOR targetDirection)
 	{
 		const XMVECTOR up = XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f); // original surfel normal
@@ -1006,16 +1032,25 @@ UINT TestRenderer::frameIndex = 0;
 				 D3D12_CPU_DESCRIPTOR_HANDLE rtvs[]{ g_SceneColorBuffer.GetRTV(), g_SceneNormalBuffer.GetRTV() };
 				 gfxContext.SetRenderTargets(ARRAYSIZE(rtvs), rtvs, g_SceneDepthBuffer.GetDSV_DepthReadOnly());
 				 gfxContext.SetViewportAndScissor(viewport, scissor);
-				 RenderSphereObject(gfxContext, camera.GetViewProjMatrix(), camera.GetPosition(), TestRenderer::kOpaque);
+				 //RenderSphereObject(gfxContext, camera.GetViewProjMatrix(), camera.GetPosition(), TestRenderer::kOpaque);
 				 if (m_renderOnlyCurrentCellSurfels)
 					 RenderRelevantSurfels(gfxContext, camera.GetViewProjMatrix(), camera.GetPosition(), TestRenderer::kOpaque);
 				 else
 					 RenderSurfels(gfxContext, camera.GetViewProjMatrix(), camera.GetPosition(), TestRenderer::kOpaque);
-
-
-
 			 }
 
+			 {
+				 ScopedTimer _prof3(L"Render OBJ", gfxContext);
+				 gfxContext.SetPipelineState(m_TestSpherePSO);
+				 gfxContext.SetRootSignature(m_TestSpherePSO.GetRootSignature());
+				 gfxContext.TransitionResource(g_SceneColorBuffer, D3D12_RESOURCE_STATE_RENDER_TARGET);
+				 gfxContext.TransitionResource(g_SceneNormalBuffer, D3D12_RESOURCE_STATE_RENDER_TARGET);
+				 gfxContext.TransitionResource(g_SceneDepthBuffer, D3D12_RESOURCE_STATE_DEPTH_READ);
+				 D3D12_CPU_DESCRIPTOR_HANDLE rtvs[]{ g_SceneColorBuffer.GetRTV(), g_SceneNormalBuffer.GetRTV() };
+				 gfxContext.SetRenderTargets(ARRAYSIZE(rtvs), rtvs, g_SceneDepthBuffer.GetDSV_DepthReadOnly());
+				 gfxContext.SetViewportAndScissor(viewport, scissor);
+				 RenderOBJObject(gfxContext, camera.GetViewProjMatrix(), camera.GetPosition(), TestRenderer::kOpaque);
+			 }
 
 		 }
 

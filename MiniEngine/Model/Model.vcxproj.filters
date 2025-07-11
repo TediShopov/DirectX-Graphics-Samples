@@ -111,6 +111,7 @@
     </ClCompile>
     <ClCompile Include="SurfelGIOnlyVisualization.cpp" />
     <ClCompile Include="MSMEVisualization.cpp" />
+    <ClCompile Include="ModelOBJ.cpp" />
   </ItemGroup>
   <ItemGroup>
     <Filter Include="Source Files">
@@ -127,6 +128,10 @@
     </Filter>
     <Filter Include="Imgui">
       <UniqueIdentifier>{f430fe55-edd6-4ad8-b9e6-a01700efe120}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Resources">
+      <UniqueIdentifier>{d97a2fd9-9b55-4132-82a4-5a4f3096526d}</UniqueIdentifier>
+      <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms;obj</Extensions>
     </Filter>
   </ItemGroup>
   <ItemGroup>
@@ -225,6 +230,7 @@
     </ClInclude>
     <ClInclude Include="SurfelGIOnlyVisualization.h" />
     <ClInclude Include="MSMEVisualization.h" />
+    <ClInclude Include="ModelOBJ.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="Shaders\Common.hlsli">

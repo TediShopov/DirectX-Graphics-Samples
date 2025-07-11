@@ -104,6 +104,7 @@ protected:
 	static void RenderLightShadows(GraphicsContext& gfxContext, const Camera& camera);
 	static void RenderScreenSpaceTriangle(GraphicsContext& Context);
 	static void RenderSphereObject(RENDER_OBJECT_INSTANCE_PARAMS);
+	static void RenderOBJObject(RENDER_OBJECT_INSTANCE_PARAMS);
 	static void RenderObjects(RENDER_OBJECT_INSTANCE_PARAMS);
 	static void RenderRelevantSurfels(RENDER_OBJECT_INSTANCE_PARAMS);
 	static void RenderSurfels(RENDER_OBJECT_INSTANCE_PARAMS);
