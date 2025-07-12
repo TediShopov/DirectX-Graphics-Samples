@@ -65,7 +65,8 @@ namespace TestRaytracing
 
 
 
-	const float SPONZA_NUM_MESHES = 33;
+	//const float SPONZA_NUM_MESHES = 33;
+	const float SPONZA_NUM_MESHES = 1;
 	float aspectRatio;
 	UINT m_raytracingOutputResourceUAVDescriptorHeapIndex;
 
@@ -119,8 +120,8 @@ namespace TestRaytracing
 		D3D12_DISPATCH_RAYS_DESC dispatchDesc = {};
 		gfxContext.SetDescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, m_materialDescriptorHeap.GetHeapPointer());
 
-		commandList->SetComputeRootDescriptorTable(0, m_materialDescriptorHeap[0]);
-		commandList->SetComputeRootDescriptorTable(4, m_materialDescriptorHeap[4]);
+//		commandList->SetComputeRootDescriptorTable(0, m_materialDescriptorHeap[0]);
+//		commandList->SetComputeRootDescriptorTable(4, m_materialDescriptorHeap[4]);
 		commandList->SetComputeRootShaderResourceView(1, m_topLevelAccelerationStructure->GetGPUVirtualAddress());
 		gfxContext.SetDynamicConstantBufferView(2, sizeof(RayGet3DBuffer), &m_rayGenCB);
 		gfxContext.SetDynamicConstantBufferView(3, sizeof(UniformGrid), &grid);
@@ -659,11 +660,6 @@ namespace TestRaytracing
 		//Only diffuse textures 
 		//UINT diffuseTextureSize = model.m_TextureReferences.size() / 3;
 		UINT texturesSize = model.GetMaterialCount() * 3;
-		auto mat0 = model.GetMaterial(0);
-		auto mat1 = model.GetMaterial(1);
-		auto mat2 = model.GetMaterial(2);
-		auto mat3 = model.GetMaterial(3);
-		auto mat4 = model.GetMaterial(4);
 
 		for (size_t i = 0; i < model.GetMaterialCount(); i++)
 		{
@@ -720,7 +716,7 @@ namespace TestRaytracing
 		for (UINT i = 0; i < numMeshes; i++)
 		{
 			//The current mesh
-			auto& mesh = model.m_pMesh[i];
+			ModelH3D::Mesh mesh = model.m_pMesh[i];
 
 			//The vertex data as layed out in the model h3d
 			struct ActualVD {

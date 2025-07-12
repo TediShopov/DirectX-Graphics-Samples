@@ -323,16 +323,29 @@ UINT TestRenderer::frameIndex = 0;
 		m_TestSpherePSO.Finalize();
 
 		m_Model = new ModelH3D();
+
+		OBJModel.Load(L"D:/MScSurfelBasedGI/DirectX-Graphics-Samples/MiniEngine/Model/OBJ/Bunny.obj");
+		Renderer::ModelData data = OBJModel.CreateModelData();
+		//Initalize the header for the file
+		ModelH3D* a  = new ModelH3D();
+		OBJModel.AttemptCreateH3DModel(a);
+		a->SaveH3D(L"TestScene.h3d");
 		// LOADING SPONZA AS WELL
-		ASSERT(m_Model->Load(L"Sponza/sponza.h3d"), "Failed to load model");
+		//ASSERT(m_Model->Load(L"Sponza/sponza.h3d"), "Failed to load model");
+		ASSERT(m_Model->Load(L"TestScene.h3d"), "Failed to load model");
 		ASSERT(m_Model->GetMeshCount() > 0, "Model contains no meshes");
+		int meshCountPrevious = m_Model->GetMeshCount();
 
 		InitTriangleModel();
 		InitQuadModel();
 		InitSphereModel();
 
-		OBJModel.Load(L"D:/MScSurfelBasedGI/DirectX-Graphics-Samples/MiniEngine/Model/OBJ/Bunny.obj");
-		OBJModel.CreateModelData();
+
+		
+
+
+
+
 
 
 
@@ -830,7 +843,11 @@ UINT TestRenderer::frameIndex = 0;
 			const ModelH3D::Mesh& mesh = m_Model->GetMesh(meshIndex);
 
 			uint32_t indexCount = mesh.indexCount;
+		
+			auto format = m_Model->GetIndexBuffer().Format;
+			//uint32_t startIndex = 0;
 			uint32_t startIndex = mesh.indexDataByteOffset / sizeof(uint16_t);
+			//uint32_t startIndex = mesh.indexDataByteOffset / sizeof(uint32_t);
 			uint32_t baseVertex = mesh.vertexDataByteOffset / VertexStride;
 
 			if (mesh.materialIndex != materialIdx)

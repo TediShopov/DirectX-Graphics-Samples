@@ -165,17 +165,17 @@ bool ModelH3D::LoadH3D(const wstring& filename)
     {
         const Mesh& mesh = m_pMesh[meshIndex];
 
-        ASSERT( mesh.attribsEnabled ==
-            (attrib_mask_position | attrib_mask_texcoord0 | attrib_mask_normal | attrib_mask_tangent | attrib_mask_bitangent) );
-        ASSERT(mesh.attrib[0].components == 3 && mesh.attrib[0].format == ModelH3D::attrib_format_float); // position
-        ASSERT(mesh.attrib[1].components == 2 && mesh.attrib[1].format == ModelH3D::attrib_format_float); // texcoord0
-        ASSERT(mesh.attrib[2].components == 3 && mesh.attrib[2].format == ModelH3D::attrib_format_float); // normal
-        ASSERT(mesh.attrib[3].components == 3 && mesh.attrib[3].format == ModelH3D::attrib_format_float); // tangent
-        ASSERT(mesh.attrib[4].components == 3 && mesh.attrib[4].format == ModelH3D::attrib_format_float); // bitangent
-
-        ASSERT( mesh.attribsEnabledDepth ==
-            (attrib_mask_position) );
-        ASSERT(mesh.attrib[0].components == 3 && mesh.attrib[0].format == ModelH3D::attrib_format_float); // position
+//        ASSERT( mesh.attribsEnabled ==
+//            (attrib_mask_position | attrib_mask_texcoord0 | attrib_mask_normal | attrib_mask_tangent | attrib_mask_bitangent) );
+//        ASSERT(mesh.attrib[0].components == 3 && mesh.attrib[0].format == ModelH3D::attrib_format_float); // position
+//        ASSERT(mesh.attrib[1].components == 2 && mesh.attrib[1].format == ModelH3D::attrib_format_float); // texcoord0
+//        ASSERT(mesh.attrib[2].components == 3 && mesh.attrib[2].format == ModelH3D::attrib_format_float); // normal
+//        ASSERT(mesh.attrib[3].components == 3 && mesh.attrib[3].format == ModelH3D::attrib_format_float); // tangent
+//        ASSERT(mesh.attrib[4].components == 3 && mesh.attrib[4].format == ModelH3D::attrib_format_float); // bitangent
+//
+//        ASSERT( mesh.attribsEnabledDepth ==
+//            (attrib_mask_position) );
+//        ASSERT(mesh.attrib[0].components == 3 && mesh.attrib[0].format == ModelH3D::attrib_format_float); // position
     }
 #endif
 
@@ -183,8 +183,8 @@ bool ModelH3D::LoadH3D(const wstring& filename)
 
     uint32_t totalBinarySize = m_Header.vertexDataByteSize
         + m_Header.indexDataByteSize
-        + m_Header.vertexDataByteSizeDepth
-        + m_Header.indexDataByteSize;
+        + m_Header.vertexDataByteSizeDepth;
+        //+ m_Header.indexDataByteSize;
 
     geomBuffer.Create(L"Geometry Upload Buffer", totalBinarySize);
     uint8_t* uploadMem = (uint8_t*)geomBuffer.Map();
@@ -201,19 +201,22 @@ bool ModelH3D::LoadH3D(const wstring& filename)
 
     if (m_Header.vertexDataByteSizeDepth > 0 && !file.read((char*)m_pVertexDataDepth, m_Header.vertexDataByteSizeDepth))
         return false;
-    if (m_Header.indexDataByteSize > 0 && !file.read((char*)m_pIndexDataDepth, m_Header.indexDataByteSize))
-        return false;
+//    if (m_Header.indexDataByteSize > 0 && !file.read((char*)m_pIndexDataDepth, m_Header.indexDataByteSize))
+//        return false;
 
     m_GeometryBuffer.Create(L"Geometry Buffer", totalBinarySize, 1, geomBuffer);
 
-    m_VertexBuffer = m_GeometryBuffer.VertexBufferView(0, m_Header.vertexDataByteSize, m_VertexStride); m_IndexBuffer = m_GeometryBuffer.IndexBufferView(m_pIndexData - m_pVertexData, m_Header.indexDataByteSize, false);
+    m_VertexBuffer = m_GeometryBuffer.VertexBufferView(0, m_Header.vertexDataByteSize, m_VertexStride); 
+    //m_IndexBuffer = m_GeometryBuffer.IndexBufferView(m_pIndexData - m_pVertexData, m_Header.indexDataByteSize, false);
+    m_IndexBuffer = m_GeometryBuffer.IndexBufferView(m_Header.vertexDataByteSize, m_Header.indexDataByteSize, false);
     m_VertexBufferDepth = m_GeometryBuffer.VertexBufferView(m_pVertexDataDepth - m_pVertexData, m_Header.vertexDataByteSizeDepth, m_VertexStride);
-    m_IndexBufferDepth = m_GeometryBuffer.IndexBufferView(m_pIndexDataDepth - m_pVertexData, m_Header.indexDataByteSize, false);
+    //m_IndexBufferDepth = m_GeometryBuffer.IndexBufferView(m_pIndexDataDepth - m_pVertexData, m_Header.indexDataByteSize, false);
 
     m_pVertexData = new unsigned char[m_Header.vertexDataByteSize];
     m_pIndexData = new unsigned char[m_Header.indexDataByteSize];
     m_pVertexDataDepth = new unsigned char[m_Header.vertexDataByteSizeDepth];
-    m_pIndexDataDepth = new unsigned char[m_Header.indexDataByteSize];
+    m_pIndexDataDepth = new unsigned char[0];
+    //m_pIndexDataDepth = new unsigned char[m_Header.indexDataByteSize];
 
     std::memcpy(m_pVertexData, uploadMem, m_Header.vertexDataByteSize);
     uploadMem += m_Header.vertexDataByteSize;
@@ -221,7 +224,7 @@ bool ModelH3D::LoadH3D(const wstring& filename)
     uploadMem += m_Header.indexDataByteSize;
     std::memcpy(m_pVertexDataDepth, uploadMem, m_Header.vertexDataByteSizeDepth);
     uploadMem += m_Header.vertexDataByteSizeDepth;
-    std::memcpy(m_pIndexDataDepth, uploadMem, m_Header.indexDataByteSize);
+    //std::memcpy(m_pIndexDataDepth, uploadMem, m_Header.indexDataByteSize);
 
     geomBuffer.Unmap();
 

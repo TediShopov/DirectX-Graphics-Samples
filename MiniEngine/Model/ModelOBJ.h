@@ -5,13 +5,15 @@
 #include "DescriptorHeap.h"
 #include "../Core/Math/BoundingBox.h"
 #include "Geometry/BaseMesh.h"
+#include "ModelH3D.h"
 #include "ModelLoader.h"
 
-struct OBJVertex {
+struct H3DVertex {
     XMFLOAT3 position;
-    XMFLOAT2 texCoord;
+    XMFLOAT2 uv;
     XMFLOAT3 normal;
-
+    XMFLOAT3 tangent;
+    XMFLOAT3 bitangent;
 };
 
 
@@ -25,15 +27,19 @@ public:
     void Clear();
 
 
+    Mesh* meshPtr = new Mesh();
 //    std::vector<XMFLOAT3> m_pPositions;
 //    std::vector<XMFLOAT3> m_pNormals;
 //    std::vector<XMFLOAT2> m_pTexCoords;
-    std::vector<VertexType> m_pVertices;
-    std::vector<UINT> m_pIndices;
+    std::vector<H3DVertex> m_pVertices;
+    std::vector<uint16_t> m_pIndices;
 
 
     virtual bool Load(const std::wstring& filename);
-     bool CreateModelData();
+
+     Renderer::ModelData CreateModelData();
+     void AttemptCreateH3DModel(ModelH3D* modelToFill);
+     
      uint32_t GetVertexStride() const { return m_VertexStride; }
     const D3D12_VERTEX_BUFFER_VIEW& GetVertexBuffer() const { return m_VertexBufferView; }
     const D3D12_INDEX_BUFFER_VIEW& GetIndexBuffer() const { return m_IndexBufferView; }
