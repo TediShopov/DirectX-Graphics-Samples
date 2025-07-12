@@ -39,6 +39,7 @@ public:
 
      Renderer::ModelData CreateModelData();
      void AttemptCreateH3DModel(ModelH3D* modelToFill);
+     void InsertIntoH3DModel(ModelH3D* modelToFill);
      
      uint32_t GetVertexStride() const { return m_VertexStride; }
     const D3D12_VERTEX_BUFFER_VIEW& GetVertexBuffer() const { return m_VertexBufferView; }

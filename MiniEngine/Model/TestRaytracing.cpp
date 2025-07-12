@@ -120,8 +120,8 @@ namespace TestRaytracing
 		D3D12_DISPATCH_RAYS_DESC dispatchDesc = {};
 		gfxContext.SetDescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, m_materialDescriptorHeap.GetHeapPointer());
 
-//		commandList->SetComputeRootDescriptorTable(0, m_materialDescriptorHeap[0]);
-//		commandList->SetComputeRootDescriptorTable(4, m_materialDescriptorHeap[4]);
+		commandList->SetComputeRootDescriptorTable(0, m_materialDescriptorHeap[0]);
+		commandList->SetComputeRootDescriptorTable(4, m_materialDescriptorHeap[4]);
 		commandList->SetComputeRootShaderResourceView(1, m_topLevelAccelerationStructure->GetGPUVirtualAddress());
 		gfxContext.SetDynamicConstantBufferView(2, sizeof(RayGet3DBuffer), &m_rayGenCB);
 		gfxContext.SetDynamicConstantBufferView(3, sizeof(UniformGrid), &grid);

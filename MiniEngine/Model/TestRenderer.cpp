@@ -327,13 +327,18 @@ UINT TestRenderer::frameIndex = 0;
 		OBJModel.Load(L"D:/MScSurfelBasedGI/DirectX-Graphics-Samples/MiniEngine/Model/OBJ/Bunny.obj");
 		Renderer::ModelData data = OBJModel.CreateModelData();
 		//Initalize the header for the file
-		ModelH3D* a  = new ModelH3D();
-		OBJModel.AttemptCreateH3DModel(a);
-		a->SaveH3D(L"TestScene.h3d");
+//		ModelH3D* a  = new ModelH3D();
+//		OBJModel.AttemptCreateH3DModel(a);
+//		a->SaveH3D(L"TestScene.h3d");
 		// LOADING SPONZA AS WELL
-		//ASSERT(m_Model->Load(L"Sponza/sponza.h3d"), "Failed to load model");
-		ASSERT(m_Model->Load(L"TestScene.h3d"), "Failed to load model");
-		ASSERT(m_Model->GetMeshCount() > 0, "Model contains no meshes");
+//		ASSERT(m_Model->Load(L"Sponza/sponza.h3d"), "Failed to load model");
+//		//ASSERT(m_Model->Load(L"TestScene.h3d"), "Failed to load model");
+//		ASSERT(m_Model->GetMeshCount() > 0, "Model contains no meshes");
+		//OBJModel.InsertIntoH3DModel(m_Model);
+		//bool saved = m_Model->SaveH3D(L"Sponza/SponzaA.h3d");
+		//m_Model->Clear();
+		bool laoded =m_Model->Load(L"Sponza/SponzaA.h3d");
+
 		int meshCountPrevious = m_Model->GetMeshCount();
 
 		InitTriangleModel();
@@ -1061,16 +1066,16 @@ UINT TestRenderer::frameIndex = 0;
 			 }
 
 			 {
-				 ScopedTimer _prof3(L"Render OBJ", gfxContext);
-				 gfxContext.SetPipelineState(m_TestSpherePSO);
-				 gfxContext.SetRootSignature(m_TestSpherePSO.GetRootSignature());
-				 gfxContext.TransitionResource(g_SceneColorBuffer, D3D12_RESOURCE_STATE_RENDER_TARGET);
-				 gfxContext.TransitionResource(g_SceneNormalBuffer, D3D12_RESOURCE_STATE_RENDER_TARGET);
-				 gfxContext.TransitionResource(g_SceneDepthBuffer, D3D12_RESOURCE_STATE_DEPTH_READ);
-				 D3D12_CPU_DESCRIPTOR_HANDLE rtvs[]{ g_SceneColorBuffer.GetRTV(), g_SceneNormalBuffer.GetRTV() };
-				 gfxContext.SetRenderTargets(ARRAYSIZE(rtvs), rtvs, g_SceneDepthBuffer.GetDSV_DepthReadOnly());
-				 gfxContext.SetViewportAndScissor(viewport, scissor);
-				 RenderOBJObject(gfxContext, camera.GetViewProjMatrix(), camera.GetPosition(), TestRenderer::kOpaque);
+//				 ScopedTimer _prof3(L"Render OBJ", gfxContext);
+//				 gfxContext.SetPipelineState(m_TestSpherePSO);
+//				 gfxContext.SetRootSignature(m_TestSpherePSO.GetRootSignature());
+//				 gfxContext.TransitionResource(g_SceneColorBuffer, D3D12_RESOURCE_STATE_RENDER_TARGET);
+//				 gfxContext.TransitionResource(g_SceneNormalBuffer, D3D12_RESOURCE_STATE_RENDER_TARGET);
+//				 gfxContext.TransitionResource(g_SceneDepthBuffer, D3D12_RESOURCE_STATE_DEPTH_READ);
+//				 D3D12_CPU_DESCRIPTOR_HANDLE rtvs[]{ g_SceneColorBuffer.GetRTV(), g_SceneNormalBuffer.GetRTV() };
+//				 gfxContext.SetRenderTargets(ARRAYSIZE(rtvs), rtvs, g_SceneDepthBuffer.GetDSV_DepthReadOnly());
+//				 gfxContext.SetViewportAndScissor(viewport, scissor);
+//				 //RenderOBJObject(gfxContext, camera.GetViewProjMatrix(), camera.GetPosition(), TestRenderer::kOpaque);
 			 }
 
 		 }
@@ -1128,26 +1133,26 @@ UINT TestRenderer::frameIndex = 0;
 
 
 		ComputeContext& cfx = reinterpret_cast<ComputeContext&>(gfxContext);
-		SurfelIllumination->FillAccelerationStructuresReduceThenScan(cfx);
+		//SurfelIllumination->FillAccelerationStructuresReduceThenScan(cfx);
 
 		if(m_stopSurfelUpdate == true && m_stopSurfelUpdate != m_prevStopSurfelUpdate)
 		{
 			SurfelIllumination->ReadbackSurfelAccelerationStructure(gfxContext);
 		}
 
-		SurfelIllumination->ReadbakcSurfelDebugData(gfxContext);
+		//SurfelIllumination->ReadbakcSurfelDebugData(gfxContext);
 
-		TestRaytracing::DoRaytracing(camera, SurfelIllumination->descriptorHeap,SurfelIllumination->m_SurfelGen.UniformGrid);
+		//TestRaytracing::DoRaytracing(camera, SurfelIllumination->descriptorHeap,SurfelIllumination->m_SurfelGen.UniformGrid);
 
-		if (m_stopSurfelUpdate == false)
-		{
-			SurfelIrradianceAccumulation::DoRaytracing(
-				camera,
-				SurfelIllumination->descriptorHeap,
-				SurfelIllumination->m_SurfelGen.UniformGrid,
-				SurfelIllumination->m_SurfelDataArray);
-
-		}
+//		if (m_stopSurfelUpdate == false)
+//		{
+//			SurfelIrradianceAccumulation::DoRaytracing(
+//				camera,
+//				SurfelIllumination->descriptorHeap,
+//				SurfelIllumination->m_SurfelGen.UniformGrid,
+//				SurfelIllumination->m_SurfelDataArray);
+//
+//		}
 
 		Renderer::UpdateGlobalDescriptors();
 
@@ -1291,17 +1296,17 @@ UINT TestRenderer::frameIndex = 0;
 		// --- SURFEL PASS
 		frameIndex++;
 		//Set the frame index
-		SurfelIllumination->m_SurfelGen.FrameIndex = frameIndex;
+		//SurfelIllumination->m_SurfelGen.FrameIndex = frameIndex;
 
-		if (m_stopSurfelUpdate == false)
-			SurfelIllumination->SpawnSurfels(cfx, camera);
+		//if (m_stopSurfelUpdate == false)
+		//	SurfelIllumination->SpawnSurfels(cfx, camera);
 
-		SurfelIllumination->ReadbackSurfelData(gfxContext);
-		SurfelIllumination->ApplySurfels(cfx, camera);
-		
-		if (m_stopSurfelUpdate == false)
-			SurfelIllumination->RecycleSurfels(cfx, camera);
+		//SurfelIllumination->ReadbackSurfelData(gfxContext);
+		//SurfelIllumination->ApplySurfels(cfx, camera);
+		//
+		//if (m_stopSurfelUpdate == false)
+		//	SurfelIllumination->RecycleSurfels(cfx, camera);
 
-		m_prevStopSurfelUpdate = m_stopSurfelUpdate;
+		//m_prevStopSurfelUpdate = m_stopSurfelUpdate;
 
 	}

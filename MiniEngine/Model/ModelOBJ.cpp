@@ -262,3 +262,126 @@ void ModelOBJ::AttemptCreateH3DModel(ModelH3D* modelToFill)
     //memcpy(   modelToFill->m_pIndexData, m_pIndices.data(), ibSize);
     //memcpy(modelToFill->m_pVertexData, m_pVertices.data(), vbSize);
 }
+
+bool IsDataDifferent(unsigned char* collectionA,unsigned char* collectionB, UINT size)
+{
+
+    //Check for discrepancies
+    for (int i = 0; i < size; i++)
+    {
+        if (collectionA[i] != collectionB[i])
+        {
+            return true;
+        }
+    }
+    return false;
+}
+
+void ModelOBJ::InsertIntoH3DModel(ModelH3D* modelToFill) {
+
+    auto lastMesh = modelToFill->GetMesh(modelToFill->GetMeshCount() - 1);
+    UINT oldIndexDataByteSize = modelToFill->m_Header.indexDataByteSize;
+    UINT oldVertexDataByteSize = modelToFill->m_Header.vertexDataByteSize;
+
+
+   
+
+
+    size_t vbSize = m_pVertices.size() * sizeof(H3DVertex);
+    size_t ibSize = m_pIndices.size() * sizeof(uint16_t);
+
+    //--- HEADER ---
+    modelToFill->m_Header.indexDataByteSize =modelToFill->m_Header.indexDataByteSize + ibSize;
+    modelToFill->m_Header.vertexDataByteSize=modelToFill->m_Header.vertexDataByteSize + vbSize;
+    //modelToFill->m_Header.meshCount+=1;
+    //modelToFill->m_Header.meshCount;
+
+
+    //---MESHES---
+    ModelH3D::Mesh h3dMesh;
+    h3dMesh.attrib[ModelH3D::attrib_position].format = ModelH3D::attrib_format_float;
+    h3dMesh.attrib[ModelH3D::attrib_position].components = 3;
+    h3dMesh.attrib[ModelH3D::attrib_position].offset = 0;
+
+    h3dMesh.attrib[ModelH3D::attrib_texcoord0].format = ModelH3D::attrib_format_float;
+    h3dMesh.attrib[ModelH3D::attrib_texcoord0].offset = 12;
+    h3dMesh.attrib[ModelH3D::attrib_texcoord0].components = 2;
+    
+    h3dMesh.attrib[ModelH3D::attrib_normal].format = ModelH3D::attrib_format_float;
+    h3dMesh.attrib[ModelH3D::attrib_normal].offset = 20;
+    h3dMesh.attrib[ModelH3D::attrib_normal].components = 3;
+
+    h3dMesh.attrib[ModelH3D::attrib_normal].format = ModelH3D::attrib_format_float;
+    h3dMesh.attrib[ModelH3D::attrib_normal].offset = 32;
+    h3dMesh.attrib[ModelH3D::attrib_normal].components = 3;
+
+    h3dMesh.attrib[ModelH3D::attrib_normal].format = ModelH3D::attrib_format_float;
+    h3dMesh.attrib[ModelH3D::attrib_normal].offset = 44;
+    h3dMesh.attrib[ModelH3D::attrib_normal].components = 3;
+
+
+    //Get Last Mesh In Array To Help Wiht Byte Offsets
+
+    h3dMesh.attribsEnabled = 
+        ModelH3D::attrib_position | ModelH3D::attrib_texcoord0 | ModelH3D::attrib_normal | ModelH3D::attrib_mask_tangent| ModelH3D::attrib_bitangent;
+
+    h3dMesh.indexCount = m_pIndices.size();
+    h3dMesh.indexDataByteOffset = lastMesh.indexDataByteOffset + lastMesh.indexCount * sizeof(uint16_t);
+    h3dMesh.vertexCount = m_pVertices.size();
+    h3dMesh.vertexDataByteOffset = lastMesh.vertexDataByteOffset + lastMesh.vertexCount * sizeof(H3DVertex);
+    h3dMesh.materialIndex = 2;
+    h3dMesh.vertexStride = sizeof(H3DVertex);
+
+    
+    //Create a new mesh buffer and copy the values of old
+//    ModelH3D::Mesh* newMeshes = new ModelH3D::Mesh[modelToFill->GetMeshCount()];
+//    memcpy(newMeshes, modelToFill->m_pMesh, (modelToFill->GetMeshCount() - 1) * sizeof(ModelH3D::Mesh));
+//    newMeshes[modelToFill->GetMeshCount() - 1] = h3dMesh;
+//
+//    modelToFill->m_pMesh = newMeshes;
+
+
+    //--- Unified Geometry Data ---
+    //modelToFill->m_pIndexData = (unsigned char*)m_pIndices;
+
+
+
+    unsigned char* newIndexData = new unsigned char[modelToFill->m_Header.indexDataByteSize];
+    unsigned char* newIndexDepthData = new unsigned char[modelToFill->m_Header.indexDataByteSize];
+    unsigned char* newVertexData = new unsigned char[modelToFill->m_Header.vertexDataByteSize];
+
+    //COpy old data
+    memcpy(newIndexData, modelToFill->m_pIndexData, oldIndexDataByteSize);
+    memcpy(newIndexDepthData, modelToFill->m_pIndexDataDepth, oldIndexDataByteSize);
+    memcpy(newVertexData, modelToFill->m_pVertexData, oldVertexDataByteSize);
+    
+    unsigned char* indexDataInsertion = newIndexData + oldIndexDataByteSize;
+    unsigned char* indexDataDepthInsertion = newIndexDepthData + oldIndexDataByteSize;
+    unsigned char* vertexDataInsertion = newVertexData + oldVertexDataByteSize;
+
+
+    memcpy(indexDataInsertion, m_pIndices.data(), ibSize);
+    memcpy(indexDataDepthInsertion, m_pIndices.data(), ibSize);
+    memcpy(vertexDataInsertion, m_pVertices.data(), vbSize);
+
+
+    bool indexIsDifferent =  IsDataDifferent(modelToFill->m_pIndexData, newIndexData, oldIndexDataByteSize);
+    bool vertexDataIsDifferete =  IsDataDifferent(modelToFill->m_pVertexData, newVertexData, oldVertexDataByteSize);
+    bool indexDepthDataIsDifferent =  IsDataDifferent(modelToFill->m_pIndexDataDepth, newIndexDepthData, oldIndexDataByteSize);
+
+
+    modelToFill->m_pIndexData = newIndexData;
+    modelToFill->m_pVertexData = newVertexData;
+    modelToFill->m_pIndexDataDepth = newIndexDepthData;
+
+
+
+
+
+
+//    indexDataInsertion = reinterpret_cast<unsigned char*>(m_pIndices.data());
+//    vertexDataInsertion = reinterpret_cast<unsigned char*>(m_pVertices.data());
+    //memcpy(   modelToFill->m_pIndexData, m_pIndices.data(), ibSize);
+    //memcpy(modelToFill->m_pVertexData, m_pVertices.data(), vbSize);
+
+}

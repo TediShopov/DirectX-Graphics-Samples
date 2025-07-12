@@ -88,9 +88,19 @@ void DescriptorHeap::Create( const std::wstring& Name, D3D12_DESCRIPTOR_HEAP_TYP
 
     m_DescriptorSize = g_Device->GetDescriptorHandleIncrementSize(m_HeapDesc.Type);
     m_NumFreeDescriptors = m_HeapDesc.NumDescriptors;
-    m_FirstHandle = DescriptorHandle(
-        m_Heap->GetCPUDescriptorHandleForHeapStart(),
-        m_Heap->GetGPUDescriptorHandleForHeapStart());
+    if (shaderVisible)
+    {
+		m_FirstHandle = DescriptorHandle(
+			m_Heap->GetCPUDescriptorHandleForHeapStart(),
+			m_Heap->GetGPUDescriptorHandleForHeapStart());
+    }
+    else
+    {
+        D3D12_GPU_DESCRIPTOR_HANDLE a;
+		m_FirstHandle = DescriptorHandle(
+			m_Heap->GetCPUDescriptorHandleForHeapStart(),a);
+
+    }
     m_NextFreeHandle = m_FirstHandle;
 }
 
