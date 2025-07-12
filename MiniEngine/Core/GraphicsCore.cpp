@@ -348,6 +348,17 @@ void Graphics::Initialize(bool RequireDXRSupport)
 #endif	
 
 #if _DEBUG
+
+    #if _DEBUG
+    {
+        // Enable DRED (Device Removed Extended Data)
+        Microsoft::WRL::ComPtr<ID3D12DeviceRemovedExtendedDataSettings> dredSettings;
+        if (SUCCEEDED(D3D12GetDebugInterface(IID_PPV_ARGS(&dredSettings))))
+        {
+            dredSettings->SetAutoBreadcrumbsEnablement(D3D12_DRED_ENABLEMENT_FORCED_ON);
+            dredSettings->SetPageFaultEnablement(D3D12_DRED_ENABLEMENT_FORCED_ON);
+        }
+    }
     ID3D12InfoQueue* pInfoQueue = nullptr;
     if (SUCCEEDED(g_Device->QueryInterface(MY_IID_PPV_ARGS(&pInfoQueue))))
     {
@@ -432,16 +443,6 @@ void Graphics::Initialize(bool RequireDXRSupport)
 
 
 
-    #if _DEBUG
-    {
-        // Enable DRED (Device Removed Extended Data)
-        Microsoft::WRL::ComPtr<ID3D12DeviceRemovedExtendedDataSettings> dredSettings;
-        if (SUCCEEDED(D3D12GetDebugInterface(IID_PPV_ARGS(&dredSettings))))
-        {
-            dredSettings->SetAutoBreadcrumbsEnablement(D3D12_DRED_ENABLEMENT_FORCED_ON);
-            dredSettings->SetPageFaultEnablement(D3D12_DRED_ENABLEMENT_FORCED_ON);
-        }
-    }
 #endif
 
 

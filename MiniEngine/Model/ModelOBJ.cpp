@@ -293,7 +293,7 @@ void ModelOBJ::InsertIntoH3DModel(ModelH3D* modelToFill) {
     //--- HEADER ---
     modelToFill->m_Header.indexDataByteSize =modelToFill->m_Header.indexDataByteSize + ibSize;
     modelToFill->m_Header.vertexDataByteSize=modelToFill->m_Header.vertexDataByteSize + vbSize;
-    //modelToFill->m_Header.meshCount+=1;
+    modelToFill->m_Header.meshCount+=1;
     //modelToFill->m_Header.meshCount;
 
 
@@ -334,11 +334,11 @@ void ModelOBJ::InsertIntoH3DModel(ModelH3D* modelToFill) {
 
     
     //Create a new mesh buffer and copy the values of old
-//    ModelH3D::Mesh* newMeshes = new ModelH3D::Mesh[modelToFill->GetMeshCount()];
-//    memcpy(newMeshes, modelToFill->m_pMesh, (modelToFill->GetMeshCount() - 1) * sizeof(ModelH3D::Mesh));
-//    newMeshes[modelToFill->GetMeshCount() - 1] = h3dMesh;
-//
-//    modelToFill->m_pMesh = newMeshes;
+    ModelH3D::Mesh* newMeshes = new ModelH3D::Mesh[modelToFill->GetMeshCount()];
+    memcpy(newMeshes, modelToFill->m_pMesh, (modelToFill->GetMeshCount() - 1) * sizeof(ModelH3D::Mesh));
+    newMeshes[modelToFill->GetMeshCount() - 1] = h3dMesh;
+
+    modelToFill->m_pMesh = newMeshes;
 
 
     //--- Unified Geometry Data ---

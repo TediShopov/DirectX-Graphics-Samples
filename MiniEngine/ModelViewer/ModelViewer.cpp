@@ -36,6 +36,8 @@
 #include "sstream"
 #include <iomanip>
 #include "TestRenderer.h"
+#include <wrl/client.h>
+#include <iostream>
 
 #define LEGACY_RENDERER
 
@@ -379,6 +381,43 @@ void ModelViewer::RenderScene( void )
     gfxContext.Finish();
 }
 
+
+const char* D3D12AutoBreadcrumbOpToString(D3D12_AUTO_BREADCRUMB_OP op)
+{
+    switch (op)
+    {
+    case D3D12_AUTO_BREADCRUMB_OP_BEGINEVENT: return "Begin Even";
+    case D3D12_AUTO_BREADCRUMB_OP_DISPATCH: return "Dispatch";
+    // ... add more as needed
+    default: return "Unknown";
+    }
+}
+
+void DumpDREDInfoA(ID3D12Device* device)
+{
+    Microsoft::WRL::ComPtr<ID3D12DeviceRemovedExtendedData> dred;
+    if (SUCCEEDED(device->QueryInterface(IID_PPV_ARGS(&dred))))
+    {
+        D3D12_DRED_AUTO_BREADCRUMBS_OUTPUT breadcrumbs = {};
+        HRESULT a = dred->GetAutoBreadcrumbsOutput(&breadcrumbs);
+
+        if (breadcrumbs.pHeadAutoBreadcrumbNode)
+        {
+            OutputDebugString(L"[DRED] AutoBreadcrumbs captured.\n");
+            // Optionally, walk the breadcrumb linked list and print command list call traces
+        }
+
+        D3D12_DRED_PAGE_FAULT_OUTPUT pageFault = {};
+        HRESULT b = dred->GetPageFaultAllocationOutput(&pageFault);
+
+        if (pageFault.PageFaultVA)
+        {
+            wchar_t buffer[256];
+            swprintf_s(buffer, L"[DRED] Page fault at GPU VA: 0x%llx\n", pageFault.PageFaultVA);
+            OutputDebugString(buffer);
+        }
+    }
+}
 void ModelViewer::RenderUI(GraphicsContext& gfx)
 {
     //I am here
@@ -431,6 +470,8 @@ void ModelViewer::RenderUI(GraphicsContext& gfx)
 //    //EngineProfiling::DisplayPerfGraph(Context);
 //
 //    Text.End();
+
+
 
     TestRenderer::RenderImGuiUI(gfx);
 

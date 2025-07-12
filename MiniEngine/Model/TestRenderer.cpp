@@ -127,6 +127,7 @@ UINT TestRenderer::frameIndex = 0;
 	 SurfelGIOnlyVisualization* TestRenderer::SurfelGIVisualization = nullptr;
 
 	 ModelH3D* TestRenderer::m_Model = nullptr;
+	 ModelH3D* TestRenderer::m_ModelExtra = nullptr;
 
 	 SphereMesh* TestRenderer::m_Sphere = nullptr;
 	 DiscMesh* TestRenderer::m_Disc = nullptr;
@@ -323,21 +324,16 @@ UINT TestRenderer::frameIndex = 0;
 		m_TestSpherePSO.Finalize();
 
 		m_Model = new ModelH3D();
+		m_ModelExtra = new ModelH3D();
 
 		OBJModel.Load(L"D:/MScSurfelBasedGI/DirectX-Graphics-Samples/MiniEngine/Model/OBJ/Bunny.obj");
-		Renderer::ModelData data = OBJModel.CreateModelData();
-		//Initalize the header for the file
-//		ModelH3D* a  = new ModelH3D();
-//		OBJModel.AttemptCreateH3DModel(a);
-//		a->SaveH3D(L"TestScene.h3d");
-		// LOADING SPONZA AS WELL
-		//ASSERT(m_Model->Load(L"Sponza/sponza.h3d"), "Failed to load model");
-//		//ASSERT(m_Model->Load(L"TestScene.h3d"), "Failed to load model");
-//		ASSERT(m_Model->GetMeshCount() > 0, "Model contains no meshes");
-//		OBJModel.InsertIntoH3DModel(m_Model);
-//		bool saved = m_Model->SaveH3D(L"Sponza/SponzaA.h3d");
-//		m_Model->Clear();
-		bool laoded =m_Model->Load(L"Sponza/SponzaA.h3d");
+
+		bool laodedExtra =m_Model->Load(L"Sponza/sponza.h3d");
+		OBJModel.InsertIntoH3DModel(m_Model);
+		bool save =m_Model->SaveH3D(L"Sponza/SponzaA.h3d");
+		bool load = m_Model->Load(L"Sponza/SponzaA.h3d");
+
+
 
 		int meshCountPrevious = m_Model->GetMeshCount();
 
@@ -1133,8 +1129,7 @@ UINT TestRenderer::frameIndex = 0;
 
 
 		ComputeContext& cfx = reinterpret_cast<ComputeContext&>(gfxContext);
-		//SurfelIllumination->FillAccelerationStructuresReduceThenScan(cfx);
-		SurfelIllumination->FillAccelerationStructures(cfx);
+		SurfelIllumination->FillAccelerationStructuresReduceThenScan(cfx);
 
 		if(m_stopSurfelUpdate == true && m_stopSurfelUpdate != m_prevStopSurfelUpdate)
 		{

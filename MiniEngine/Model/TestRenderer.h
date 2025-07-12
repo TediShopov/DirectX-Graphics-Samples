@@ -127,4 +127,5 @@ protected:
 	static void GetRelevantSurfels(UINT& from, UINT& to);
 
 	static ModelH3D* m_Model;
+	static ModelH3D* m_ModelExtra;
 };
