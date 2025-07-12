@@ -464,7 +464,7 @@ void SurfelGI::CreateOutputTexture(ColorBuffer* outputBuffer)
   void SurfelGI::FASSurfelCount(ComputeContext& gfxContext)
   {
 
-	  gfxContext.InsertUAVBarrier(m_SurfelGrid);
+	  //gfxContext.InsertUAVBarrier(m_SurfelGrid);
 	  gfxContext.WriteBuffer(m_SurfelGrid, 0, m_SurfelGridActual.data(), (_CELL_COUNT_) * sizeof(UINT));
 
 	  //Switch to the appropriate PSO

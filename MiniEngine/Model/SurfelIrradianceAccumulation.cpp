@@ -21,7 +21,7 @@
 namespace SurfelIrradianceAccumulation
 {
 	//ByteAddressBuffer	TestRaytracing::m_TestCB;
-	UINT _RAYTRACE_MESH_COUNT_ = 1;
+	UINT _RAYTRACE_MESH_COUNT_ = 34;
 	ByteAddressBuffer	m_TestCB;
 
 	std::unique_ptr<DescriptorHeapStack> g_pRaytracingDescriptorHeap = nullptr;

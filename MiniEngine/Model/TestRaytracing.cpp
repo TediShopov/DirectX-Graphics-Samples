@@ -66,7 +66,7 @@ namespace TestRaytracing
 
 
 	//const float SPONZA_NUM_MESHES = 33;
-	const float SPONZA_NUM_MESHES = 1;
+	const float SPONZA_NUM_MESHES = 34;
 	float aspectRatio;
 	UINT m_raytracingOutputResourceUAVDescriptorHeapIndex;
 

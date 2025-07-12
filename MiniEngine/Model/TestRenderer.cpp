@@ -331,12 +331,12 @@ UINT TestRenderer::frameIndex = 0;
 //		OBJModel.AttemptCreateH3DModel(a);
 //		a->SaveH3D(L"TestScene.h3d");
 		// LOADING SPONZA AS WELL
-//		ASSERT(m_Model->Load(L"Sponza/sponza.h3d"), "Failed to load model");
+		//ASSERT(m_Model->Load(L"Sponza/sponza.h3d"), "Failed to load model");
 //		//ASSERT(m_Model->Load(L"TestScene.h3d"), "Failed to load model");
 //		ASSERT(m_Model->GetMeshCount() > 0, "Model contains no meshes");
-		//OBJModel.InsertIntoH3DModel(m_Model);
-		//bool saved = m_Model->SaveH3D(L"Sponza/SponzaA.h3d");
-		//m_Model->Clear();
+//		OBJModel.InsertIntoH3DModel(m_Model);
+//		bool saved = m_Model->SaveH3D(L"Sponza/SponzaA.h3d");
+//		m_Model->Clear();
 		bool laoded =m_Model->Load(L"Sponza/SponzaA.h3d");
 
 		int meshCountPrevious = m_Model->GetMeshCount();
@@ -1134,25 +1134,26 @@ UINT TestRenderer::frameIndex = 0;
 
 		ComputeContext& cfx = reinterpret_cast<ComputeContext&>(gfxContext);
 		//SurfelIllumination->FillAccelerationStructuresReduceThenScan(cfx);
+		SurfelIllumination->FillAccelerationStructures(cfx);
 
 		if(m_stopSurfelUpdate == true && m_stopSurfelUpdate != m_prevStopSurfelUpdate)
 		{
 			SurfelIllumination->ReadbackSurfelAccelerationStructure(gfxContext);
 		}
 
-		//SurfelIllumination->ReadbakcSurfelDebugData(gfxContext);
+		SurfelIllumination->ReadbakcSurfelDebugData(gfxContext);
 
 		//TestRaytracing::DoRaytracing(camera, SurfelIllumination->descriptorHeap,SurfelIllumination->m_SurfelGen.UniformGrid);
 
-//		if (m_stopSurfelUpdate == false)
-//		{
-//			SurfelIrradianceAccumulation::DoRaytracing(
-//				camera,
-//				SurfelIllumination->descriptorHeap,
-//				SurfelIllumination->m_SurfelGen.UniformGrid,
-//				SurfelIllumination->m_SurfelDataArray);
-//
-//		}
+		if (m_stopSurfelUpdate == false)
+		{
+			SurfelIrradianceAccumulation::DoRaytracing(
+				camera,
+				SurfelIllumination->descriptorHeap,
+				SurfelIllumination->m_SurfelGen.UniformGrid,
+				SurfelIllumination->m_SurfelDataArray);
+
+		}
 
 		Renderer::UpdateGlobalDescriptors();
 
@@ -1296,17 +1297,17 @@ UINT TestRenderer::frameIndex = 0;
 		// --- SURFEL PASS
 		frameIndex++;
 		//Set the frame index
-		//SurfelIllumination->m_SurfelGen.FrameIndex = frameIndex;
+		SurfelIllumination->m_SurfelGen.FrameIndex = frameIndex;
 
-		//if (m_stopSurfelUpdate == false)
-		//	SurfelIllumination->SpawnSurfels(cfx, camera);
+		if (m_stopSurfelUpdate == false)
+			SurfelIllumination->SpawnSurfels(cfx, camera);
 
-		//SurfelIllumination->ReadbackSurfelData(gfxContext);
-		//SurfelIllumination->ApplySurfels(cfx, camera);
-		//
-		//if (m_stopSurfelUpdate == false)
-		//	SurfelIllumination->RecycleSurfels(cfx, camera);
+		SurfelIllumination->ReadbackSurfelData(gfxContext);
+		SurfelIllumination->ApplySurfels(cfx, camera);
+		
+		if (m_stopSurfelUpdate == false)
+			SurfelIllumination->RecycleSurfels(cfx, camera);
 
-		//m_prevStopSurfelUpdate = m_stopSurfelUpdate;
+		m_prevStopSurfelUpdate = m_stopSurfelUpdate;
 
 	}
