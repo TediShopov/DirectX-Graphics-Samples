@@ -56,6 +56,8 @@ public:
 	static ExpVar m_SunLightIntensity;
 #pragma endregion
 
+	
+	 static Math::Camera lastUsedCamera;
 
 	//--- INITTIALIZATOIN ---
 	static void Startup(Math::Camera& camera, HWND hwnd);
@@ -75,6 +77,7 @@ protected:
 	static void InitQuadModel();
 	static void InitSphereModel();
 
+	static UINT FindClosesSurfelToPosition(Math::Vector3 position);
 
 	//Model Rendering VS Constants
 	struct VSConstants

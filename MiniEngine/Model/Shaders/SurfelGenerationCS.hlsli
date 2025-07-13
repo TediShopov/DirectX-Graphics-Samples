@@ -118,6 +118,8 @@ void main(
     gDepth.GetDimensions(0, gResolution.x, gResolution.y, gResolution.z);
     if (dispatchThreadId.x >= gResolution.x || dispatchThreadId.y >= gResolution.y)
         return;
+//    if (dispatchThreadId.x <= 0 || dispatchThreadId.y <= 0)
+//        return;
 
     uint2 tilePos = groupdId.xy;
     uint2 pixelPos = dispatchThreadId.xy;
@@ -125,7 +127,8 @@ void main(
     uint threadRandomnessSeed = GetThreadTemporalSeed(dispatchThreadId,FrameIndex);
 
     int index = pixelPos.x * gResolution.x + pixelPos.y;
-    float2 uv = float2(dispatchThreadId.xy) / float2(gResolution.x - 1, gResolution.y - 1);
+    //float2 uv = float2(dispatchThreadId.xy) / float2(gResolution.x - 1, gResolution.y - 1);
+    float2 uv = float2(dispatchThreadId.xy) / float2(gResolution.x , gResolution.y );
     float4 sampledNormal = gNormal.SampleLevel(defaultSampler, uv, 0);
 
     //Create a random "state" 

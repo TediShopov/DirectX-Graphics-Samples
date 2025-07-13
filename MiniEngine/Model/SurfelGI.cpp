@@ -208,7 +208,8 @@
   void SurfelGI::CreateRootSig()
   {
 	  SamplerDesc DefaultSamplerDesc;
-	  DefaultSamplerDesc.MaxAnisotropy = 8;
+	  DefaultSamplerDesc.MaxAnisotropy = 1;
+	  DefaultSamplerDesc.Filter = D3D12_FILTER_MAXIMUM_MIN_MAG_MIP_POINT;
 	  SamplerDesc CubeMapSamplerDesc = DefaultSamplerDesc;
 
 	  m_SurfelGenerationRT.Reset(5, 3);
@@ -290,15 +291,16 @@ void SurfelGI::FillCPUContainers()
 	}
 	// Fill data
 	for (int i = 0; i < _SURFEL_MAX_COUNT_; ++i) {
-		m_SurfelDataArray[i].position =
-			Math::Vector4(float(i) * m_SurfelGen.UniformGrid.cellSize.GetX(), 0.0f, 0.0f, 1.0f);
+//		m_SurfelDataArray[i].position =
+//			Math::Vector4(float(i) * m_SurfelGen.UniformGrid.cellSize.GetX(), 0.0f, 0.0f, 1.0f);
+		m_SurfelDataArray[i].position =Math::Vector4(0,0,0,0);
 		m_SurfelDataArray[i].radius = Math::Vector4(0,0,0,0);
 		m_SurfelDataArray[i].normal = Math::Vector4(0.0f, 1.0f, 0.0f, 1.0f);
 		m_SurfelDataArray[i].pixelPosX = 0;
 		m_SurfelDataArray[i].pixelPosY = 0;
 		m_SurfelDataArray[i].tilePosX = 0;
 		m_SurfelDataArray[i].tilePosY = 0;
-		m_SurfelDataArray[i].raySamples = 1;
+		m_SurfelDataArray[i].raySamples = 0;
 		m_SurfelDataArray[i].contribution0 = 0;
 		m_SurfelDataArray[i].contribution1= 0;
 		m_SurfelDataArray[i].contribution3 = 0;
@@ -340,6 +342,11 @@ void SurfelGI::CreateOutputTexture(ColorBuffer* outputBuffer)
 	//NON-PIXEL SHADER RESOURCE should cover the ComputeShader stage
 	gfxContext.TransitionResource(*m_GBuffer.g_Depth, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, true);
 	gfxContext.TransitionResource(*m_GBuffer.g_Normal, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, true);
+
+	gfxContext.InsertUAVBarrier(this->m_SurfelGrid);
+	gfxContext.InsertUAVBarrier(this->m_SurfelList);
+	gfxContext.InsertUAVBarrier(this->m_SurfelData);
+	gfxContext.InsertUAVBarrier(this->m_SurfelStack);
 
 	//Switch to the appropriate PSO
 	gfxContext.SetPipelineState(m_GenerationPassPSO);
@@ -607,6 +614,9 @@ void SurfelGI::CreateOutputTexture(ColorBuffer* outputBuffer)
   void SurfelGI::ReadbackSurfelData(GraphicsContext& gfx)
 {
 
+	//gfx.InsertUAVBarrier(m_SurfelDataReadback);
+	  gfx.TransitionResource(m_SurfelData, D3D12_RESOURCE_STATE_COPY_SOURCE, true);
+	//gfx.InsertUAVBarrier(m_SurfelData);
 	gfx.CopyBuffer(m_SurfelDataReadback, m_SurfelData);
 
 	void* mappedData = m_SurfelDataReadback.Map();
@@ -688,6 +698,12 @@ void SurfelGI::CreateOutputTexture(ColorBuffer* outputBuffer)
 	gfxContext.TransitionResource(*m_GBuffer.g_Depth, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, false);
 	gfxContext.TransitionResource(*m_GBuffer.g_Normal, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, true);
 
+
+	gfxContext.InsertUAVBarrier(this->m_SurfelGrid);
+	gfxContext.InsertUAVBarrier(this->m_SurfelList);
+	gfxContext.InsertUAVBarrier(this->m_SurfelData);
+	gfxContext.InsertUAVBarrier(this->m_SurfelStack);
+
 	//Switch to the appropriate PSO
 	gfxContext.SetPipelineState(m_RecyclingPassPSO);
 	gfxContext.SetRootSignature(m_SurfelGenerationRT);
@@ -698,6 +714,7 @@ void SurfelGI::CreateOutputTexture(ColorBuffer* outputBuffer)
 	};
 
 	gfxContext.GetCommandList()->SetDescriptorHeaps(1, heaps);
+	  //gfx.TransitionResource(m_SurfelData, D3D12_RESOURCE_STATE_COPY_SOURCE, true);
 
 
 

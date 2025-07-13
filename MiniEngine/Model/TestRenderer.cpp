@@ -129,6 +129,8 @@ UINT TestRenderer::frameIndex = 0;
 	 ModelH3D* TestRenderer::m_Model = nullptr;
 	 ModelH3D* TestRenderer::m_ModelExtra = nullptr;
 
+	 Math::Camera TestRenderer::lastUsedCamera = Math::Camera();
+
 	 SphereMesh* TestRenderer::m_Sphere = nullptr;
 	 DiscMesh* TestRenderer::m_Disc = nullptr;
 	 Transform TestRenderer::m_Transform;
@@ -570,6 +572,28 @@ UINT TestRenderer::frameIndex = 0;
 		m_Sphere = new SphereMesh(2);
 	}
 
+	UINT TestRenderer::FindClosesSurfelToPosition(Math::Vector3 position)
+	{
+		float closestDistance = 999999.0f;
+		UINT closesSurfelId = -1;
+		std::vector<SurfelData>& surfels = SurfelIllumination->m_SurfelDataArray;
+		for (size_t i = 0; i < surfels.size(); i++)
+		{
+			if (surfels[i].radius.GetX() <= 0.5f)
+				continue;
+			Vector3 surfelPosition = Vector3(surfels[i].position);
+			float distance = XMVector3Length((XMVECTOR)(surfelPosition - position)).m128_f32[0];
+			if (distance < closestDistance)
+			{
+				closestDistance = distance;
+				closesSurfelId = i;
+			}
+		}
+		return closesSurfelId;
+
+
+	}
+
 	///---	CLEANUP ---
 	void TestRenderer::Cleanup(void)
 	{
@@ -1000,6 +1024,16 @@ UINT TestRenderer::frameIndex = 0;
 		ImGui::Text(ss.str().c_str());
 
 
+		std::stringstream cameraPositionString;
+		auto camPos = lastUsedCamera.GetPosition();
+		cameraPositionString << "Camera Position: " << camPos.GetX() << "	" << camPos.GetY() << "	" << camPos.GetZ();
+		ImGui::Text(cameraPositionString.str().c_str());
+
+		std::stringstream closestSurfelIDString;
+		UINT sID = FindClosesSurfelToPosition(camPos);
+		closestSurfelIDString << "Closest Surfel: " << sID;
+		ImGui::Text(closestSurfelIDString.str().c_str());
+
 
 
 
@@ -1025,6 +1059,7 @@ UINT TestRenderer::frameIndex = 0;
 
 	 void TestRenderer::RenderColor(RENDER_SCENE_PARAMS)
 	 {
+		 lastUsedCamera = camera;
 		 {
 			 ScopedTimer _prof2(L"Render Color", gfxContext);
 
