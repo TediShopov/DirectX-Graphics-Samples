@@ -326,11 +326,11 @@ UINT TestRenderer::frameIndex = 0;
 		m_Model = new ModelH3D();
 		m_ModelExtra = new ModelH3D();
 
-		OBJModel.Load(L"D:/MScSurfelBasedGI/DirectX-Graphics-Samples/MiniEngine/Model/OBJ/Bunny.obj");
+		//OBJModel.Load(L"D:/MScSurfelBasedGI/DirectX-Graphics-Samples/MiniEngine/Model/OBJ/Bunny.obj");
 
 		bool laodedExtra =m_Model->Load(L"Sponza/sponza.h3d");
 		OBJModel.InsertIntoH3DModel(m_Model);
-		bool save =m_Model->SaveH3D(L"Sponza/SponzaA.h3d");
+//		bool save =m_Model->SaveH3D(L"Sponza/SponzaA.h3d");
 		bool load = m_Model->Load(L"Sponza/SponzaA.h3d");
 
 
