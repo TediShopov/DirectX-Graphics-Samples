@@ -1173,7 +1173,7 @@ UINT TestRenderer::frameIndex = 0;
 
 		SurfelIllumination->ReadbakcSurfelDebugData(gfxContext);
 
-		//TestRaytracing::DoRaytracing(camera, SurfelIllumination->descriptorHeap,SurfelIllumination->m_SurfelGen.UniformGrid);
+		TestRaytracing::DoRaytracing(camera, SurfelIllumination->descriptorHeap,SurfelIllumination->m_SurfelGen.UniformGrid);
 
 		if (m_stopSurfelUpdate == false)
 		{

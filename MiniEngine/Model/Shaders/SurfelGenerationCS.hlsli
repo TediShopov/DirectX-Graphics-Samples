@@ -158,14 +158,14 @@ void main(
             //uint surfelIndex = surlfeListUAV[index];
             uint surfelIndex = surlfeListUAV[i];
             SurfelData surfel = surfelsUAV[surfelIndex];
-            float dotN = 0;
+            float dotN = 1;
 
             //Bias is relative position from surfel world to the current reconstructed world 
             float3 bias = worldPos - (float3) surfel.position;
             if (IsInSurfelInfluence(bias, surfel) == false)
                 continue;
-            if (IsInSurfelGeneralDirection(bias, surfel, dotN) == false)
-                continue;
+//            if (IsInSurfelGeneralDirection(bias, surfel, dotN) == false)
+//                continue;
 
             float dist = length(bias);
             float contribution = 1.f;

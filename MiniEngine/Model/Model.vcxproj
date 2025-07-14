@@ -189,6 +189,9 @@
     <FxCompile Include="Shaders\SurfelGIOnlyVS.hlsl">
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Vertex</ShaderType>
     </FxCompile>
+    <None Include="Shaders\SurfelLightTransferUtility.hlsl">
+      <FileType>Document</FileType>
+    </None>
     <FxCompile Include="Shaders\SurfelRecyclingCS.hlsli">
       <FileType>Document</FileType>
     </FxCompile>

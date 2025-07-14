@@ -261,6 +261,9 @@
     <None Include="Shaders\MultiscaleMeanEstimator.hlsl">
       <Filter>Shaders</Filter>
     </None>
+    <None Include="Shaders\SurfelLightTransferUtility.hlsl">
+      <Filter>Shaders</Filter>
+    </None>
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="Shaders\DefaultVS.hlsl">
