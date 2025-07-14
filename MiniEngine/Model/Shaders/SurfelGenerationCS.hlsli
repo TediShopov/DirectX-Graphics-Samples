@@ -246,7 +246,7 @@ void main(
                     newSurfel.msme.mean = float4(0, 0, 0, 0);
                     newSurfel.msme.shortMean = float3(0, 0, 0);
                     newSurfel.msme.variance = float3(1e-4, 1e-4, 1e-4);
-                    newSurfel.msme.inconsistency = 0;
+                    newSurfel.msme.inconsistency = 1;
                     newSurfel.msme.vbbr = 1;
                     AttemptSpawnSurfel(newSurfel);
                 }

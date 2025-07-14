@@ -62,8 +62,8 @@ float3 computeRadianceForWorldPos(float3 worldPos, float3 worldNormal)
         {
             float4 colorFormVBBR = lerp(float4(0, 1, 0, 1), float4(1, 0, 0, 1), surfel.msme.vbbr);
             float4 colorFromInconsistency = lerp(float4(0, 1, 0, 1), float4(1, 0, 0, 1), surfel.msme.inconsistency);
-            colorE = colorFormVBBR;
-            //colorE = colorFromInconsistency;
+            //colorE = colorFormVBBR;
+            colorE = colorFromInconsistency;
             
         }
 

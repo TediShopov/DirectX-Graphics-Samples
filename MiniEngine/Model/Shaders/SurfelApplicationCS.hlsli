@@ -110,14 +110,20 @@ float3 calculateSurfelsContribution_Experimental(SurfelData surfel, float3 world
     float3 colorContribution = float3(0, 0, 0);
     float3 d = length(worldPos - surfel.position);
 
+     float contribution = 1.f;
+    float dotN = dot(interpolatedNormal, normalize(surfel.normal));
 
-    float w; // Spatial weight
-    float maxDistance = surfel.radius; 
-    float t = clamp(d / maxDistance, 0.0, 1.0); // Normalize distance
-    float attenuation = smoothstep(0.0, 1.0, 1.0 - t); // Smoothstep attenuation
+    contribution *= saturate(dotN);
+    contribution *= saturate(1 - d / surfel.radius);
+    contribution = smoothstep(0, 1, contribution);
+
+//    float w; // Spatial weight
+//    float maxDistance = surfel.radius; 
+//    float t = clamp(d / maxDistance, 0.0, 1.0); // Normalize distance
+//    float attenuation = smoothstep(0.0, 1.0, 1.0 - t); // Smoothstep attenuation
 
 
-        colorContribution = surfel.color  * attenuation;
+    colorContribution = surfel.color * contribution;
     return colorContribution;
         
 }
