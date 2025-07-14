@@ -44,6 +44,7 @@ public:
 	static HashGridVisualization* GridVisualization;
 	static MSMEVisualization* GridMSMEVisualization;
 	static SurfelGIOnlyVisualization* SurfelGIVisualization;
+	static SurfelGIOnlyVisualization* MaterialBindingDebug;
 
 	static SphereMesh* m_Sphere;
 	static DiscMesh* m_Disc;

@@ -125,6 +125,7 @@ UINT TestRenderer::frameIndex = 0;
  HashGridVisualization* TestRenderer::GridVisualization = nullptr;
 	 MSMEVisualization* TestRenderer::GridMSMEVisualization = nullptr;
 	 SurfelGIOnlyVisualization* TestRenderer::SurfelGIVisualization = nullptr;
+	 SurfelGIOnlyVisualization* TestRenderer::MaterialBindingDebug = nullptr;
 
 	 ModelH3D* TestRenderer::m_Model = nullptr;
 	 ModelH3D* TestRenderer::m_ModelExtra = nullptr;
@@ -222,6 +223,7 @@ UINT TestRenderer::frameIndex = 0;
 		GridVisualization = new HashGridVisualization();
 		GridMSMEVisualization = new MSMEVisualization();
 		SurfelGIVisualization = new SurfelGIOnlyVisualization();
+		MaterialBindingDebug = new SurfelGIOnlyVisualization();
 		frameIndex = 0;
 
 		m_Sphere = nullptr;
@@ -450,6 +452,10 @@ UINT TestRenderer::frameIndex = 0;
 		SurfelGIVisualization->Setup(
 			gbuffer,
 			&SurfelIllumination->m_OutputTexture
+		);
+		MaterialBindingDebug->Setup(
+			gbuffer,
+			&TestRaytracing::GetOutputBuffer()
 		);
 
 
@@ -944,7 +950,7 @@ UINT TestRenderer::frameIndex = 0;
 		if (pressedDebugMode)
 		{
 			m_debugOverlayMode++;
-			if (m_debugOverlayMode > 2)
+			if (m_debugOverlayMode > 3)
 				m_debugOverlayMode = 0;
 			
 			//m_debugOverlayMode = !((bool)m_debugOverlayMode);
@@ -1149,6 +1155,16 @@ UINT TestRenderer::frameIndex = 0;
 			 gfxContext.InsertUAVBarrier(SurfelIllumination->m_SurfelGrid);
 			 RenderFullScreenQuad(gfxContext);
 
+		 }
+		 else if (m_debugOverlayMode == 3)
+		 {
+			 ScopedTimer _prof3(L"Material Binding Ouptut", gfxContext);
+			 gfxContext.TransitionResource(TestRaytracing::GetOutputBuffer(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+			 MaterialBindingDebug->SetupRenderStage(gfxContext, viewport, scissor,
+				 TestRaytracing::GetOutputBuffer(),
+				 camera);
+			 MaterialBindingDebug->SetRootParameters(gfxContext, TestRaytracing::GetOutputBuffer());
+			 RenderFullScreenQuad(gfxContext);
 		 }
 
 

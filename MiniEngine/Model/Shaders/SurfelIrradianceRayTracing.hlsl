@@ -25,7 +25,7 @@ struct AdditionalVertexData
 
 
 RaytracingAccelerationStructure Scene : register(t0, space0);
-Texture2D<float3> instanceTextures[] : register(t1, space1);
+Texture2D instanceTextures[] : register(t1, space1);
 RWTexture2D<float4> RenderTarget : register(u0);
 
 
@@ -246,10 +246,11 @@ void MyClosestHitShader(inout RayPayload payload, in MyAttributes attr)
     interpolated.tangent= barycentrics.x * v0.tangent + barycentrics.y * v1.tangent + barycentrics.z * v2.tangent;
     interpolated.bitangent= barycentrics.x * v0.bitangent + barycentrics.y * v1.bitangent + barycentrics.z * v2.bitangent;
 
-    uint instanceId = (materialIndex.x);
-    uint specularID = instanceId * 3;
+    uint instanceId = (materialIndex.x) - 1;
+    uint specularID = instanceId * 3 ;
     uint normalID = instanceId * 3 +1;
-    uint diffuseID = instanceId * 3+ 2;
+    uint diffuseID = instanceId * 3 + 2;
+
     float3 diffuseColor = instanceTextures[diffuseID].SampleLevel(defaultSampler, interpolated.uv, 0);
     float3 specularColor = instanceTextures[specularID].SampleLevel(defaultSampler, interpolated.uv, 0);
     float3 normalColor = instanceTextures[normalID].SampleLevel(defaultSampler, interpolated.uv, 0);
@@ -274,8 +275,6 @@ void MyClosestHitShader(inout RayPayload payload, in MyAttributes attr)
     payload.color = float4(dirColor, 1);
 
     
-    //TODO chekck if ray is intersecting with another surfel.
-    //Use surfels irradiance from previous frame if that is the case
 
     
     //Cast Shadow Ray

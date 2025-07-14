@@ -656,6 +656,14 @@ namespace TestRaytracing
 		handles.push_back(surfelUAVHeap[4]);
 
 
+		UINT diffuseValid = 0;
+		UINT specularValid = 0;
+		UINT normalValid = 0;
+
+		std::vector<UINT> diffuseInvalidIndices;
+		std::vector<UINT> specularInvalidIndices;
+		std::vector<UINT> normalInvalidIndices;
+
 
 		//Only diffuse textures 
 		//UINT diffuseTextureSize = model.m_TextureReferences.size() / 3;
@@ -664,15 +672,36 @@ namespace TestRaytracing
 		for (size_t i = 0; i < model.GetMaterialCount(); i++)
 		{
 			//auto t = model.m_TextureReferences[i];
-
 			TextureRef* diffuseRef = model.m_TextureReferences.data() + i * 3;
-			TextureRef* specularRef = model.m_TextureReferences.data() + i * 3 + 1;
-			TextureRef* normalRef = model.m_TextureReferences.data() + i * 3 + 2;
+			if (diffuseRef->IsValid())
+				diffuseValid++;
+			else
+				diffuseInvalidIndices.push_back(i);
 			handles.push_back(diffuseRef->GetSRV());
+			//auto t = model.m_TextureReferences[i];
+			TextureRef* specularRef = model.m_TextureReferences.data() + i * 3 + 1;
+			if (specularRef->IsValid())
+				specularValid++;
+			else
+				specularInvalidIndices.push_back(i);
 			handles.push_back(specularRef->GetSRV());
-			handles.push_back(normalRef->GetSRV());
+			//Try sendgin diffisue first then specular then normal
+			//auto t = model.m_TextureReferences[i];
+			TextureRef* normalRef = model.m_TextureReferences.data() + i * 3 + 2;
 
+			if (normalRef->IsValid())
+				normalValid++;
+			else
+				normalInvalidIndices.push_back(i);
+			handles.push_back(normalRef->GetSRV());
+			//Try sendgin diffisue first then specular then normal
 		}
+
+
+
+
+
+
 		UINT textureCountFromHeap = Renderer::s_TextureHeap.GetDescriptorSize();
 		m_materialDescriptorHeap.Create(L"HeapName", D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, texturesSize + 4);
 		ExtendedUtility::CopyDescriptorsToHeap(m_materialDescriptorHeap, handles);

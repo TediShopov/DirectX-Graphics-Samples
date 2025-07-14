@@ -24,7 +24,7 @@ struct AdditionalVertexData
 };
 
 RaytracingAccelerationStructure Scene : register(t0, space0);
-Texture2D<float3> instanceTextures[] : register(t1, space1);
+Texture2D instanceTextures[] : register(t1, space1);
 RWTexture2D<float4> RenderTarget : register(u0);
 
 
@@ -163,48 +163,45 @@ void MyClosestHitShader(inout RayPayload payload, in MyAttributes attr)
     interpolated.normal= barycentrics.x * v0.normal + barycentrics.y * v1.normal + barycentrics.z * v2.normal;
     interpolated.tangent= barycentrics.x * v0.tangent + barycentrics.y * v1.tangent + barycentrics.z * v2.tangent;
     interpolated.bitangent= barycentrics.x * v0.bitangent + barycentrics.y * v1.bitangent + barycentrics.z * v2.bitangent;
-    
-    
-    float3 colorE = float3(0, 0, 0);
-    uint surfelNum = 0;
-    uint surfelStride = 0;
 
     
-    uint3 idx = ComputeGridIndex(worldPos, Grid.gridOrigin, Grid.cellSize);
+    uint instanceId = (materialIndex.x) - 1;
+    uint specularID = instanceId * 3 ;
+    uint normalID = instanceId * 3 +1;
+    uint diffuseID = instanceId * 3 + 2;
 
-    uint linearIndex = HashGridIndex(idx, Grid);
-    uint surfelListIndexFrom = surfelGridUAV[linearIndex];
-    uint surfelListIndexTo = surfelGridUAV[linearIndex + 1];
+    float3 diffuseColor = instanceTextures[diffuseID].SampleLevel(defaultSampler, interpolated.uv, 0);
+    float3 specularColor = instanceTextures[specularID].SampleLevel(defaultSampler, interpolated.uv, 0);
+    float3 normalColor = instanceTextures[normalID].SampleLevel(defaultSampler, interpolated.uv, 0);
+    //float3 diffuseColor = instanceTextures[diffuseID].Sample(defaultSampler, interpolated.uv);
+
+    payload.color = float4(diffuseColor, 1);
+    return;
+    
+    
 
 
-    for (uint i = surfelListIndexFrom; i < surfelListIndexTo; ++i)
+    float gloss = 128.0;
+    float3 normal;
+
     {
-        uint index = surlfeListUAV[i];
-        SurfelData surfel = surfelsUAV[index];
-
-        float3 d = worldPos - surfel.position;
-
-    // --------- Ellipsoidal distance without covariance matrix ---------
-        float dDotN = dot(d, surfel.normal);
-        float3 tangentOffset = d - dDotN * surfel.normal;
-        float3 normalOffset = dDotN * surfel.normal;
-
-        float squash = 2.0f; // faster falloff in normal direction
-        float3 squashOffset = tangentOffset + squash * normalOffset;
-        float D2 = dot(squashOffset, squashOffset);
-        D2 /= surfel.radius * surfel.radius;
-
-        float w = exp(-0.5 * D2); // Spatial weight
-
-//    // --------- Angular weighting (optional, like PICA PICA) ---------
-
-        float NdotL = 1;
-        if (NdotL > 0.0f)
-        {
-            colorE += surfel.color * NdotL * w;
-        }
+        normal = normalColor * 2.0 - 1.0;
+        AntiAliasSpecular(normal, gloss);
+        float3x3 tbn = float3x3(normalize(interpolated.tangent).xyz, normalize(interpolated.bitangent).xyz, normalize(interpolated.normal).xyz);
+        normal = normalize(mul(normal, tbn));
     }
-    payload.color = float4(colorE, 1);
+    float3 specularAlbedo = float3( 0.56, 0.56, 0.56 );
+    float specularMask = specularColor;
+
+    //This is not the viewiign direction toward the camera but 
+    //Direction towards the surfel in worlds space
+    float3 towardSurfel = -WorldRayDirection();
+    float3 dirColor = ApplyDirectionalLight(diffuseColor, float3(0, 0, 0), specularAlbedo, specularMask, normal,towardSurfel, sunDirection, sunColor);
+    payload.color = float4(dirColor, 1);
+    
+    
+
+    
 }
 
 
