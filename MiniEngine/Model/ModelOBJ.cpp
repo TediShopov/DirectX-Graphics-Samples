@@ -93,6 +93,9 @@ bool ModelOBJ::Load(const std::wstring& filename)
 
     memcpy(reconstructedIb.data(), indexOffset, ibSize);
 
+
+    CalculateNormals();
+
     m_GeometryBuffer.Create(L"Geometry Buffer", vbSize+ibSize, 1,unifiedBuffer.data());
     m_VertexBufferView = m_GeometryBuffer.VertexBufferView(0, vbSize, sizeof(H3DVertex));
     m_IndexBufferView = m_GeometryBuffer.IndexBufferView(vbSize,ibSize, false);
@@ -123,6 +126,45 @@ bool ModelOBJ::Load(const std::wstring& filename)
     return true;
 
 
+}
+
+void ModelOBJ::CalculateNormals()
+{
+
+    for (size_t i = 0; i < this->m_pIndices.size(); i+=3)
+    {
+		uint32_t i0 = m_pIndices[i];
+		uint32_t i1 = m_pIndices[i + 1];
+		uint32_t i2 = m_pIndices[i + 2];
+
+		XMVECTOR p0 = XMLoadFloat3(&m_pVertices[i0].position);
+		XMVECTOR p1 = XMLoadFloat3(&m_pVertices[i1].position);
+		XMVECTOR p2 = XMLoadFloat3(&m_pVertices[i2].position);
+
+		XMVECTOR edge1 = p1 - p0;
+		XMVECTOR edge2 = p2 - p0;
+
+		XMVECTOR faceNormal = XMVector3Cross(edge1, edge2);
+		faceNormal = XMVector3Normalize(faceNormal);
+
+		// Add the face normal to each vertex normal
+		XMVECTOR n0 = XMLoadFloat3(&m_pVertices[i0].normal) + faceNormal;
+		XMVECTOR n1 = XMLoadFloat3(&m_pVertices[i1].normal) + faceNormal;
+		XMVECTOR n2 = XMLoadFloat3(&m_pVertices[i2].normal) + faceNormal;
+
+		XMStoreFloat3(&m_pVertices[i0].normal, n0);
+		XMStoreFloat3(&m_pVertices[i1].normal, n1);
+		XMStoreFloat3(&m_pVertices[i2].normal, n2);
+
+    }
+
+
+    for (size_t i = 0; i < this->m_pVertices.size(); i++)
+	{
+		XMVECTOR normal = XMVector3Normalize(XMLoadFloat3(&m_pVertices[i].normal));
+		XMStoreFloat3(&m_pVertices[i].normal, normal);
+
+    }
 }
 
 Renderer::ModelData ModelOBJ::CreateModelData()

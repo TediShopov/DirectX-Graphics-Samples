@@ -23,6 +23,7 @@
 #include "MSMEVisualization.h"
 #include "SurfelGIOnlyVisualization.h"
 #include <sstream>
+#include "glTF.h"
 
 
 //Imgui 

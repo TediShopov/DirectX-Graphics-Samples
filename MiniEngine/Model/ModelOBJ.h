@@ -36,6 +36,10 @@ public:
 
 
     virtual bool Load(const std::wstring& filename);
+    //Calculates per face normals from know vertices and faces
+    void CalculateNormals();
+
+
 
      Renderer::ModelData CreateModelData();
      void AttemptCreateH3DModel(ModelH3D* modelToFill);
