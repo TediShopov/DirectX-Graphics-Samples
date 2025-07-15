@@ -137,6 +137,15 @@ UINT TestRenderer::frameIndex = 0;
 	 DiscMesh* TestRenderer::m_Disc = nullptr;
 	 Transform TestRenderer::m_Transform;
 
+	 struct SunData {
+		 XMFLOAT3 sunDirection;
+		 float sunOrientation;
+		 float sunInclination;
+		 float ambientLightIntensity;
+		 float sunLightIntensity;
+
+	 };
+	 SunData m_sunData;
 	//-- DIRECTIONAL LIGHT PROPERTIES
 	 Math::Vector3 TestRenderer::m_SunDirection;
 	 ShadowCamera TestRenderer::m_SunShadow;
@@ -242,6 +251,10 @@ UINT TestRenderer::frameIndex = 0;
 
 		//m_Transform.setScale(50,50,50);
 		m_Transform.setScale(10,10,10);
+
+		m_sunData.ambientLightIntensity = 0.1f;
+		m_sunData.sunInclination = 1.0f;
+		m_sunData.sunLightIntensity = 1.0f;
 
 		D3D12_INPUT_ELEMENT_DESC vertElem[] =
 		{
@@ -986,6 +999,11 @@ UINT TestRenderer::frameIndex = 0;
 		bool pressedStopButton = GameInput::IsFirstPressed(GameInput::kKey_b);
 		bool pressedOnlyRelevantButton = GameInput::IsFirstPressed(GameInput::kKey_t);
 		bool pressedToggleFillAccelerationStructure = GameInput::IsFirstPressed(GameInput::kKey_z);
+		bool pressedInclinationPlus = GameInput::IsFirstPressed(GameInput::kKey_j);
+		bool pressedInclinatoinMinus = GameInput::IsFirstPressed(GameInput::kKey_k);
+
+		bool pressedOrientationPlus = GameInput::IsFirstPressed(GameInput::kKey_u);
+		bool pressedOriantationMinus = GameInput::IsFirstPressed(GameInput::kKey_i);
 
 		if (pressedToggleFillAccelerationStructure)
 		{
@@ -1011,6 +1029,15 @@ UINT TestRenderer::frameIndex = 0;
 		if (pressedStopButton)
 			m_stopSurfelUpdate = !m_stopSurfelUpdate;
 
+		if (pressedInclinationPlus)
+			m_sunData.sunInclination += 0.1f;
+		if (pressedInclinatoinMinus)
+			m_sunData.sunInclination -= 0.1f;
+
+		if (pressedOrientationPlus)
+			m_sunData.sunOrientation += 5.0f;
+		if (pressedOriantationMinus)
+			m_sunData.sunOrientation -= 5.0f;
 
 
 		bool pressedOne = GameInput::IsPressed(GameInput::kMouse0);
@@ -1061,6 +1088,20 @@ UINT TestRenderer::frameIndex = 0;
 			ImGui::DragInt("Debug Mode", &m_debugOverlayMode);
 
 		}
+
+		static bool sunControlCollapsingHeader = true;
+		if(ImGui::CollapsingHeader("Sun Data", &sunControlCollapsingHeader))
+		{
+			//ImGui::DragFloat3("Sun Direction", &m_sunData.sunDirection.x,0.01,0,1.0f);
+			ImGui::DragFloat("Sun Orientation", &m_sunData.sunOrientation,5,-100,100.0f);
+			ImGui::DragFloat("Sun Inclination", &m_sunData.sunInclination,0.01,0,1.0f);
+			ImGui::DragFloat("Sun Ambient Light ", &m_sunData.ambientLightIntensity,0.01,0,1.0f);
+			ImGui::DragFloat("Sun Intensity", &m_sunData.sunLightIntensity,0.01,0,1.0f);
+
+		}
+
+
+
 		ImGui::DragFloat("Bunny Scale", &bunnyScale,1.0,1,3000);
 		m_Transform.setScale(bunnyScale, bunnyScale, bunnyScale);
 
@@ -1261,6 +1302,12 @@ UINT TestRenderer::frameIndex = 0;
 		Vector3 pos = camera.GetPosition();
 
 		uint32_t FrameIndex = TemporalEffects::GetFrameIndexMod2();
+
+
+		m_SunOrientation = m_sunData.sunOrientation;
+		m_SunInclination = m_sunData.sunInclination;
+		m_SunLightIntensity = m_sunData.sunInclination;
+		m_AmbientIntensity = m_sunData.ambientLightIntensity;
 
 		float costheta = cosf(m_SunOrientation);
 		float sintheta = sinf(m_SunOrientation);
