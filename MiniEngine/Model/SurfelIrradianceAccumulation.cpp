@@ -797,6 +797,7 @@ namespace SurfelIrradianceAccumulation
 
 		CreateOutputAndPerInstanceTexturesHeap(outputBuffer, surfelSRVHeap, model);
 
+		_RAYTRACE_MESH_COUNT_ = model.GetMeshCount();
 		CreatePerInstanceCBs(model, _RAYTRACE_MESH_COUNT_);
 
 		UpdateCBForSizeChange(outputBuffer->GetWidth(), outputBuffer->GetHeight());

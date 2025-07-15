@@ -35,15 +35,8 @@ bool ModelOBJ::Load(const std::wstring& filename)
         XMStoreFloat3(&v0.tangent, XMVector3Normalize(XMLoadFloat3(&v0.tangent)));
         XMStoreFloat3(&v0.bitangent, XMVector3Normalize(XMLoadFloat3(&v0.bitangent)));
     }
-
-
-
-
     ComputeUnifiedBuffer();
-
     return true;
-
-
 }
 
 void ModelOBJ::CalculateTangentBasis(H3DVertex& va0,H3DVertex& va1, H3DVertex& va2)

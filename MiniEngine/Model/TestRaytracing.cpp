@@ -49,6 +49,8 @@ namespace TestRaytracing
 	//A different locla root signature for the hit shader
 	ComPtr<ID3D12RootSignature> m_rtLocalHitRB;
 
+	StructuredBuffer m_transformBuffer;
+
 	ComPtr<ID3D12Resource> m_accelerationStructure;
 	ComPtr<ID3D12Resource> m_bottomLevelAccelerationStructure;
 
@@ -66,7 +68,7 @@ namespace TestRaytracing
 
 
 	//const float SPONZA_NUM_MESHES = 33;
-	const float SPONZA_NUM_MESHES = 34;
+	float SPONZA_NUM_MESHES = 34;
 	float aspectRatio;
 	UINT m_raytracingOutputResourceUAVDescriptorHeapIndex;
 
@@ -138,10 +140,24 @@ namespace TestRaytracing
 
 		m_TestCB.Create(L"Ray Tracing CBV", 1, static_cast<uint32_t>(sizeof(m_rayGenCB)));
 
+		XMFLOAT4X4 worldFloat4x4;
+		XMStoreFloat4x4(&worldFloat4x4, XMMatrixTranspose(transform.getTransformMatrix()));
+
+		// Build Transform3x4 as a flat float array or 3x4 array
+		float transform3x4[3][4] = {
+			{ worldFloat4x4._11, worldFloat4x4._12, worldFloat4x4._13, worldFloat4x4._14 },
+			{ worldFloat4x4._21, worldFloat4x4._22, worldFloat4x4._23, worldFloat4x4._24 },
+			{ worldFloat4x4._31, worldFloat4x4._32, worldFloat4x4._33, worldFloat4x4._34 }
+		};
+		m_transformBuffer.Create(L"Transform Buffer", 1, 12 * sizeof(float),transform3x4);
+		
+
+
 
 
 		CreateOutputAndPerInstanceTexturesHeap(outputBuffer, surfelSRVHeap, model);
 
+		SPONZA_NUM_MESHES = model.GetMeshCount();
 		//Extract fllatened UV for per instance parameters
 		CreatePerInstanceCBs(model, SPONZA_NUM_MESHES);
 
@@ -492,6 +508,15 @@ namespace TestRaytracing
 			instanceDesc.Transform[0][0] = 1.0f;
 			instanceDesc.Transform[1][1] = 1.0f;
 			instanceDesc.Transform[2][2] = 1.0f;
+			if (i == 34)
+			{
+				float tempScale = 1000;
+				instanceDesc.Transform[0][0] = tempScale;
+				instanceDesc.Transform[1][1] = tempScale;
+				instanceDesc.Transform[2][2] = tempScale;
+
+
+			}
 
 			instanceDesc.AccelerationStructure = blas->GetGPUVirtualAddress();
 			instanceDesc.Flags = 0;
