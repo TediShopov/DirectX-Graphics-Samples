@@ -94,8 +94,8 @@ bool ModelOBJ::Load(const std::wstring& filename)
     memcpy(reconstructedIb.data(), indexOffset, ibSize);
 
     m_GeometryBuffer.Create(L"Geometry Buffer", vbSize+ibSize, 1,unifiedBuffer.data());
-    m_VertexBufferView = m_GeometryBuffer.VertexBufferView(0, (uint16_t)vbSize, sizeof(H3DVertex));
-    m_IndexBufferView = m_GeometryBuffer.IndexBufferView(vbSize,(uint16_t)ibSize, true);
+    m_VertexBufferView = m_GeometryBuffer.VertexBufferView(0, vbSize, sizeof(H3DVertex));
+    m_IndexBufferView = m_GeometryBuffer.IndexBufferView(vbSize,ibSize, false);
 
     meshPtr->bounds;
     meshPtr->ibFormat = DXGI_FORMAT_R16_UINT;

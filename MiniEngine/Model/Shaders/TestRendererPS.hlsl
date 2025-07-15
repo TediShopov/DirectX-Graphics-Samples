@@ -39,19 +39,28 @@ MRT main(VSOutput vsOutput)
 {
 
 	MRT mrt;
-//    mrt.Color = float3(0.8, 0.1, 0.1);
-//    mrt.Normal = float3(0,1,0);
-//    return mrt;
+    if (	vsOutput.tangent.x == 0 && vsOutput.tangent.y==0	 && vsOutput.tangent.z==0)
+    {
+        mrt.Color = float4(0, 1, 0,1);
+        mrt.Normal = float4(0, 1, 0,1);
+        return mrt;
+    }
 
-	uint2 pixelPos = uint2(vsOutput.position.xy);
+//    vsOutput.normal = float3(0, -1, 0);
+//    vsOutput.bitangent = float3(1, 0, 0);
+//    vsOutput.tangent = float3(0, 0, 1);
+
+        uint2 pixelPos = uint2(vsOutput.position.xy);
 # define SAMPLE_TEX(texName) texName.Sample(defaultSampler, vsOutput.uv)
 
     float3 diffuseAlbedo = SAMPLE_TEX(texDiffuse);
+
     float3 colorSum = 0;
     {
         float ao = texSSAO[pixelPos];
         colorSum += ApplyAmbientLight( diffuseAlbedo, ao, AmbientColor );
     }
+
 
     float gloss = 128.0;
     float3 normal;
@@ -63,7 +72,7 @@ MRT main(VSOutput vsOutput)
     }
 
     float3 specularAlbedo = float3( 0.56, 0.56, 0.56 );
-    float specularMask = SAMPLE_TEX(texSpecular).g;
+    float specularMask = SAMPLE_TEX(texSpecular).r;
     float3 viewDir = normalize(vsOutput.viewDir);
     colorSum += ApplyDirectionalLight( diffuseAlbedo, specularAlbedo, specularMask, gloss, normal, viewDir, SunDirection, SunColor, vsOutput.shadowCoord, texShadow );
 

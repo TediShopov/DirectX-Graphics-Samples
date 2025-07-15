@@ -13,9 +13,16 @@
 
 #include "Common.hlsli"
 
+//cbuffer VSConstants : register(b0)
+//{
+//    float4x4 WVP;
+//};
 cbuffer VSConstants : register(b0)
 {
-    float4x4 WVP;
+    float4x4 modelToProjection;
+    float4x4 modelToShadow;
+    float4x4 modelToWorld;
+    float3 ViewerPos;
 };
 
 struct VSInput
@@ -34,7 +41,9 @@ struct VSOutput
 VSOutput main(VSInput vsInput)
 {
     VSOutput vsOutput;
-    vsOutput.pos = mul(WVP, float4(vsInput.pos, 1.0));
+
+    float3 worldPos = mul(modelToWorld, float4(vsInput.pos, 1.0));
+    vsOutput.pos = mul(modelToProjection, float4(worldPos, 1.0));
     vsOutput.uv = vsInput.uv;
     return vsOutput;
 }

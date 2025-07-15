@@ -149,7 +149,7 @@ UINT TestRenderer::frameIndex = 0;
 	NumVar ShadowDimZ= NumVar("Sponza/Lighting/Shadow Dim Z", 3000, 1000, 10000, 100);
 
 	 bool m_enableDebugOverlay = true;
-	 bool m_stopSurfelUpdate = false;
+	 bool m_stopSurfelUpdate = true;
 	 bool m_prevStopSurfelUpdate = false;
 	 bool m_renderOnlyCurrentCellSurfels = false;
 	 bool m_useSimpleAlgorithm = true;
@@ -157,8 +157,12 @@ UINT TestRenderer::frameIndex = 0;
 
 	DescriptorHeap renderTargetHeap;
 	GraphicsPSO m_DepthPSO = { (L"Sponza: Depth PSO") };
+
 	GraphicsPSO m_ModelPSO = { (L"Sponza: Color PSO") };
+	GraphicsPSO m_ModelSimplifiedPSO = { (L"Sponza: Simplified Color PSO") };
+
 	GraphicsPSO m_TestSpherePSO = { (L"Sponza: Sphere Test PSO") };
+
 	GraphicsPSO m_CutoutDepthPSO = { (L"Sponza: Cutout Depth PSO") };
 	GraphicsPSO m_CutoutModelPSO = { (L"Sponza: Cutout Color PSO") };
 	GraphicsPSO m_ShadowPSO = (L"Sponza: Shadow PSO");
@@ -236,7 +240,7 @@ UINT TestRenderer::frameIndex = 0;
 		DXGI_FORMAT ShadowFormat = g_ShadowBuffer.GetFormat();
 
 		//m_Transform.setScale(50,50,50);
-		m_Transform.setScale(1000, 1000, 1000);
+		m_Transform.setScale(10,10,10);
 
 		D3D12_INPUT_ELEMENT_DESC vertElem[] =
 		{
@@ -261,7 +265,8 @@ UINT TestRenderer::frameIndex = 0;
 
 		// Depth-only (2x rate)
 		m_DepthPSO.SetRootSignature(Renderer::m_RootSig);
-		m_DepthPSO.SetRasterizerState(RasterizerDefault);
+		//m_DepthPSO.SetRasterizerState(RasterizerDefault);
+		m_DepthPSO.SetRasterizerState(RasterizerTwoSided);
 		m_DepthPSO.SetBlendState(BlendNoColorWrite);
 		m_DepthPSO.SetDepthStencilState(DepthStateReadWrite);
 		m_DepthPSO.SetInputLayout(_countof(vertElem), vertElem);
@@ -294,7 +299,9 @@ UINT TestRenderer::frameIndex = 0;
 		// Full color pass
 		m_ModelPSO = m_DepthPSO;
 		m_ModelPSO.SetBlendState(BlendDisable);
+		//m_ModelPSO.SetDepthStencilState(DepthStateReadWrite);
 		m_ModelPSO.SetDepthStencilState(DepthStateTestEqual);
+		//m_ModelPSO.SetDepthStencilState(DepthStateTestEqual);
 		m_ModelPSO.SetRenderTargetFormats(2, formats, DepthFormat);
 
 		m_ModelPSO.SetVertexShader(g_pModelViewerVS, sizeof(g_pModelViewerVS));
@@ -320,21 +327,19 @@ UINT TestRenderer::frameIndex = 0;
 		//m_TestSpherePSO.SetDepthTargetFormat(DXGI_FORMAT_UNKNOWN);
 		//--- MAKE SURE THAT CULLING IS OFF AND BOTH SIDES ARE DRAWN
 		m_TestSpherePSO.SetRasterizerState(RasterizerTwoSided);
-
 		//-- CHANGE TO THE NEW SHADER FOR THE TRIANGLE
 		m_TestSpherePSO.SetVertexShader(g_pSimpleMeshVS, sizeof(g_pSimpleMeshVS));
 		m_TestSpherePSO.SetPixelShader(g_pSimpleMeshPS, sizeof(g_pSimpleMeshPS));
-
 		m_TestSpherePSO.Finalize();
 
 		m_Model = new ModelH3D();
 		m_ModelExtra = new ModelH3D();
 
-		//OBJModel.Load(L"D:/MScSurfelBasedGI/DirectX-Graphics-Samples/MiniEngine/Model/OBJ/Bunny.obj");
+		OBJModel.Load(L"D:/MScSurfelBasedGI/DirectX-Graphics-Samples/MiniEngine/Model/OBJ/Bunny.obj");
 
 		bool laodedExtra =m_Model->Load(L"Sponza/sponza.h3d");
 		OBJModel.InsertIntoH3DModel(m_Model);
-//		bool save =m_Model->SaveH3D(L"Sponza/SponzaA.h3d");
+		bool save =m_Model->SaveH3D(L"Sponza/SponzaA.h3d");
 		bool load = m_Model->Load(L"Sponza/SponzaA.h3d");
 
 
@@ -383,6 +388,7 @@ UINT TestRenderer::frameIndex = 0;
 		float modelRadius = Length(m_Model->GetBoundingBox().GetDimensions()) * 0.5f;
 		const Vector3 eye = m_Model->GetBoundingBox().GetCenter() + Vector3(modelRadius * 0.5f, 0.0f, 0.0f);
 		camera.SetEyeAtUp(eye, Vector3(kZero), Vector3(kYUnitVector));
+		camera.SetPosition(Vector3(m_Transform.getPosition()));
 
 
 		uint32_t VertexStride = m_Model->GetVertexStride();
@@ -671,6 +677,38 @@ UINT TestRenderer::frameIndex = 0;
 
 
 	}
+	void TestRenderer::RenderOBJObjectCorrectPipeline(RENDER_OBJECT_INSTANCE_PARAMS)
+	{
+		VSConstants vsConstants = SetupObjectVSConstants(gfxContext, ViewProjMat, viewerPos, Filter);
+		gfxContext.SetDynamicConstantBufferView(Renderer::kMeshConstants, sizeof(vsConstants), &vsConstants);
+
+
+
+		const ModelH3D::Mesh& mesh = m_Model->GetMesh(34);
+
+		uint32_t indexCount = mesh.indexCount;
+		
+		auto format = m_Model->GetIndexBuffer().Format;
+			//uint32_t startIndex = 0;
+		uint32_t startIndex = mesh.indexDataByteOffset / sizeof(uint16_t);
+		//uint32_t startIndex = mesh.indexDataByteOffset / sizeof(uint32_t);
+		uint32_t baseVertex = mesh.vertexDataByteOffset / 56;
+
+		
+		//gfxContext.Set
+		//gfxContext.SetIndexBuffer(OBJModel.GetIndexBuffer());
+		//gfxContext.SetVertexBuffer(0,OBJModel.GetVertexBuffer());
+		//--- Draw three indices of the triangle
+		//gfxContext.DrawIndexed(OBJModel.m_pIndices.size(), 0, 0);
+
+		gfxContext.DrawIndexed(indexCount, startIndex, baseVertex);
+		//--- Switch Back To Sponza model
+		//gfxContext.SetIndexBuffer(m_Model->GetIndexBuffer());
+		//gfxContext.SetVertexBuffer(0, m_Model->GetVertexBuffer());
+
+
+
+	}
 	void TestRenderer::RenderSphereObject(RENDER_OBJECT_INSTANCE_PARAMS)
 	{
 		VSConstants vsConstants = SetupObjectVSConstants(gfxContext, ViewProjMat, viewerPos, Filter);
@@ -853,24 +891,34 @@ UINT TestRenderer::frameIndex = 0;
 	}
 	void TestRenderer::RenderObjects(RENDER_OBJECT_INSTANCE_PARAMS)
 	{
-		struct VSConstants
+		struct VSConstanstsWithModel
 		{
 			Matrix4 modelToProjection;
 			Matrix4 modelToShadow;
+			Matrix4 modelToWorld;
 			XMFLOAT3 viewerPos;
 		} vsConstants;
 		vsConstants.modelToProjection = ViewProjMat;
 		vsConstants.modelToShadow = m_SunShadow.GetShadowMatrix();
+		vsConstants.modelToWorld = Matrix4(XMMatrixIdentity());
 		XMStoreFloat3(&vsConstants.viewerPos, viewerPos);
 
-		gfxContext.SetDynamicConstantBufferView(Renderer::kMeshConstants, sizeof(vsConstants), &vsConstants);
 
 		__declspec(align(16)) uint32_t materialIdx = 0xFFFFFFFFul;
 
 		uint32_t VertexStride = m_Model->GetVertexStride();
+		UINT a = sizeof(vsConstants);
 
 		for (uint32_t meshIndex = 0; meshIndex < m_Model->GetMeshCount(); meshIndex++)
 		{
+
+			if (meshIndex == m_Model->GetMeshCount() - 1)
+			{
+				vsConstants.modelToWorld = Matrix4(m_Transform.getTransformMatrix());
+
+
+			}
+			gfxContext.SetDynamicConstantBufferView(Renderer::kMeshConstants, sizeof(vsConstants), &vsConstants);
 			const ModelH3D::Mesh& mesh = m_Model->GetMesh(meshIndex);
 
 			uint32_t indexCount = mesh.indexCount;
@@ -925,6 +973,7 @@ UINT TestRenderer::frameIndex = 0;
 
 
 
+	float bunnyScale = 1000;
 
 	void TestRenderer::RenderImGuiUI(GraphicsContext& gfx) {
 		ImGuiIO& io = ImGui::GetIO();
@@ -1010,6 +1059,9 @@ UINT TestRenderer::frameIndex = 0;
 			ImGui::DragInt("Debug Mode", &m_debugOverlayMode);
 
 		}
+		ImGui::DragFloat("Bunny Scale", &bunnyScale,1.0,1,3000);
+		m_Transform.setScale(bunnyScale, bunnyScale, bunnyScale);
+
 
 		std::stringstream ss;
 		UINT from, to;
@@ -1104,8 +1156,8 @@ UINT TestRenderer::frameIndex = 0;
 
 			 {
 //				 ScopedTimer _prof3(L"Render OBJ", gfxContext);
-//				 gfxContext.SetPipelineState(m_TestSpherePSO);
-//				 gfxContext.SetRootSignature(m_TestSpherePSO.GetRootSignature());
+//				 gfxContext.SetPipelineState(m_ModelSimplifiedPSO);
+//				 gfxContext.SetRootSignature(m_ModelSimplifiedPSO.GetRootSignature());
 //				 gfxContext.TransitionResource(g_SceneColorBuffer, D3D12_RESOURCE_STATE_RENDER_TARGET);
 //				 gfxContext.TransitionResource(g_SceneNormalBuffer, D3D12_RESOURCE_STATE_RENDER_TARGET);
 //				 gfxContext.TransitionResource(g_SceneDepthBuffer, D3D12_RESOURCE_STATE_DEPTH_READ);
@@ -1113,6 +1165,7 @@ UINT TestRenderer::frameIndex = 0;
 //				 gfxContext.SetRenderTargets(ARRAYSIZE(rtvs), rtvs, g_SceneDepthBuffer.GetDSV_DepthReadOnly());
 //				 gfxContext.SetViewportAndScissor(viewport, scissor);
 //				 //RenderOBJObject(gfxContext, camera.GetViewProjMatrix(), camera.GetPosition(), TestRenderer::kOpaque);
+//				 RenderOBJObjectCorrectPipeline(gfxContext, camera.GetViewProjMatrix(), camera.GetPosition(), TestRenderer::kOpaque);
 			 }
 
 		 }

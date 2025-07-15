@@ -18,6 +18,7 @@ cbuffer VSConstants : register(b0)
 {
     float4x4 modelToProjection;
     float4x4 modelToShadow;
+    float4x4 modelToWorld;
     float3 ViewerPos;
 };
 
@@ -55,8 +56,13 @@ VSOutput main(VSInput vsInput, uint vertexID : SV_VertexID)
 {
     VSOutput vsOutput;
 
-    vsOutput.position = mul(modelToProjection, float4(vsInput.position, 1.0));
-    vsOutput.worldPos = vsInput.position;
+//    vsOutput.position = mul(modelToProjection, float4(vsInput.position, 1.0));
+//vsOutput.worldPos = vsInput.position;
+    vsOutput.worldPos = mul(modelToWorld, float4(vsInput.position, 1.0));
+    vsOutput.position = mul(modelToProjection, float4(vsOutput.worldPos, 1.0));
+
+    
+    
     vsOutput.texCoord = vsInput.texcoord0;
     vsOutput.viewDir = vsInput.position - ViewerPos;
     vsOutput.shadowCoord = mul(modelToShadow, float4(vsInput.position, 1.0)).xyz;
