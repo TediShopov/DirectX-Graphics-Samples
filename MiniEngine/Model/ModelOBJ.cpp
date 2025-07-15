@@ -18,15 +18,91 @@ void ModelOBJ::Clear()
 
 bool ModelOBJ::Load(const std::wstring& filename)
 {
+    ReadOBJData(filename);
 
+    //For each face 
+    for (size_t i = 0; i < m_pIndices.size(); i+=3)
+    {
+		H3DVertex& v0 = m_pVertices[m_pIndices[i]];
+		H3DVertex& v1 = m_pVertices[m_pIndices[i+1]];
+		H3DVertex& v2 = m_pVertices[m_pIndices[i+2]];
+        CalculateTangentBasis(v0, v1, v2);
+    }
+    for (size_t i = 0; i < m_pVertices.size(); i++)
+    {
+		H3DVertex& v0 = m_pVertices[m_pIndices[i]];
+        XMStoreFloat3(&v0.normal, XMVector3Normalize(XMLoadFloat3(&v0.normal)));
+        XMStoreFloat3(&v0.tangent, XMVector3Normalize(XMLoadFloat3(&v0.tangent)));
+        XMStoreFloat3(&v0.bitangent, XMVector3Normalize(XMLoadFloat3(&v0.bitangent)));
+    }
+
+
+
+
+    ComputeUnifiedBuffer();
+
+    return true;
+
+
+}
+
+void ModelOBJ::CalculateTangentBasis(H3DVertex& va0,H3DVertex& va1, H3DVertex& va2)
+{
+    XMVECTOR v0 = XMLoadFloat3(&va0.position);
+    XMVECTOR v1 = XMLoadFloat3(&va1.position);
+    XMVECTOR v2 = XMLoadFloat3(&va2.position);
+
+    XMVECTOR edge1 = v1 - v0;
+    XMVECTOR edge2 = v2 - v0;
+
+    float du1 = va1.uv.x - va0.uv.x;
+    float dv1 = va1.uv.y - va0.uv.y;
+    float du2 = va2.uv.x - va0.uv.x;
+    float dv2 = va2.uv.y - va0.uv.y;
+
+    float r = 1.0f / (du1 * dv2 - dv1 * du2);
+
+    XMVECTOR tangent = r * (dv2 * edge1 - dv1 * edge2);
+    XMVECTOR bitangent = r * (-du2 * edge1 + du1 * edge2);
+    XMVECTOR normal = XMVector3Normalize(XMVector3Cross(edge1, edge2));
+
+    // Optional: orthonormalize
+    tangent = XMVector3Normalize(tangent - normal * XMVector3Dot(normal, tangent));
+    bitangent = XMVector3Cross(normal, tangent);
+
+    //Store in all vertices
+
+    XMStoreFloat3(&va0.tangent, tangent + XMLoadFloat3(&va0.tangent));
+    XMStoreFloat3(&va0.bitangent, bitangent + XMLoadFloat3(&va0.bitangent));
+    XMStoreFloat3(&va0.normal, normal + XMLoadFloat3(&va0.normal));
+
+    XMStoreFloat3(&va1.tangent, tangent + XMLoadFloat3(&va1.tangent));
+    XMStoreFloat3(&va1.bitangent, bitangent + XMLoadFloat3(&va1.bitangent));
+    XMStoreFloat3(&va1.normal, normal + XMLoadFloat3(&va1.normal));
+
+    XMStoreFloat3(&va2.tangent, tangent + XMLoadFloat3(&va2.tangent));
+    XMStoreFloat3(&va2.bitangent, bitangent + XMLoadFloat3(&va2.bitangent));
+    XMStoreFloat3(&va2.normal, normal + XMLoadFloat3(&va2.normal));
+
+}
+
+bool ModelOBJ::ReadOBJData(const std::wstring& filename)
+{
 	std::ifstream file(filename);
     if (!file) {
         return false;
     }
-
     //m_pPositions.clear();
+    m_pPositions.clear();
+    m_pNormals.clear();
+    m_pTexCoords.clear();
+
     m_pVertices.clear();
     m_pIndices.clear();
+
+	std::map<std::string, uint16_t> uniqueVertexMap; // maps "v/vt/vn" to unique index
+
+
 
 
     std::string line;
@@ -38,44 +114,74 @@ bool ModelOBJ::Load(const std::wstring& filename)
         if (type == "v") {
             XMFLOAT3 pos;
             ss >> pos.x >> pos.y >> pos.z;
-            //this->m_pPositions.push_back(pos);
-            XMFLOAT2 tex = { 0,0 }; XMFLOAT3 normal = { 0,0, 0};
-            XMFLOAT3 tangent = { 0,0,0 }; XMFLOAT3 bitangent = { 0,0,0 };
-            this->m_pVertices.push_back({ pos,tex,normal, tangent,bitangent});
+            m_pPositions.push_back(pos);
         }
-//        else if (type == "vt") {
-//            XMFLOAT2 uv;
-//            ss >> uv.x >> uv.y;
-//            uv.y = 1.0f - uv.y; // Flip V
-//            this->m_pTexCoords.push_back(uv);
-//        }
-//        else if (type == "vn") {
-//            XMFLOAT3 norm;
-//            ss >> norm.x >> norm.y >> norm.z;
-//            this->m_pNormals.push_back(norm);
-//        }
+        else if (type == "vt") {
+            XMFLOAT2 uv;
+            ss >> uv.x >> uv.y;
+            uv.y = 1.0f - uv.y; // Flip V
+            this->m_pTexCoords.push_back(uv);
+        }
+        else if (type == "vn") {
+            XMFLOAT3 norm;
+            ss >> norm.x >> norm.y >> norm.z;
+            this->m_pNormals.push_back(norm);
+        }
         else if (type == "f") {
+            for (int i = 0; i < 3; ++i) {
+                std::string vStr;
+                ss >> vStr;
 
-            //If VT or VN are 0 just pad them with mock values
+                if (uniqueVertexMap.count(vStr) == 0) {
+                    int v = 0, vt = 0, vn = 0;
+                    sscanf(vStr.c_str(), "%d/%d/%d", &v, &vt, &vn);
 
+                    H3DVertex vertex{};
+                    vertex.position = m_pPositions[v - 1];
+                    vertex.uv = vt ? m_pTexCoords[vt - 1] : XMFLOAT2(0, 0);
+                    vertex.normal = vn ? m_pNormals[vn - 1] : XMFLOAT3(0, 0, 0);
+                    vertex.tangent = { 0,0,0 };
+                    vertex.bitangent = { 0,0,0 };
 
+                    uint16_t newIndex = static_cast<uint16_t>(m_pVertices.size());
+                    uniqueVertexMap[vStr] = newIndex;
+                    m_pVertices.push_back(vertex);
+                }
 
-            std::string vStr;
-			ss >> vStr;
-            int pIdx = 0;
-            int pIdxOne = 0;
-            int pIdxTwo = 0;
-			//sscanf(vStr.c_str(), "%d %d %d", &pIdx, &pIdxOne, &pIdxTwo);
-			sscanf(vStr.c_str(), "%d", &pIdx);
-			ss >> vStr;
-			sscanf(vStr.c_str(), "%d", &pIdxOne);
-			ss >> vStr;
-			sscanf(vStr.c_str(), "%d", &pIdxTwo);
-            m_pIndices.push_back(pIdx-1);
-            m_pIndices.push_back(pIdxOne-1);
-            m_pIndices.push_back(pIdxTwo - 1 );
+                m_pIndices.push_back(uniqueVertexMap[vStr]);
+            }
+//        else if (type == "f") {
+//
+//            //If VT or VN are 0 just pad them with mock values
+//
+//
+//
+//            std::string vStr;
+//			ss >> vStr;
+//            int pIdx = 0;
+//            int pIdxOne = 0;
+//            int pIdxTwo = 0;
+//			//sscanf(vStr.c_str(), "%d %d %d", &pIdx, &pIdxOne, &pIdxTwo);
+//			sscanf(vStr.c_str(), "%d", &pIdx);
+//			ss >> vStr;
+//			sscanf(vStr.c_str(), "%d", &pIdxOne);
+//			ss >> vStr;
+//			sscanf(vStr.c_str(), "%d", &pIdxTwo);
+//            m_pIndices.push_back(pIdx-1);
+//            m_pIndices.push_back(pIdxOne-1);
+//            m_pIndices.push_back(pIdxTwo - 1 );
+//
+//            //this->m_pPositions.push_back(pos);
+//            XMFLOAT2 tex = { 0,0 }; XMFLOAT3 normal = { 0,0, 0};
+//            XMFLOAT3 tangent = { 0,0,0 }; XMFLOAT3 bitangent = { 0,0,0 };
+//            this->m_pVertices.push_back({ pos,tex,normal, tangent,bitangent});
         }
     }
+    return true;
+}
+
+void ModelOBJ::ComputeUnifiedBuffer()
+{
     size_t vbSize = m_pVertices.size() * sizeof(H3DVertex);
     size_t ibSize = m_pIndices.size() * sizeof(uint16_t);
 
@@ -99,33 +205,6 @@ bool ModelOBJ::Load(const std::wstring& filename)
     m_GeometryBuffer.Create(L"Geometry Buffer", vbSize+ibSize, 1,unifiedBuffer.data());
     m_VertexBufferView = m_GeometryBuffer.VertexBufferView(0, vbSize, sizeof(H3DVertex));
     m_IndexBufferView = m_GeometryBuffer.IndexBufferView(vbSize,ibSize, false);
-
-    meshPtr->bounds;
-    meshPtr->ibFormat = DXGI_FORMAT_R16_UINT;
-    meshPtr->ibOffset = vbSize;
-    meshPtr->ibSize = ibSize;
-
-    meshPtr->vbOffset = 0;
-    meshPtr->vbSize = vbSize;
-    meshPtr->vbStride = sizeof(H3DVertex);
-
-
-
-    meshPtr->materialCBV = 0;
-    meshPtr->meshCBV = 0;
-    meshPtr->numDraws = 1;
-    meshPtr->numJoints = 0;
-    meshPtr->pso = 0;
-    meshPtr->psoFlags = 0;
-    meshPtr->samplerTable = 0;
-    meshPtr->srvTable = 0;
-    meshPtr->startJoint = 0;
-    meshPtr->vbDepthOffset = 0;
-    meshPtr->vbDepthSize = 0;
-
-    return true;
-
-
 }
 
 void ModelOBJ::CalculateNormals()
@@ -167,60 +246,6 @@ void ModelOBJ::CalculateNormals()
     }
 }
 
-Renderer::ModelData ModelOBJ::CreateModelData()
-{
-    Renderer::ModelData d;
-    d.m_AnimationCurves = std::vector<AnimationCurve>();
-    d.m_AnimationKeyFrameData = std::vector<byte>();
-    d.m_Animations = std::vector<AnimationSet>();
-
-    Renderer::AxisAlignedBox aabb;
-    Renderer::BoundingSphere bs;
-    d.m_BoundingBox = aabb;
-    d.m_BoundingSphere = bs;
-
-
-    std::vector<byte> verticesBytes(m_pVertices.size() * sizeof(H3DVertex));
-    memcpy(verticesBytes.data(), m_pVertices.data(), m_pVertices.size() * sizeof(H3DVertex));
-    std::vector<H3DVertex> recreatoin(m_pVertices.size());
-    memcpy(recreatoin.data(), verticesBytes.data(), m_pVertices.size() * sizeof(H3DVertex));
-
-    //Check for any discrepancies
-    for (size_t i = 0; i < m_pVertices.size(); i++)
-    {
-        if(m_pVertices[i].position.x != recreatoin[i].position.x)
-        {
-            int a = 3;
-        }
-
-    }
-
-    d.m_GeometryData = verticesBytes;
-    d.m_JointIBMs = std::vector<Math::Matrix4>();
-    d.m_JointIndices = std::vector<UINT16>();
-
-    d.m_MaterialConstants = std::vector<Renderer::MaterialConstantData>();
-    d.m_MaterialTextures = std::vector<Renderer::MaterialTextureData>();
-
-
-    std::vector<Mesh*>singleMesh;
-    singleMesh.push_back(meshPtr);
-    d.m_Meshes =singleMesh;
-
-
-    GraphNode node;
-    node.hasChildren = false;
-    node.hasSibling = false;
-    node.rotation = Math::Quaternion();
-    node.scale = XMFLOAT3{100,100,100};
-    std::vector<GraphNode> singleGraph;
-    singleGraph.push_back(node);
-
-    d.m_SceneGraph = singleGraph;
-    d.m_TextureNames = std::vector<std::string>();
-    d.m_TextureOptions = std::vector<byte>();
-    return d;
-}
 
 void ModelOBJ::AttemptCreateH3DModel(ModelH3D* modelToFill)
 {

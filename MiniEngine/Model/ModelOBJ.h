@@ -28,20 +28,32 @@ public:
 
 
     Mesh* meshPtr = new Mesh();
-//    std::vector<XMFLOAT3> m_pPositions;
-//    std::vector<XMFLOAT3> m_pNormals;
-//    std::vector<XMFLOAT2> m_pTexCoords;
+
+    std::vector<XMFLOAT3> m_pPositions;
+    std::vector<XMFLOAT3> m_pNormals;
+    std::vector<XMFLOAT2> m_pTexCoords;
+
     std::vector<H3DVertex> m_pVertices;
     std::vector<uint16_t> m_pIndices;
 
 
     virtual bool Load(const std::wstring& filename);
+
+    //Used to store the vertices and indices in the CPU-side vectors
+     bool ReadOBJData(const std::wstring& filename);
+    //Computes a singled unified buffer to store vertex and index information
+    //follows the layout set by MiniEngine
+     void ComputeUnifiedBuffer();
+
+
+     void CalculateTangentBasis(H3DVertex& va0,H3DVertex& va1, H3DVertex& va2);
+
+
     //Calculates per face normals from know vertices and faces
     void CalculateNormals();
 
 
 
-     Renderer::ModelData CreateModelData();
      void AttemptCreateH3DModel(ModelH3D* modelToFill);
      void InsertIntoH3DModel(ModelH3D* modelToFill);
      
