@@ -92,7 +92,7 @@ void main(
         float3 rayDir = CosineSampleHemisphere(rnd, s.normal);
 
         float3 Li = 
-            worldSpaceRayMarchCS(s.position, rayDir, cameraData, params, gDepth, gColor, defaultSampler, float4(0, 0, 0, 1)); // returned radiance
+            worldSpaceRayMarchCS(s.position, rayDir, cameraData, params, gDepth, gColor, defaultSampler, float4(0, 0, 0, 0)); // returned radiance
         float cosTheta = saturate(dot(rayDir, surfelsUAV[dispatchThreadId.x].normal));
         float3 radiance = Li * M_PI;
         accumulatedIrradiance += radiance;

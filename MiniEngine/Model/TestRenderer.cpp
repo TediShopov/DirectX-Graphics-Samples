@@ -172,6 +172,7 @@ UINT TestRenderer::frameIndex = 0;
 	 
 	 //bool m_useSSRMonly = false;
 	 bool m_useSSRMonly = true;
+	 bool m_drawPhysicalSurfelInstances = true;
 
 
 	 int m_debugOverlayMode = 0;
@@ -1164,6 +1165,10 @@ UINT TestRenderer::frameIndex = 0;
 		bool pressedOriantationMinus = GameInput::IsFirstPressed(GameInput::kKey_i);
 
 		bool pressedToggleUseSSRMOnly = GameInput::IsFirstPressed(GameInput::kKey_n);
+		bool pressedTogglePhysicalSurfels = GameInput::IsFirstPressed(GameInput::kKey_h);
+
+		if (pressedTogglePhysicalSurfels)
+			m_drawPhysicalSurfelInstances = !m_drawPhysicalSurfelInstances;
 		if (pressedToggleUseSSRMOnly)
 			m_useSSRMonly = !m_useSSRMonly;
 
@@ -1264,6 +1269,8 @@ UINT TestRenderer::frameIndex = 0;
 		}
 
 
+		ImGui::Checkbox("Use Screen-Space Ray Marching Only ", &m_useSSRMonly);
+		ImGui::Checkbox("Draw Physical Surfel Objects", &m_drawPhysicalSurfelInstances);
 
 		ImGui::DragFloat("Bunny Scale", &bunnyScale,1.0,1,3000);
 		m_Transform.setScale(bunnyScale, bunnyScale, bunnyScale);
@@ -1344,6 +1351,7 @@ UINT TestRenderer::frameIndex = 0;
 			 CopyColorAndDepthBuffers(gfxContext);
 
 
+			 if (m_drawPhysicalSurfelInstances)
 			 {
 				 ScopedTimer _prof3(L"Render Sphere", gfxContext);
 				 gfxContext.SetPipelineState(m_TestSpherePSO);
@@ -1359,6 +1367,7 @@ UINT TestRenderer::frameIndex = 0;
 					 RenderRelevantSurfels(gfxContext, camera.GetViewProjMatrix(), camera.GetPosition(), TestRenderer::kOpaque);
 				 else
 					 RenderSurfels(gfxContext, camera.GetViewProjMatrix(), camera.GetPosition(), TestRenderer::kOpaque);
+
 			 }
 
 
