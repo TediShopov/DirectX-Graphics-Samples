@@ -116,12 +116,6 @@ void MyRaygenShader()
     
     
     //float N = surfelsUAV[globalIndex].raySamples.x;
-
-    //TODO debug view of ray dispatch data
-    rayDispatchUUAV[0] = 1;
-    
-    
-    
     for (int i = 0; i < N; i++)
     {
         uint3 index3 = DispatchRaysIndex();

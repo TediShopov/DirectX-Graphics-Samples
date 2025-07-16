@@ -15,7 +15,6 @@
 #include "ModelH3D.h"
 #include "CommandContext.h"
 
-#include "CompiledShaders/SurfelIrradianceSSRMCS.h"
 class SurfelSSRMIrradianceAccumulation
 {
 	__declspec(align(16)) struct SSRCameraData
@@ -44,6 +43,8 @@ class SurfelSSRMIrradianceAccumulation
 
 	}  commonSSR;
 public:
+	UINT width;
+	UINT height;
 	
 	//Holds the color and depth buffer copies necessary for common SSR
 	DescriptorHeap SRVHeap;
@@ -55,7 +56,7 @@ public:
 	void InitializePSOs();
 
 	void Setup(ColorBuffer colorBuff,DescriptorHeap nonShaderVisibleSurfelHeap);
-	void Dispatch(ComputeContext& cfx);
+	void Dispatch(ComputeContext& cfxA,const Camera& camera);
 
 
 

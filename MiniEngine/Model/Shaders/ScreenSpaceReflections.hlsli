@@ -225,6 +225,56 @@ bool isClipped(float3 clipSpacePos)
 	return float3(0,0,0);
 }
 
+//The only difference here is that sample level is used instead of sample
+float4 worldSpaceRayMarchCS(
+float3 worldPosition,
+float3 worldDirection,
+SSRCameraData ssrCameraData,
+SSRParameters ssrParameters,
+Texture2D depthTexture,
+Texture2D colorTexture,
+SamplerState depthSampler,
+float4 skymapColor
+)
+{
+    const float thickness =  ssrParameters.thicknessInUnits/200;
+    const float3 endVector = worldPosition + worldDirection * ssrParameters.maxLengthInWorldUnits;
+
+    float3 newPos = worldPosition;
+    [loop]
+    for (int i = 1; i <= ssrParameters.maxSteps; ++i)
+    {
+		//March ray in direction
+        float t = (float) i / (float) ssrParameters.maxSteps;
+        newPos = lerp(worldPosition, endVector, t);
+
+        float rayDepth =
+		clipSpacePositionFromWorld(newPos,ssrCameraData).z;
+
+        rayDepth = depthValueToLinearDepth(rayDepth, ssrCameraData);
+
+        float sampledDepth =
+		depthValueToLinearDepth(
+        depthTexture.SampleLevel(depthSampler, getTexCoordsFromWorld(newPos,ssrCameraData),0).r,ssrCameraData);
+
+        if (rayDepth > sampledDepth && rayDepth < sampledDepth + thickness)
+        {
+            return colorTexture
+        		.SampleLevel(depthSampler, getTexCoordsFromWorld(newPos,ssrCameraData),0);
+        }
+
+        float2 rayScreenPos = getTexCoordsFromWorld(newPos,ssrCameraData);
+        if (rayScreenPos.x < 0.0 || rayScreenPos.x > 1.0 ||rayScreenPos.y < 0.0 || rayScreenPos.y > 1.0)
+        {
+			// Invalid reflection: ray left the screen
+            break;
+        }
+
+    }
+    // Sample reflected color from the cube map
+    return skymapColor;
+
+}
 
 float4 worldSpaceRayMarch(
 float3 worldPosition,
