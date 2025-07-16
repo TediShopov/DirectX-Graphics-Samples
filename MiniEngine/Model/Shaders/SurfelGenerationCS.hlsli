@@ -144,7 +144,7 @@ void main(
      // Evaluate min coverage value and pixel position.
     // Also evaluate max contribution and surfel index (for handling over-coverage).
     // Also evalute weighted color output (indrect lighting).
-    if (true)
+    if (surfelCount < kPerCellSurfelLimit-2)
     {
         float coverage = 0.f; //Represent how well covered is the grid cell 
         float maxContribution = 0.0f;
