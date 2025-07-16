@@ -175,15 +175,8 @@ float3 computeRadianceForWorldPos(float3 worldPos, float3 worldNormal)
         SurfelData surfel = surfelsUAV[index];
         float3 d = worldPos - surfel.position;
         float3 colorContribution ;
-        if(surfel.radius <= 0)
-        {
-            colorContribution = float3(0, 0, 0);
-        }
-        else
-        {
-            colorContribution = calculateSurfelsContribution_Experimental(surfel, worldPos, worldNormal);
+        colorContribution = calculateSurfelsContribution_Experimental(surfel, worldPos, worldNormal);
             //colorContribution = calculateSurfelsContribution_MahalonobisLikeMetric(surfel, worldPos);
-        }
        
 
 
@@ -191,16 +184,18 @@ float3 computeRadianceForWorldPos(float3 worldPos, float3 worldNormal)
         //Color Intensity Contribution
 
         //A hacky way to estimate relative contribution of a surfel to the pixel
-        float colorIntensity = length(colorContribution);
+        float colorIntensitySquare = dot(colorContribution, colorContribution);
+
 
         float intensityThreshold = 0.01f;
-        if (colorIntensity > intensityThreshold)
+        if (colorIntensitySquare > intensityThreshold)
         {
             //Add to the contributions metric
-            InterlockedAdd(surfelsUAV[index].contribution.x, 1);
+            //InterlockedAdd(surfelsUAV[index].contribution.x, 1);
             //Store the last frame used
-            uint outO;
-            InterlockedExchange(surfelsUAV[index].contribution.y, FrameIndex, outO);
+            //uint outO;
+            //No need for atomic operation as it does not matter in which other the threads access
+            surfelsUAV[index].contribution.y = FrameIndex;
 
         }
         colorE += colorContribution;

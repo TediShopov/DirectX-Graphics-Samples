@@ -1371,29 +1371,29 @@ UINT TestRenderer::frameIndex = 0;
 			 }
 
 
-			 {
-				 ScopedTimer _prof3(L"Render SSR", gfxContext);
-				 gfxContext.SetPipelineState(m_ModelSSRPSO);
-				 gfxContext.SetRootSignature(m_ModelSSRPSO.GetRootSignature());
-				 gfxContext.SetDescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV,SSRHeap.GetHeapPointer());
-
-				 CopyColorAndDepthBuffers(gfxContext);
-				 //PIXEL SHADER RESOURCE 
-				 gfxContext.TransitionResource(colorCopyBuffer, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
-				 gfxContext.TransitionResource(depthCopyBuffer, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
-
-				 gfxContext.TransitionResource(g_SceneColorBuffer, D3D12_RESOURCE_STATE_RENDER_TARGET);
-				 gfxContext.TransitionResource(g_SceneNormalBuffer, D3D12_RESOURCE_STATE_RENDER_TARGET);
-
-				 gfxContext.TransitionResource(g_SceneDepthBuffer, D3D12_RESOURCE_STATE_DEPTH_READ);
-				 D3D12_CPU_DESCRIPTOR_HANDLE rtvs[]{ g_SceneColorBuffer.GetRTV(), g_SceneNormalBuffer.GetRTV() };
-				 gfxContext.SetRenderTargets(ARRAYSIZE(rtvs), rtvs, g_SceneDepthBuffer.GetDSV_DepthReadOnly());
-				 gfxContext.SetViewportAndScissor(viewport, scissor);
-				 gfxContext.SetDescriptorTable(Renderer::kCommonSRVs, SSRHeap[0]);
-				 //camera.GetViewMatrix();
-				 //camera.GetProjMatrix();
-				 RenderSSR(gfxContext, camera,35);
-			 }
+//			 {
+//				 ScopedTimer _prof3(L"Render SSR", gfxContext);
+//				 gfxContext.SetPipelineState(m_ModelSSRPSO);
+//				 gfxContext.SetRootSignature(m_ModelSSRPSO.GetRootSignature());
+//				 gfxContext.SetDescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV,SSRHeap.GetHeapPointer());
+//
+//				 CopyColorAndDepthBuffers(gfxContext);
+//				 //PIXEL SHADER RESOURCE 
+//				 gfxContext.TransitionResource(colorCopyBuffer, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+//				 gfxContext.TransitionResource(depthCopyBuffer, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+//
+//				 gfxContext.TransitionResource(g_SceneColorBuffer, D3D12_RESOURCE_STATE_RENDER_TARGET);
+//				 gfxContext.TransitionResource(g_SceneNormalBuffer, D3D12_RESOURCE_STATE_RENDER_TARGET);
+//
+//				 gfxContext.TransitionResource(g_SceneDepthBuffer, D3D12_RESOURCE_STATE_DEPTH_READ);
+//				 D3D12_CPU_DESCRIPTOR_HANDLE rtvs[]{ g_SceneColorBuffer.GetRTV(), g_SceneNormalBuffer.GetRTV() };
+//				 gfxContext.SetRenderTargets(ARRAYSIZE(rtvs), rtvs, g_SceneDepthBuffer.GetDSV_DepthReadOnly());
+//				 gfxContext.SetViewportAndScissor(viewport, scissor);
+//				 gfxContext.SetDescriptorTable(Renderer::kCommonSRVs, SSRHeap[0]);
+//				 //camera.GetViewMatrix();
+//				 //camera.GetProjMatrix();
+//				 RenderSSR(gfxContext, camera,35);
+//			 }
 
 //			 {
 //				 ScopedTimer _prof3(L"Render OBJ", gfxContext);
@@ -1661,7 +1661,11 @@ UINT TestRenderer::frameIndex = 0;
 		if (m_stopSurfelUpdate == false)
 			SurfelIllumination->SpawnSurfels(cfx, camera);
 
-		SurfelIllumination->ReadbackSurfelData(gfxContext);
+		if (m_drawPhysicalSurfelInstances)
+		{
+			SurfelIllumination->ReadbackSurfelData(gfxContext);
+
+		}
 		SurfelIllumination->ApplySurfels(cfx, camera);
 		
 		if (m_stopSurfelUpdate == false)
