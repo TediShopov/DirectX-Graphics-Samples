@@ -171,6 +171,9 @@
     <None Include="Shaders\ScanCommon.hlsl">
       <FileType>Document</FileType>
     </None>
+    <FxCompile Include="Shaders\ScreenSpaceReflectionsPS.hlsl">
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Pixel</ShaderType>
+    </FxCompile>
     <FxCompile Include="Shaders\SurfelGenerationCS.hlsli">
       <FileType>Document</FileType>
       <DisableOptimizations Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</DisableOptimizations>
@@ -182,6 +185,7 @@
     <FxCompile Include="Shaders\SurfelApplicationCS.hlsli">
       <FileType>Document</FileType>
     </FxCompile>
+    <None Include="Shaders\ScreenSpaceReflections.hlsli" />
     <None Include="Shaders\SurfelASAsserts.hlsli" />
     <FxCompile Include="Shaders\SurfelGIOnlyPS.hlsl">
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Pixel</ShaderType>

@@ -48,6 +48,7 @@
 #include "CompiledShaders/SimpleMeshVS.h"
 #include "CompiledShaders/SurfelAccelerationStructuresCS.h"
 #include "CompiledShaders/SurfelGenerationCS.h"
+#include "CompiledShaders/ScreenSpaceReflectionsPS.h"
 //#include "CompiledShaders/Raytracing.h"
 
 
@@ -169,6 +170,7 @@ UINT TestRenderer::frameIndex = 0;
 	GraphicsPSO m_DepthPSO = { (L"Sponza: Depth PSO") };
 
 	GraphicsPSO m_ModelPSO = { (L"Sponza: Color PSO") };
+	GraphicsPSO m_ModelSSRPSO = { (L"Sponza: SSR PSO") };
 	GraphicsPSO m_ModelSimplifiedPSO = { (L"Sponza: Simplified Color PSO") };
 
 	GraphicsPSO m_TestSpherePSO = { (L"Sponza: Sphere Test PSO") };
@@ -367,6 +369,14 @@ UINT TestRenderer::frameIndex = 0;
 		m_TestSpherePSO.SetPixelShader(g_pSimpleMeshPS, sizeof(g_pSimpleMeshPS));
 		m_TestSpherePSO.Finalize();
 
+
+		m_ModelSSRPSO = m_DepthPSO;
+		m_ModelSSRPSO.SetBlendState(BlendDisable);
+		m_ModelSSRPSO.SetDepthStencilState(DepthStateReadWrite);
+		m_ModelSSRPSO.SetRenderTargetFormats(2, formats, DepthFormat);
+		m_ModelSSRPSO.SetVertexShader(g_pModelViewerVS, sizeof(g_pModelViewerVS));
+		m_ModelSSRPSO.SetPixelShader(g_pScreenSpaceReflectionsPS, sizeof(g_pScreenSpaceReflectionsPS));
+		m_ModelSSRPSO.Finalize();
 
 		SetupScene();
 
@@ -927,6 +937,8 @@ UINT TestRenderer::frameIndex = 0;
 
 		for (uint32_t meshIndex = 0; meshIndex < m_Model->GetMeshCount(); meshIndex++)
 		{
+			if (meshIndex > 34)
+				continue;
 
 			if (meshIndex > 33)
 			{
@@ -958,6 +970,99 @@ UINT TestRenderer::frameIndex = 0;
 
 			gfxContext.DrawIndexed(indexCount, startIndex, baseVertex);
 		}
+
+	}
+
+	void TestRenderer::RenderSSR(GraphicsContext& gfxContext, const Camera& camera,UINT objectIndex) 
+	{
+
+		struct VSConstanstsWithModel
+		{
+			Matrix4 modelToProjection;
+			Matrix4 modelToShadow;
+			Matrix4 modelToWorld;
+			XMFLOAT3 viewerPos;
+		} vsConstants;
+		vsConstants.modelToProjection = camera.GetViewProjMatrix();
+		vsConstants.modelToShadow = m_SunShadow.GetShadowMatrix();
+		vsConstants.modelToWorld = Matrix4(XMMatrixIdentity());
+		XMStoreFloat3(&vsConstants.viewerPos, camera.GetPosition());
+		__declspec(align(16)) uint32_t materialIdx = 0xFFFFFFFFul;
+
+		uint32_t VertexStride = m_Model->GetVertexStride();
+		UINT a = sizeof(vsConstants);
+		UINT meshIndex = objectIndex;
+
+		vsConstants.modelToWorld = Matrix4(m_Transform.getTransformMatrix());
+
+
+		gfxContext.SetDynamicConstantBufferView(Renderer::kMeshConstants, sizeof(vsConstants), &vsConstants);
+		const ModelH3D::Mesh& mesh = m_Model->GetMesh(meshIndex);
+
+		uint32_t indexCount = mesh.indexCount;
+
+		auto format = m_Model->GetIndexBuffer().Format;
+		uint32_t startIndex = mesh.indexDataByteOffset / sizeof(uint16_t);
+		uint32_t baseVertex = mesh.vertexDataByteOffset / VertexStride;
+
+
+		__declspec(align(16)) struct SSRCameraData
+		{
+			Matrix4 cameraViewMatrix;
+			Matrix4 cameraProjMatrix;
+			Matrix4 cameraWorldMatrix;
+			Matrix4 inverseViewMatrix;
+			Matrix4 inverseProjMatrix;
+			Vector3 cameraPosition;
+		};
+		__declspec(align(16)) struct SSRParameters
+		{
+			int useSSR;
+			float maxLengthInWorldUnits;
+			int maxSteps;
+			float thicknessInUnits;
+			float resolution;
+			int width;
+			int height;
+		};
+
+		__declspec(align(16)) struct CommonSSR {
+
+			SSRCameraData cameraData;
+			SSRParameters ssrParameters;
+
+		}  commonSSR;
+		Transform  camTempT;
+		camTempT.setPosition(camera.GetPosition());
+
+		commonSSR.cameraData.cameraProjMatrix = camera.GetProjMatrix();
+		commonSSR.cameraData.cameraViewMatrix = camera.GetViewMatrix();
+		commonSSR.cameraData.cameraWorldMatrix = Matrix4(camTempT.getTransformMatrix());
+
+		commonSSR.cameraData.inverseProjMatrix = Matrix4(XMMatrixInverse(nullptr,camera.GetProjMatrix()));
+		commonSSR.cameraData.inverseViewMatrix = Matrix4(XMMatrixInverse(nullptr,camera.GetViewMatrix()));
+		commonSSR.cameraData.cameraPosition = camera.GetPosition();
+
+		commonSSR.ssrParameters.useSSR = true;
+		commonSSR.ssrParameters.width = g_SceneColorBuffer.GetWidth();
+		commonSSR.ssrParameters.height = g_SceneColorBuffer.GetHeight();
+		commonSSR.ssrParameters.maxSteps = 1000;
+		commonSSR.ssrParameters.maxLengthInWorldUnits = 100;
+		commonSSR.ssrParameters.thicknessInUnits = 10;
+		commonSSR.ssrParameters.resolution = 1;
+
+
+
+
+		if (mesh.materialIndex != materialIdx)
+		{
+			materialIdx = mesh.materialIndex;
+			gfxContext.SetDescriptorTable(Renderer::kMaterialSRVs, m_Model->GetSRVs(materialIdx));
+			gfxContext.SetDynamicConstantBufferView(Renderer::kCommonCBV, sizeof(commonSSR), &commonSSR);
+		}
+
+		gfxContext.DrawIndexed(indexCount, startIndex, baseVertex);
+
 	}
 	void TestRenderer::RenderLightShadows(GraphicsContext& gfxContext, const Camera& camera)
 	{
@@ -1196,6 +1301,22 @@ UINT TestRenderer::frameIndex = 0;
 					 RenderRelevantSurfels(gfxContext, camera.GetViewProjMatrix(), camera.GetPosition(), TestRenderer::kOpaque);
 				 else
 					 RenderSurfels(gfxContext, camera.GetViewProjMatrix(), camera.GetPosition(), TestRenderer::kOpaque);
+			 }
+
+
+			 {
+				 ScopedTimer _prof3(L"Render SSR", gfxContext);
+				 gfxContext.SetPipelineState(m_ModelSSRPSO);
+				 gfxContext.SetRootSignature(m_ModelSSRPSO.GetRootSignature());
+				 gfxContext.TransitionResource(g_SceneColorBuffer, D3D12_RESOURCE_STATE_RENDER_TARGET);
+				 gfxContext.TransitionResource(g_SceneNormalBuffer, D3D12_RESOURCE_STATE_RENDER_TARGET);
+				 gfxContext.TransitionResource(g_SceneDepthBuffer, D3D12_RESOURCE_STATE_DEPTH_READ);
+				 D3D12_CPU_DESCRIPTOR_HANDLE rtvs[]{ g_SceneColorBuffer.GetRTV(), g_SceneNormalBuffer.GetRTV() };
+				 gfxContext.SetRenderTargets(ARRAYSIZE(rtvs), rtvs, g_SceneDepthBuffer.GetDSV_DepthReadOnly());
+				 gfxContext.SetViewportAndScissor(viewport, scissor);
+				 //camera.GetViewMatrix();
+				 //camera.GetProjMatrix();
+				 RenderSSR(gfxContext, camera,35);
 			 }
 
 			 {

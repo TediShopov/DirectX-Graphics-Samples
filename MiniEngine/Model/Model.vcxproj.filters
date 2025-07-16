@@ -264,6 +264,9 @@
     <None Include="Shaders\SurfelLightTransferUtility.hlsl">
       <Filter>Shaders</Filter>
     </None>
+    <None Include="Shaders\ScreenSpaceReflections.hlsli">
+      <Filter>Shaders</Filter>
+    </None>
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="Shaders\DefaultVS.hlsl">
@@ -405,6 +408,9 @@
       <Filter>Shaders</Filter>
     </FxCompile>
     <FxCompile Include="Shaders\MSMEDebugOverlayPS.hlsl">
+      <Filter>Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\ScreenSpaceReflectionsPS.hlsl">
       <Filter>Shaders</Filter>
     </FxCompile>
   </ItemGroup>

@@ -111,7 +111,11 @@ protected:
 	static void RenderSphereObject(RENDER_OBJECT_INSTANCE_PARAMS);
 	static void RenderOBJObject(RENDER_OBJECT_INSTANCE_PARAMS);
 	static void RenderOBJObjectCorrectPipeline(RENDER_OBJECT_INSTANCE_PARAMS);
+
 	static void RenderObjects(RENDER_OBJECT_INSTANCE_PARAMS);
+
+	static void RenderSSR(GraphicsContext& gfxContext, const Camera& camera,UINT objectIndex);
+
 	static void RenderRelevantSurfels(RENDER_OBJECT_INSTANCE_PARAMS);
 	static void RenderSurfels(RENDER_OBJECT_INSTANCE_PARAMS);
 
