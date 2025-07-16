@@ -99,6 +99,7 @@
     <ClInclude Include="Renderer.h" />
     <ClInclude Include="SurfelGIOnlyVisualization.h" />
     <ClInclude Include="SurfelIrradianceAccumulation.h" />
+    <ClInclude Include="SurfelSSRMIrradianceAccumulation.h" />
     <ClInclude Include="UniformGrid.h" />
     <None Include="Shaders\MultiscaleMeanEstimator.hlsl">
       <FileType>Document</FileType>
@@ -155,6 +156,7 @@
     <ClCompile Include="SurfelGI.cpp" />
     <ClCompile Include="SurfelGIOnlyVisualization.cpp" />
     <ClCompile Include="SurfelIrradianceAccumulation.cpp" />
+    <ClCompile Include="SurfelSSRMIrradianceAccumulation.cpp" />
     <ClCompile Include="TestRaytracing.cpp" />
     <ClCompile Include="TestRenderer.cpp" />
     <ClCompile Include="TextureConvert.cpp" />
@@ -192,6 +194,9 @@
     </FxCompile>
     <FxCompile Include="Shaders\SurfelGIOnlyVS.hlsl">
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Vertex</ShaderType>
+    </FxCompile>
+    <FxCompile Include="Shaders\SurfelIrradianceSSRMCS.hlsli">
+      <FileType>Document</FileType>
     </FxCompile>
     <None Include="Shaders\SurfelLightTransferUtility.hlsl">
       <FileType>Document</FileType>

@@ -22,6 +22,7 @@
 #include "HashGridVisualization.h"
 #include "MSMEVisualization.h"
 #include "SurfelGIOnlyVisualization.h"
+#include "SurfelSSRMIrradianceAccumulation.h"
 #include <sstream>
 #include "glTF.h"
 
@@ -169,6 +170,8 @@ UINT TestRenderer::frameIndex = 0;
 	 bool m_renderOnlyCurrentCellSurfels = false;
 	 bool m_useSimpleAlgorithm = true;
 	 int m_debugOverlayMode = 0;
+
+	 SurfelSSRMIrradianceAccumulation SSRMIrradianceAccumulation;
 
 	DescriptorHeap renderTargetHeap;
 	GraphicsPSO m_DepthPSO = { (L"Sponza: Depth PSO") };
@@ -477,10 +480,14 @@ UINT TestRenderer::frameIndex = 0;
 
 		);
 
+		SSRMIrradianceAccumulation.Setup(g_SceneColorBuffer, SurfelIllumination->nonShaderVisibleHeap);
+
+
 
 		GridVisualization->Setup(
 			gbuffer,
 			&TestRaytracing::GetOutputBuffer()
+
 		);
 		GridMSMEVisualization->Setup(
 			gbuffer,
@@ -1548,6 +1555,8 @@ UINT TestRenderer::frameIndex = 0;
 			}
 		}
 
+		SSRMIrradianceAccumulation.Dispatch(cfx);
+
 		SSAO::Render(gfxContext, camera);
 
 		if (!skipDiffusePass)
@@ -1612,6 +1621,8 @@ UINT TestRenderer::frameIndex = 0;
 
 			}
 		}
+
+
 
 		// --- SURFEL PASS
 		frameIndex++;
