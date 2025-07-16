@@ -138,6 +138,10 @@ UINT TestRenderer::frameIndex = 0;
 	 DiscMesh* TestRenderer::m_Disc = nullptr;
 	 Transform TestRenderer::m_Transform;
 
+	 DescriptorHeap TestRenderer::SSRHeap = DescriptorHeap();
+	 ColorBuffer TestRenderer::colorCopyBuffer = ColorBuffer();
+	 DepthBuffer TestRenderer::depthCopyBuffer = DepthBuffer();
+
 	 struct SunData {
 		 XMFLOAT3 sunDirection;
 		 float sunOrientation;
@@ -271,6 +275,7 @@ UINT TestRenderer::frameIndex = 0;
 		DXGI_FORMAT NormalFormat = g_SceneNormalBuffer.GetFormat();
 		DXGI_FORMAT DepthFormat = g_SceneDepthBuffer.GetFormat();
 		DXGI_FORMAT ShadowFormat = g_ShadowBuffer.GetFormat();
+
 
 		//m_Transform.setScale(50,50,50);
 		m_Transform.setScale(10,10,10);
@@ -545,6 +550,22 @@ UINT TestRenderer::frameIndex = 0;
 			};
 
 		bool t = ImGui_ImplDX12_Init(&info);
+
+
+		SSRHeap.Create(L"SSR Heap", D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 2);
+		
+		
+		colorCopyBuffer.Create(L"Color Copy Buffer", g_SceneColorBuffer.GetWidth(), g_SceneColorBuffer.GetHeight(), 1, ColorFormat);
+		depthCopyBuffer.Create(L"Depth Copy Buffer A", g_SceneDepthBuffer.GetWidth(), g_SceneDepthBuffer.GetHeight(),1, DepthFormat);
+
+		ExtendedUtility::CopyDescriptorsToHeap(
+			SSRHeap,
+			{
+				colorCopyBuffer.GetSRV(),
+				depthCopyBuffer.GetDepthSRV()
+			},
+			D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+
 	}
 	void TestRenderer::InitQuadModel()
 	{
@@ -973,6 +994,20 @@ UINT TestRenderer::frameIndex = 0;
 
 	}
 
+	void TestRenderer::CopyColorAndDepthBuffers(GraphicsContext& gfxContext) 
+	{
+		//Copy The Color Buffer
+		gfxContext.TransitionResource(g_SceneColorBuffer, D3D12_RESOURCE_STATE_COPY_SOURCE);
+		gfxContext.TransitionResource(colorCopyBuffer, D3D12_RESOURCE_STATE_COPY_DEST);
+		gfxContext.CopyBuffer(colorCopyBuffer, g_SceneColorBuffer);
+		
+		//Copy The Depth Buffer
+		gfxContext.TransitionResource(g_SceneDepthBuffer, D3D12_RESOURCE_STATE_COPY_SOURCE);
+		gfxContext.TransitionResource(depthCopyBuffer, D3D12_RESOURCE_STATE_COPY_DEST);
+		gfxContext.CopyBuffer(depthCopyBuffer, g_SceneDepthBuffer);
+
+	 }
+
 	void TestRenderer::RenderSSR(GraphicsContext& gfxContext, const Camera& camera,UINT objectIndex) 
 	{
 
@@ -1308,12 +1343,21 @@ UINT TestRenderer::frameIndex = 0;
 				 ScopedTimer _prof3(L"Render SSR", gfxContext);
 				 gfxContext.SetPipelineState(m_ModelSSRPSO);
 				 gfxContext.SetRootSignature(m_ModelSSRPSO.GetRootSignature());
+				 gfxContext.SetDescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV,SSRHeap.GetHeapPointer());
+
+				 CopyColorAndDepthBuffers(gfxContext);
+				 //PIXEL SHADER RESOURCE 
+				 gfxContext.TransitionResource(colorCopyBuffer, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+				 gfxContext.TransitionResource(depthCopyBuffer, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+
 				 gfxContext.TransitionResource(g_SceneColorBuffer, D3D12_RESOURCE_STATE_RENDER_TARGET);
 				 gfxContext.TransitionResource(g_SceneNormalBuffer, D3D12_RESOURCE_STATE_RENDER_TARGET);
+
 				 gfxContext.TransitionResource(g_SceneDepthBuffer, D3D12_RESOURCE_STATE_DEPTH_READ);
 				 D3D12_CPU_DESCRIPTOR_HANDLE rtvs[]{ g_SceneColorBuffer.GetRTV(), g_SceneNormalBuffer.GetRTV() };
 				 gfxContext.SetRenderTargets(ARRAYSIZE(rtvs), rtvs, g_SceneDepthBuffer.GetDSV_DepthReadOnly());
 				 gfxContext.SetViewportAndScissor(viewport, scissor);
+				 gfxContext.SetDescriptorTable(Renderer::kCommonSRVs, SSRHeap[0]);
 				 //camera.GetViewMatrix();
 				 //camera.GetProjMatrix();
 				 RenderSSR(gfxContext, camera,35);

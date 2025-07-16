@@ -116,6 +116,12 @@ protected:
 
 	static void RenderSSR(GraphicsContext& gfxContext, const Camera& camera,UINT objectIndex);
 
+	static DescriptorHeap SSRHeap;
+	static ColorBuffer colorCopyBuffer;
+	static DepthBuffer depthCopyBuffer;
+
+	static void CopyColorAndDepthBuffers(GraphicsContext& gfxContext);
+
 	static void RenderRelevantSurfels(RENDER_OBJECT_INSTANCE_PARAMS);
 	static void RenderSurfels(RENDER_OBJECT_INSTANCE_PARAMS);
 
