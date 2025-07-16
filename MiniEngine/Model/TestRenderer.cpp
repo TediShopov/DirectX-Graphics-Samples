@@ -1085,18 +1085,13 @@ UINT TestRenderer::frameIndex = 0;
 		commonSSR.cameraData.inverseProjMatrix = Matrix4(XMMatrixTranspose(commonSSR.cameraData.inverseProjMatrix));
 		commonSSR.cameraData.inverseViewMatrix = Matrix4(XMMatrixTranspose(commonSSR.cameraData.inverseViewMatrix));
 
-
-
-
 		commonSSR.ssrParameters.useSSR = true;
 		commonSSR.ssrParameters.width = g_SceneColorBuffer.GetWidth();
 		commonSSR.ssrParameters.height = g_SceneColorBuffer.GetHeight();
 		commonSSR.ssrParameters.maxSteps = 1000;
-		commonSSR.ssrParameters.maxLengthInWorldUnits = 400;
+		commonSSR.ssrParameters.maxLengthInWorldUnits = 1000;
 		commonSSR.ssrParameters.thicknessInUnits = 200;
 		commonSSR.ssrParameters.resolution = 1;
-
-
 
 
 		if (mesh.materialIndex != materialIdx)

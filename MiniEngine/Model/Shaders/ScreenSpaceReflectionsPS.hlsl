@@ -63,9 +63,9 @@ MRT main(VSOutput vsOutput)
     float3 colorRGB = color.Sample(defaultSampler, vsOutput.uv);
     float3 depthRGB = depth.Sample(defaultSampler, vsOutput.uv);
     //mrt.Color = colorRGB + depthRGB;
-    //mrt.Color = screenSpaceReflectionsNoSkymap(vsOutput.worldPos, normal, cameraData, params, depth, color, defaultSampler, float4(1, 0, 0, 1));
     //mrt.Color = screenSpaceReflectionDebugColors(vsOutput.worldPos, normal, cameraData, params);
     mrt.Color = worldSpaceReflectionsNoSkymap(vsOutput.worldPos, normal, cameraData, params, depth, color, defaultSampler, float4(1, 0, 0, 1));
+    //mrt.Color = screenSpaceReflectionsNoSkymap(vsOutput.worldPos, normal, cameraData, params, depth, color, defaultSampler, float4(1, 0, 0, 1));
     mrt.Normal = normal;
 
 
