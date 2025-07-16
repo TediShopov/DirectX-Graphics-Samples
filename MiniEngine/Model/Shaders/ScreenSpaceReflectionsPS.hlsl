@@ -52,17 +52,22 @@ MRT main(VSOutput vsOutput)
 
     uint2 pixelPos = uint2(vsOutput.position.xy);
     float gloss = 128.0;
-    float3 normal;
-    {
-        normal = SAMPLE_TEX(texNormal) * 2.0 - 1.0;
-        AntiAliasSpecular(normal, gloss);
-        float3x3 tbn = float3x3(normalize(vsOutput.tangent), normalize(vsOutput.bitangent), normalize(vsOutput.normal));
-        normal = normalize(mul(normal, tbn));
-    }
+    float3 normal = float3(0, 1, 0);
+//    float3 normal;
+//    {
+//        normal = SAMPLE_TEX(texNormal) * 2.0 - 1.0;
+//        AntiAliasSpecular(normal, gloss);
+//        float3x3 tbn = float3x3(normalize(vsOutput.tangent), normalize(vsOutput.bitangent), normalize(vsOutput.normal));
+//        normal = normalize(mul(normal, tbn));
+//    }
     float3 colorRGB = color.Sample(defaultSampler, vsOutput.uv);
     float3 depthRGB = depth.Sample(defaultSampler, vsOutput.uv);
-    mrt.Color = colorRGB + depthRGB;
-    //mrt.Color = screenSpaceReflections(vsOutput.worldPos,normal,cameraData,)
+    //mrt.Color = colorRGB + depthRGB;
+    //mrt.Color = screenSpaceReflectionsNoSkymap(vsOutput.worldPos, normal, cameraData, params, depth, color, defaultSampler, float4(1, 0, 0, 1));
+    //mrt.Color = screenSpaceReflectionDebugColors(vsOutput.worldPos, normal, cameraData, params);
+    mrt.Color = worldSpaceReflectionsNoSkymap(vsOutput.worldPos, normal, cameraData, params, depth, color, defaultSampler, float4(1, 0, 0, 1));
+    mrt.Normal = normal;
+
 
     
     

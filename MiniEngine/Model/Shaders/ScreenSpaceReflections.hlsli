@@ -214,6 +214,61 @@ SamplerState skymapSampler
     return reflectedColor;
 
 }
+float4 worldSpaceReflectionsNoSkymap(
+float3 worldPosition,
+float3 worldNormal,
+SSRCameraData ssrCameraData,
+SSRParameters ssrParameters,
+Texture2D depthTexture,
+Texture2D colorTexture,
+SamplerState depthSampler,
+float4 skymapColor
+)
+{
+    const float thickness =  ssrParameters.thicknessInUnits/200;
+    float3 reflection = getReflectionVector(ssrCameraData.cameraPosition,worldPosition, worldNormal);
+
+    const float3 endVector = worldPosition + reflection * ssrParameters.maxLengthInWorldUnits;
+//        float rayDepth =
+//		clipSpacePositionFromWorld(worldPosition,ssrCameraData).z;
+//        return rayDepth/200;
+
+    float3 newPos = worldPosition;
+    [loop]
+    for (int i = 1; i <= ssrParameters.maxSteps; ++i)
+    {
+		//March ray in direction
+        float t = (float) i / (float) ssrParameters.maxSteps;
+        newPos = lerp(worldPosition, endVector, t);
+        //newPos = worldPosition + reflection * ssrParameters.increment * i;
+
+        float rayDepth =
+		clipSpacePositionFromWorld(newPos,ssrCameraData).z;
+
+        rayDepth = depthValueToLinearDepth(rayDepth, ssrCameraData);
+
+        float sampledDepth =
+		depthValueToLinearDepth(
+        depthTexture.Sample(depthSampler, getTexCoordsFromWorld(newPos,ssrCameraData)).r,ssrCameraData);
+
+        if (rayDepth > sampledDepth && rayDepth < sampledDepth + thickness)
+        {
+            return colorTexture
+        		.Sample(depthSampler, getTexCoordsFromWorld(newPos,ssrCameraData));
+        }
+
+        float2 rayScreenPos = getTexCoordsFromWorld(newPos,ssrCameraData);
+        if (rayScreenPos.x < 0.0 || rayScreenPos.x > 1.0 ||rayScreenPos.y < 0.0 || rayScreenPos.y > 1.0)
+        {
+			// Invalid reflection: ray left the screen
+            break;
+        }
+
+    }
+    // Sample reflected color from the cube map
+    return skymapColor;
+
+}
 
 float4 screenSpaceReflectionDebugColors(
 float3 worldPosition,
@@ -392,6 +447,111 @@ SamplerState skymapSampler
     ssrCameraData.cameraPosition,
 		 worldPosition, worldNormal));
     return reflectedColor;
+
+
+}
+float4 screenSpaceReflectionsNoSkymap(
+float3 worldPosition,
+float3 worldNormal,
+SSRCameraData ssrCameraData,
+SSRParameters ssrParameters,
+Texture2D depthTexture,
+Texture2D colorTexture,
+SamplerState depthSampler,
+float4 reflectionColorSkymap
+)
+{
+    const int samples = 200;
+    const float thickness =  ssrParameters.thicknessInUnits/200;
+    float3 reflection = getReflectionVector(ssrCameraData.cameraPosition, worldPosition, worldNormal);
+    float3 endPosition = worldPosition + reflection * ssrParameters.maxLengthInWorldUnits;
+
+
+    //uint height, width;
+    //uint numLevels;
+    //depthTexture.GetDimensions(0, width, height,numLevels);
+
+    int width = ssrParameters.width;
+    int height = ssrParameters.height;
+
+    bool breaks = false;
+
+    float3 clipSpaceStart = clipSpacePositionFromWorld(worldPosition, ssrCameraData);
+    float3 clipSpaceEnd = clipSpacePositionFromWorld(endPosition, ssrCameraData);
+
+    float4 clipSpacePos = mul(float4(worldPosition, 1.0f), ssrCameraData.cameraViewMatrix);
+    clipSpacePos = mul(clipSpacePos, ssrCameraData.cameraProjMatrix);
+    if(clipSpacePos.w <= 0)
+        breaks = true;
+    if(isBetween(clipSpaceEnd.z, 0, 15, 0.000000000001) == false)
+    {
+        breaks = true;
+	    
+    }
+
+
+
+    float2 screenSpaceStart = getScreenFromNDC(clipSpaceStart.xy, width,height);
+    float2 screenSpaceEnd = getScreenFromNDC(clipSpaceEnd.xy, width,height);
+
+//     // Line rasterization using DDA (or Bresenham’s algorithm)
+    float2  screenXYDelta= screenSpaceEnd - screenSpaceStart;
+//    //Pick the maximum value that we is going to be used as step.
+    //Means that we iterate along the dimension which has the most change
+    float steps = max(abs(screenXYDelta.x), abs(screenXYDelta.y) ) * ssrParameters.resolution;
+    float2 step = screenXYDelta / (steps);
+
+
+    float depthDelta = clipSpaceEnd.z - clipSpaceStart.z;
+    float depthStep = depthDelta / (steps);
+
+    float2 screenPos = screenSpaceStart;
+    float depthCurrent = clipSpaceStart.z;
+
+
+    if (steps >= max(width,height))
+        breaks = true;
+    float3 unitPositionFrom = normalize(ssrCameraData.cameraPosition - worldPosition);
+    float visibility = 1 - max(dot(unitPositionFrom, reflection), 0);
+    [loop]
+    for (int i = 1; i <= steps; i++)      
+    {
+        screenPos = screenSpaceStart + (step * i);
+        //Perspective Correct Depth
+        depthCurrent = (clipSpaceStart.z * clipSpaceEnd.z) / lerp(clipSpaceEnd.z, clipSpaceStart.z, (float) i / steps);
+        float3 clipSpacePos = float3(getNDCFromScreen(screenPos.xy,width,height), depthCurrent);
+    	// Invalid reflection: ray left the screen
+        if (isClipped(clipSpacePos) )
+            breaks = true;
+        if(breaks == true)
+            break;
+
+        float rayDepth = depthValueToLinearDepth(clipSpacePos.z,ssrCameraData);
+        float sampledDepth = 
+	        depthTexture.Sample(depthSampler, getTexFromScreen(screenPos,width,height)).r;
+	         sampledDepth = depthValueToLinearDepth(
+		      sampledDepth,
+			    ssrCameraData
+        );
+
+        if (rayDepth > sampledDepth && rayDepth < sampledDepth + ssrParameters.thicknessInUnits)
+        {
+            float4 reflectionColorTexture =  colorTexture
+        		.Sample(depthSampler, getTexFromScreen(screenPos, width, height));
+
+
+//            float4 reflectionColorSkymap = 
+//		skymap.Sample(skymapSampler, getReflectionVector(
+//    ssrCameraData.cameraPosition,
+//		 worldPosition, worldNormal));
+            return lerp(reflectionColorTexture, reflectionColorSkymap, 1-visibility);
+        }
+
+
+    }
+            //return float4(1, 1, 1, 1);
+    // Sample reflected color from the cube map
+    return reflectionColorSkymap;
 
 
 }

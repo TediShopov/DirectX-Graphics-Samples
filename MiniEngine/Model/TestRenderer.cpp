@@ -1078,12 +1078,22 @@ UINT TestRenderer::frameIndex = 0;
 		commonSSR.cameraData.inverseViewMatrix = Matrix4(XMMatrixInverse(nullptr,camera.GetViewMatrix()));
 		commonSSR.cameraData.cameraPosition = camera.GetPosition();
 
+		//Transpose all matrices if necessary
+		commonSSR.cameraData.cameraProjMatrix = Matrix4(XMMatrixTranspose(commonSSR.cameraData.cameraProjMatrix));
+		commonSSR.cameraData.cameraViewMatrix = Matrix4(XMMatrixTranspose(commonSSR.cameraData.cameraViewMatrix));
+		commonSSR.cameraData.cameraWorldMatrix = Matrix4(XMMatrixTranspose(commonSSR.cameraData.cameraWorldMatrix));
+		commonSSR.cameraData.inverseProjMatrix = Matrix4(XMMatrixTranspose(commonSSR.cameraData.inverseProjMatrix));
+		commonSSR.cameraData.inverseViewMatrix = Matrix4(XMMatrixTranspose(commonSSR.cameraData.inverseViewMatrix));
+
+
+
+
 		commonSSR.ssrParameters.useSSR = true;
 		commonSSR.ssrParameters.width = g_SceneColorBuffer.GetWidth();
 		commonSSR.ssrParameters.height = g_SceneColorBuffer.GetHeight();
 		commonSSR.ssrParameters.maxSteps = 1000;
-		commonSSR.ssrParameters.maxLengthInWorldUnits = 100;
-		commonSSR.ssrParameters.thicknessInUnits = 10;
+		commonSSR.ssrParameters.maxLengthInWorldUnits = 400;
+		commonSSR.ssrParameters.thicknessInUnits = 200;
 		commonSSR.ssrParameters.resolution = 1;
 
 
