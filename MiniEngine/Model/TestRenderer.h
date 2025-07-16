@@ -62,6 +62,7 @@ public:
 
 	//--- INITTIALIZATOIN ---
 	static void Startup(Math::Camera& camera, HWND hwnd);
+	static  void SetupScene();
 
 	//--- CLEANUP ---
 	static void Cleanup(void);

@@ -227,6 +227,27 @@ UINT TestRenderer::frameIndex = 0;
 #pragma endregion
 
 
+	void TestRenderer::SetupScene() 
+	{
+
+		m_Model = new ModelH3D();
+		m_ModelExtra = new ModelH3D();
+
+		ModelOBJ planeSSR;
+		bool loadedPlane =planeSSR.Load(L"D:/MScSurfelBasedGI/DirectX-Graphics-Samples/MiniEngine/Model/OBJ/plane.obj");
+		//OBJModel.Load(L"D:/MScSurfelBasedGI/DirectX-Graphics-Samples/MiniEngine/Model/OBJ/Bunny.obj");
+		OBJModel.Load(L"D:/MScSurfelBasedGI/DirectX-Graphics-Samples/MiniEngine/Model/OBJ/bunnyextra.obj");
+
+		bool laodedExtra =m_Model->Load(L"Sponza/sponza.h3d");
+		OBJModel.InsertIntoH3DModel(m_Model);
+		planeSSR.InsertIntoH3DModel(m_Model);
+		bool save =m_Model->SaveH3D(L"Sponza/SponzaA.h3d");
+		bool load = m_Model->Load(L"Sponza/SponzaA.h3d");
+
+
+
+
+	}
 	///--- INTIIALIZATION ---
 	void TestRenderer::Startup(Math::Camera& camera, HWND hwnd)
 	{
@@ -346,34 +367,14 @@ UINT TestRenderer::frameIndex = 0;
 		m_TestSpherePSO.SetPixelShader(g_pSimpleMeshPS, sizeof(g_pSimpleMeshPS));
 		m_TestSpherePSO.Finalize();
 
-		m_Model = new ModelH3D();
-		m_ModelExtra = new ModelH3D();
 
-		//OBJModel.Load(L"D:/MScSurfelBasedGI/DirectX-Graphics-Samples/MiniEngine/Model/OBJ/Bunny.obj");
-		OBJModel.Load(L"D:/MScSurfelBasedGI/DirectX-Graphics-Samples/MiniEngine/Model/OBJ/bunnyextra.obj");
-
-		bool laodedExtra =m_Model->Load(L"Sponza/sponza.h3d");
-		OBJModel.InsertIntoH3DModel(m_Model);
-		bool save =m_Model->SaveH3D(L"Sponza/SponzaA.h3d");
-		bool load = m_Model->Load(L"Sponza/SponzaA.h3d");
-
-
+		SetupScene();
 
 		int meshCountPrevious = m_Model->GetMeshCount();
 
 		InitTriangleModel();
 		InitQuadModel();
 		InitSphereModel();
-
-
-		
-
-
-
-
-
-
-
 
 		m_Disc = new DiscMesh(10);
 
@@ -927,7 +928,7 @@ UINT TestRenderer::frameIndex = 0;
 		for (uint32_t meshIndex = 0; meshIndex < m_Model->GetMeshCount(); meshIndex++)
 		{
 
-			if (meshIndex == m_Model->GetMeshCount() - 1)
+			if (meshIndex > 33)
 			{
 				vsConstants.modelToWorld = Matrix4(m_Transform.getTransformMatrix());
 
@@ -1285,7 +1286,7 @@ UINT TestRenderer::frameIndex = 0;
 
 		SurfelIllumination->ReadbakcSurfelDebugData(gfxContext);
 
-		TestRaytracing::DoRaytracing(camera, SurfelIllumination->descriptorHeap,SurfelIllumination->m_SurfelGen.UniformGrid);
+		//TestRaytracing::DoRaytracing(camera, SurfelIllumination->descriptorHeap,SurfelIllumination->m_SurfelGen.UniformGrid);
 
 		if (m_stopSurfelUpdate == false)
 		{

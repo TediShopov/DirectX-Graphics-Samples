@@ -3,8 +3,6 @@
 //#include "SurfelUniformGridAccelerationStructure.hlsli"
 #include "CommonSurfelRegisters.hlsli"
 
-groupshared uint groupShareMinCoverage;
-groupshared uint groupShareMaxContribution;
 
 
 //Calculate the surfel contribution by using Mahalonobis distance and angular fallof.
@@ -220,14 +218,7 @@ void main(
 )
 {
 
-    // Initialize group shared values.
-    if (groupIndex == 0)
-    {
-        groupShareMinCoverage = ~0;
-        groupShareMaxContribution = 0;
-    }
 
-    GroupMemoryBarrierWithGroupSync();
     float3 gResolution;
     gDepth.GetDimensions(0, gResolution.x, gResolution.y, gResolution.z);
     if (dispatchThreadId.x >= gResolution.x || dispatchThreadId.y >= gResolution.y)
