@@ -672,6 +672,9 @@ void SurfelGI::CreateOutputTexture(ColorBuffer* outputBuffer)
 	gfxContext.SetPipelineState(m_ApplicationPassPSO);
 	gfxContext.SetRootSignature(m_SurfelGenerationRT);
 
+	gfxContext.InsertUAVBarrier(m_SurfelGrid);
+	gfxContext.InsertUAVBarrier(m_SurfelList);
+	gfxContext.InsertUAVBarrier(m_SurfelData);
 
 
 	UpdateProjection(camera);

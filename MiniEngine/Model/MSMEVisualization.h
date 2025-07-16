@@ -37,7 +37,7 @@ class MSMEVisualization :
 	//--- CHANGE THE DEPTH STATE ALWAYS TO DRAW ON TOP OF GEOMETRY
 	m_TestPSO.SetDepthStencilState(Graphics::DepthStateDisabled);
 	//--- THIS HAS TO BE SET TO UNKNOWN FORMAT TO CONFORM TO FRAMEWORK
-	m_TestPSO.SetDepthTargetFormat(DXGI_FORMAT_UNKNOWN);
+	//m_TestPSO.SetDepthTargetFormat(DXGI_FORMAT_UNKNOWN);
 	//--- MAKE SURE THAT CULLING IS OFF AND BOTH SIDES ARE DRAWN
 	m_TestPSO.SetRasterizerState(Graphics::RasterizerTwoSided);
 

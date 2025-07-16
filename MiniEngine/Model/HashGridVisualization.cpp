@@ -16,7 +16,7 @@
 	);
 }
 
-void HashGridVisualization::InitializePSO(DXGI_FORMAT formats[2], DXGI_FORMAT depthFormat)
+void HashGridVisualization::InitializePSO(DXGI_FORMAT formatsA[2], DXGI_FORMAT depthFormat)
 {
 
     //m_GBuffer.g_DepthPSO.SetVertexShader(g_pDepthViewerVS, sizeof(g_pDepthViewerVS));
@@ -29,6 +29,10 @@ void HashGridVisualization::InitializePSO(DXGI_FORMAT formats[2], DXGI_FORMAT de
 
 	//m_TestPSO = Depth;
 	//--- REPLACE THE ROOT SIGNATURE
+	DXGI_FORMAT formats[1] = { DXGI_FORMAT_R11G11B10_FLOAT };
+
+	m_TestPSO = GraphicsPSO(L"New Test PSO AA");
+
 	m_TestPSO.SetRootSignature(m_UHGRootSignature);
 
     m_TestPSO.SetRasterizerState(Graphics::RasterizerDefault);
@@ -37,12 +41,12 @@ void HashGridVisualization::InitializePSO(DXGI_FORMAT formats[2], DXGI_FORMAT de
     m_TestPSO.SetPrimitiveTopologyType(D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE);
 	//m_TestPSO.SetRenderTargetFormats(2, formats, DepthFormat);
 	//m_TestPSO.SetRenderTargetFormats(2, formats, depthFormat);
-	m_TestPSO.SetRenderTargetFormats(1, &formats[0], DXGI_FORMAT_UNKNOWN);
+	m_TestPSO.SetRenderTargetFormats(1, formats, DXGI_FORMAT_UNKNOWN);
 	m_TestPSO.SetInputLayout(_countof(colorElem), colorElem);
 	//--- CHANGE THE DEPTH STATE ALWAYS TO DRAW ON TOP OF GEOMETRY
 	m_TestPSO.SetDepthStencilState(Graphics::DepthStateDisabled);
 	//--- THIS HAS TO BE SET TO UNKNOWN FORMAT TO CONFORM TO FRAMEWORK
-	m_TestPSO.SetDepthTargetFormat(DXGI_FORMAT_UNKNOWN);
+	//m_TestPSO.SetDepthTargetFormat(DXGI_FORMAT_UNKNOWN);
 	//--- MAKE SURE THAT CULLING IS OFF AND BOTH SIDES ARE DRAWN
 	m_TestPSO.SetRasterizerState(Graphics::RasterizerTwoSided);
 

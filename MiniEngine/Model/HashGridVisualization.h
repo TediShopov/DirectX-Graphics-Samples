@@ -37,7 +37,7 @@ class HashGridVisualization
 public:
 
 
-	GraphicsPSO m_TestPSO = { (L"Sponza: Triangel Test PSO") };
+	GraphicsPSO m_TestPSO;
 
 	enum kUHGRoot {
 		kProjectionResources = 0,
