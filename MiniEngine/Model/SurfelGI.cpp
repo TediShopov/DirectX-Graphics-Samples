@@ -255,6 +255,24 @@
 	  
   }
 
+  void SurfelGI::ResetSurfelsIrradiance(GraphicsContext& gfx)
+  {
+
+	  gfx.TransitionResource(m_SurfelData,D3D12_RESOURCE_STATE_COPY_SOURCE,true);
+
+
+
+	for (int i = 0; i < _SURFEL_MAX_COUNT_; ++i) {
+		m_SurfelDataArray[i].color = Math::Vector4(0, 0, 0, 0);
+		m_SurfelDataArray[i].varianceAndInconsistency = Math::Vector4(0, 0, 0, 1);
+	}
+	size_t size = m_SurfelDataArray.size() * sizeof(SurfelData);
+		gfx.WriteBuffer(m_SurfelData, 0, m_SurfelDataArray.data(), size);
+
+	  gfx.TransitionResource(m_SurfelData,D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE,true);
+	  
+  }
+
   void SurfelGI::CreateRootSig()
   {
 	  SamplerDesc DefaultSamplerDesc;

@@ -223,6 +223,7 @@ public:
 
 	//Reset Surfels
 	void ResetSurfels(GraphicsContext& gfx);
+	void ResetSurfelsIrradiance(GraphicsContext& gfx);
 
 
 protected:

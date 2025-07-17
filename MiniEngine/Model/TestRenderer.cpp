@@ -1171,14 +1171,13 @@ UINT TestRenderer::frameIndex = 0;
 		if (pressedResetSurfels)
 		{
 			SurfelIllumination->ResetSurfels(gfx);
-			//Reset Surfels Code
-			//SurfelIllumination->m_SurfelStack;
-			//gfx.WriteBuffer(SurfelIllumination->m_SurfelStack,0,,sizeof )
 
 		}
 		if (pressedResetSurfelsIrradiance)
 		{
+			SurfelIllumination->ReadbackSurfelData(gfx);
 			//Reset Surfels Code
+			SurfelIllumination->ResetSurfelsIrradiance(gfx);
 
 		}
 
