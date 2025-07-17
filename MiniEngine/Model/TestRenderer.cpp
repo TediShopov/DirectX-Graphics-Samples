@@ -1424,8 +1424,10 @@ UINT TestRenderer::frameIndex = 0;
 			 GridVisualization->SetupRenderStage(gfxContext, viewport, scissor,
 				 TestRaytracing::GetOutputBuffer(),
 				 camera);
+
 			 SurfelIllumination->UpdateProjection(camera);
 			 SurfelIllumination->SendParametersGraphics(gfxContext);
+
 			 gfxContext.InsertUAVBarrier(SurfelIllumination->m_SurfelGrid);
 			 gfxContext.InsertUAVBarrier(SurfelIllumination->m_SurfelList);
 			 gfxContext.InsertUAVBarrier(SurfelIllumination->m_SurfelStack);
@@ -1436,31 +1438,33 @@ UINT TestRenderer::frameIndex = 0;
 		 else if (m_debugOverlayMode == 1)
 		 {
 			 ScopedTimer _prof3(L"Surfel GI Only Debug Overlay", gfxContext);
-			 gfxContext.TransitionResource(SurfelIllumination->m_OutputTexture, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+
 			 SurfelGIVisualization->SetupRenderStage(gfxContext, viewport, scissor,
 				 SurfelIllumination->m_OutputTexture,
 				 camera);
-			 gfxContext.InsertUAVBarrier(SurfelIllumination->m_SurfelGrid);
-			 gfxContext.InsertUAVBarrier(SurfelIllumination->m_SurfelList);
-			 gfxContext.InsertUAVBarrier(SurfelIllumination->m_SurfelData);
-			 gfxContext.InsertUAVBarrier(SurfelIllumination->m_SurfelStack);
-			 gfxContext.InsertUAVBarrier(SurfelIllumination->m_OutputTexture);
+
+			 gfxContext.TransitionResource(SurfelIllumination->m_OutputTexture, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,true);
+
 			 SurfelGIVisualization->SetRootParameters(gfxContext, SurfelIllumination->m_OutputTexture);
 			 RenderFullScreenQuad(gfxContext);
 		 }
 		 else if (m_debugOverlayMode == 2)
 		 {
 			 ScopedTimer _prof3(L"Surfel MSME Debug Overlay", gfxContext);
+
 			 GridMSMEVisualization->SetupRenderStage(gfxContext, viewport, scissor,
 				 TestRaytracing::GetOutputBuffer(),
 				 camera);
+
+//			 gfxContext.InsertUAVBarrier(SurfelIllumination->m_SurfelGrid);
+//			 gfxContext.InsertUAVBarrier(SurfelIllumination->m_SurfelList);
+//			 gfxContext.InsertUAVBarrier(SurfelIllumination->m_SurfelData);
+//			 gfxContext.InsertUAVBarrier(SurfelIllumination->m_SurfelStack);
+			 gfxContext.InsertUAVBarrier(TestRaytracing::GetOutputBuffer());
+
 			 SurfelIllumination->UpdateProjection(camera);
 			 SurfelIllumination->SendParametersGraphics(gfxContext);
-			 gfxContext.InsertUAVBarrier(SurfelIllumination->m_SurfelGrid);
-			 gfxContext.InsertUAVBarrier(SurfelIllumination->m_SurfelList);
-			 gfxContext.InsertUAVBarrier(SurfelIllumination->m_SurfelData);
-			 gfxContext.InsertUAVBarrier(SurfelIllumination->m_SurfelStack);
-			 gfxContext.InsertUAVBarrier(TestRaytracing::GetOutputBuffer());
+
 			 RenderFullScreenQuad(gfxContext);
 
 		 }
@@ -1488,7 +1492,9 @@ UINT TestRenderer::frameIndex = 0;
 
 
 		ComputeContext& cfx = reinterpret_cast<ComputeContext&>(gfxContext);
+
 		SurfelIllumination->FillAccelerationStructuresReduceThenScan(cfx);
+		//SurfelIllumination->FillAccelerationStructures(cfx);
 
 		if(m_stopSurfelUpdate == true && m_stopSurfelUpdate != m_prevStopSurfelUpdate)
 		{

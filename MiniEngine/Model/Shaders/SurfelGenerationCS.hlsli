@@ -235,7 +235,7 @@ void main(
                     newSurfel.randomValues = float4(changeAgainst, chanceSpawn, changeAgainst, 1);
                     newSurfel.color = float4(0, 0, 0, 1);
                     newSurfel.contribution = uint4(0, FrameIndex, 0, 0);
-                    newSurfel.mean = float4(0, 0, 3, 4);
+                    newSurfel.mean = float4(0, 0, 0, 0);
                     newSurfel.raySamples = float4(10, 0, 0, 0);
                     newSurfel.padding = float3(FrameIndex, FrameIndex, FrameIndex);
                     newSurfel.normal = sampledNormal;

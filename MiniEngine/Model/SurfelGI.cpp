@@ -169,8 +169,10 @@
 	  m_SurfelData.Create(L"Surfel Data Buffer", _SURFEL_MAX_COUNT_, sizeof(SurfelData));
 	  m_SurfelDataReadback.Create(L"Surfel Data Readback Buffer", _SURFEL_MAX_COUNT_, sizeof(SurfelData));
 
-	  m_SurfelList.Create(L"Surfel List Buffer", _CELL_COUNT_, sizeof(UINT));
-	  m_SurfelListReadback.Create(L"Surfel List Readback Buffer", _CELL_COUNT_, sizeof(UINT));
+	  //Size should be handling the worst case scenario _CELL_COUNT_ * kSurfelPerCells
+	  const UINT surfelListSize = _CELL_COUNT_ * _SURFEL_PER_CELL;
+	  m_SurfelList.Create(L"Surfel List Buffer", surfelListSize, sizeof(UINT));
+	  m_SurfelListReadback.Create(L"Surfel List Readback Buffer", surfelListSize, sizeof(UINT));
 
 	  m_SurfelGrid.Create(L"Surfel Grid Buffer", _CELL_COUNT_, sizeof(UINT));
 	  m_SurfelGridReadback.Create(L"Surfel List Readback Buffer", _CELL_COUNT_, sizeof(UINT));
@@ -247,7 +249,7 @@
 	  m_SurfelGen.MaxSurfels = _SURFEL_MAX_COUNT_;
 	  m_SurfelGen.CurrentSurfelCount = 0;
 	  m_SurfelGen.NormalThreshold = 0.5;
-	  m_SurfelGen.kPerCellSurfelLimit = 150;
+	  m_SurfelGen.kPerCellSurfelLimit = _SURFEL_PER_CELL;
 	  m_SurfelGen.minRadius = 15;
 	  m_SurfelGen.maxRadius = 90;
 
@@ -293,7 +295,8 @@ void SurfelGI::FillCPUContainers()
 	for (int i = 0; i < _SURFEL_MAX_COUNT_; ++i) {
 //		m_SurfelDataArray[i].position =
 //			Math::Vector4(float(i) * m_SurfelGen.UniformGrid.cellSize.GetX(), 0.0f, 0.0f, 1.0f);
-		m_SurfelDataArray[i].position =Math::Vector4(0,0,0,0);
+		//m_SurfelDataArray[i].position =Math::Vector4(0,0,0,0);
+		m_SurfelDataArray[i].position =Math::Vector4(-99999,-99999,-99999,-99999);
 		m_SurfelDataArray[i].radius = Math::Vector4(0,0,0,0);
 		m_SurfelDataArray[i].normal = Math::Vector4(0.0f, 1.0f, 0.0f, 1.0f);
 		m_SurfelDataArray[i].pixelPosX = 0;
@@ -663,10 +666,13 @@ void SurfelGI::CreateOutputTexture(ColorBuffer* outputBuffer)
 
 	ScopedTimer _prof(L"Surfel Application Compute Shader", gfxContext);
 
+
+
 	//Transition resources from render target to CS 
 	//NON-PIXEL SHADER RESOURCE should cover the ComputeShader stage
-	gfxContext.TransitionResource(*m_GBuffer.g_Depth, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, true);
+	gfxContext.TransitionResource(*m_GBuffer.g_Depth, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
 	gfxContext.TransitionResource(*m_GBuffer.g_Normal, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, true);
+	gfxContext.TransitionResource(this->m_OutputTexture, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE,true);
 
 	//Switch to the appropriate PSO
 	gfxContext.SetPipelineState(m_ApplicationPassPSO);
