@@ -207,6 +207,54 @@
   {
   }
 
+  void SurfelGI::ResetSurfels(GraphicsContext& gfx)
+  {
+
+	  gfx.TransitionResource(m_SurfelStack,D3D12_RESOURCE_STATE_COPY_SOURCE);
+	  gfx.TransitionResource(m_SurfelData,D3D12_RESOURCE_STATE_COPY_SOURCE);
+
+	  for (int i = 0; i < _SURFEL_MAX_COUNT_ + 2; ++i) {
+		  //The surfel indices must be in a sequential order
+		  m_SurfelStackActual[i] = i - 2;
+	  }
+	  //Make sure pointer is set to the second element of stack
+	  m_SurfelStackActual[0] = 0 + 2;
+	  //Size of generated surfels must be zero
+	  m_SurfelStackActual[1] = 0;
+
+	  //Reset the stack to the default one 
+	  gfx.WriteBuffer(m_SurfelStack, 0, m_SurfelStackActual.data(), m_SurfelStackActual.size() * sizeof(UINT));
+
+
+	for (int i = 0; i < _SURFEL_MAX_COUNT_; ++i) {
+		m_SurfelDataArray[i].position = Math::Vector4(-99999, -99999, -99999, -99999);
+		m_SurfelDataArray[i].radius = Math::Vector4(0, 0, 0, 0);
+		m_SurfelDataArray[i].normal = Math::Vector4(0.0f, 1.0f, 0.0f, 1.0f);
+		m_SurfelDataArray[i].pixelPosX = 0;
+		m_SurfelDataArray[i].pixelPosY = 0;
+		m_SurfelDataArray[i].tilePosX = 0;
+		m_SurfelDataArray[i].tilePosY = 0;
+		m_SurfelDataArray[i].raySamples = 0;
+		m_SurfelDataArray[i].contribution0 = 0;
+		m_SurfelDataArray[i].contribution1 = 0;
+		m_SurfelDataArray[i].contribution3 = 0;
+		m_SurfelDataArray[i].contribution2 = 0;
+		m_SurfelDataArray[i].meanOne = Math::Vector4(0, 0, 0, 0);
+		m_SurfelDataArray[i].mean = Math::Vector4(0, 0, 0, 0);
+	}
+
+	  //Reset the radiuses of all surfel data
+
+	  //gfx.WriteBuffer(m_SurfelData, 0, &m_SurfelDataArray, m_SurfelDataArray.size() * sizeof(SurfelData));
+		size_t size = m_SurfelDataArray.size() * sizeof(SurfelData);
+		gfx.WriteBuffer(m_SurfelData, 0, m_SurfelDataArray.data(), size);
+
+
+	  gfx.TransitionResource(m_SurfelStack,D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE,true);
+	  gfx.TransitionResource(m_SurfelData,D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE,true);
+	  
+  }
+
   void SurfelGI::CreateRootSig()
   {
 	  SamplerDesc DefaultSamplerDesc;
@@ -623,6 +671,7 @@ void SurfelGI::CreateOutputTexture(ColorBuffer* outputBuffer)
 	gfx.CopyBuffer(m_SurfelDataReadback, m_SurfelData);
 
 	void* mappedData = m_SurfelDataReadback.Map();
+
 	memcpy(m_SurfelDataArray.data(), mappedData, _SURFEL_MAX_COUNT_ * sizeof(SurfelData));
 	m_SurfelDataReadback.Unmap();
 
@@ -640,8 +689,8 @@ void SurfelGI::CreateOutputTexture(ColorBuffer* outputBuffer)
 
   void SurfelGI::ReadbackSurfelAccelerationStructure(GraphicsContext& gfx)
   {
-	  gfx.TransitionResource(m_SurfelGrid, D3D12_RESOURCE_STATE_COPY_SOURCE);
-	  gfx.TransitionResource(m_SurfelList, D3D12_RESOURCE_STATE_COPY_SOURCE);
+	  gfx.TransitionResource(m_SurfelGrid, D3D12_RESOURCE_STATE_COPY_DEST,true);
+	  gfx.TransitionResource(m_SurfelList, D3D12_RESOURCE_STATE_COPY_DEST,true);
 
 	  gfx.InsertUAVBarrier(m_SurfelGrid);
 	  gfx.InsertUAVBarrier(m_SurfelList);

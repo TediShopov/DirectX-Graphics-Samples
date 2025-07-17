@@ -1160,12 +1160,28 @@ UINT TestRenderer::frameIndex = 0;
 		bool pressedToggleFillAccelerationStructure = GameInput::IsFirstPressed(GameInput::kKey_z);
 		bool pressedInclinationPlus = GameInput::IsFirstPressed(GameInput::kKey_j);
 		bool pressedInclinatoinMinus = GameInput::IsFirstPressed(GameInput::kKey_k);
-
 		bool pressedOrientationPlus = GameInput::IsFirstPressed(GameInput::kKey_u);
 		bool pressedOriantationMinus = GameInput::IsFirstPressed(GameInput::kKey_i);
-
 		bool pressedToggleUseSSRMOnly = GameInput::IsFirstPressed(GameInput::kKey_n);
 		bool pressedTogglePhysicalSurfels = GameInput::IsFirstPressed(GameInput::kKey_h);
+
+		bool pressedResetSurfels = GameInput::IsFirstPressed(GameInput::kKey_x);
+		bool pressedResetSurfelsIrradiance = GameInput::IsFirstPressed(GameInput::kKey_c);
+
+		if (pressedResetSurfels)
+		{
+			SurfelIllumination->ResetSurfels(gfx);
+			//Reset Surfels Code
+			//SurfelIllumination->m_SurfelStack;
+			//gfx.WriteBuffer(SurfelIllumination->m_SurfelStack,0,,sizeof )
+
+		}
+		if (pressedResetSurfelsIrradiance)
+		{
+			//Reset Surfels Code
+
+		}
+
 
 		if (pressedTogglePhysicalSurfels)
 			m_drawPhysicalSurfelInstances = !m_drawPhysicalSurfelInstances;
@@ -1498,10 +1514,10 @@ UINT TestRenderer::frameIndex = 0;
 
 		if(m_stopSurfelUpdate == true && m_stopSurfelUpdate != m_prevStopSurfelUpdate)
 		{
+			SurfelIllumination->ReadbakcSurfelDebugData(gfxContext);
 			SurfelIllumination->ReadbackSurfelAccelerationStructure(gfxContext);
 		}
 
-		SurfelIllumination->ReadbakcSurfelDebugData(gfxContext);
 
 		//TestRaytracing::DoRaytracing(camera, SurfelIllumination->descriptorHeap,SurfelIllumination->m_SurfelGen.UniformGrid);
 

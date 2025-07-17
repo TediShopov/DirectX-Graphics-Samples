@@ -221,6 +221,10 @@ public:
 	void RecreateSurfelListBuffers(int newNum);
 	void TransitionResourcesTo();
 
+	//Reset Surfels
+	void ResetSurfels(GraphicsContext& gfx);
+
+
 protected:
 	template<typename T>
 void CopyReadbackBuffer(GraphicsContext& gfx, ReadbackBuffer& dstReadbackBuffer,  StructuredBuffer& srcBuffer, T& outData)
