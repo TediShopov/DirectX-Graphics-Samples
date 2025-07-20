@@ -161,22 +161,6 @@ __declspec(align(16)) struct SurfelData
 			gfx.TransitionResource(m_GPUBuffer, endState);
 		}
 
-void CopyReadbackBuffer(GraphicsContext& gfx, ReadbackBuffer& dstReadbackBuffer,  StructuredBuffer& srcBuffer, T& outData)
-{
-    gfx.CopyBuffer(dstReadbackBuffer, srcBuffer);
-    void* mappedData = dstReadbackBuffer.Map();
-    memcpy(&outData, mappedData, sizeof(T));
-    dstReadbackBuffer.Unmap();
-}
-	template<typename T>
-void CopyReadbackBufferMany(GraphicsContext& gfx, ReadbackBuffer& dstReadbackBuffer,  StructuredBuffer& srcBuffer, std::vector<T>& outData, int size = 1)
-{
-	gfx.InsertUAVBarrier(srcBuffer);
-    gfx.CopyBuffer(dstReadbackBuffer, srcBuffer);
-    void* mappedData = dstReadbackBuffer.Map();
-    memcpy(outData.data(), mappedData, sizeof(T) * size);
-    dstReadbackBuffer.Unmap();
-}
 
 
 
@@ -237,13 +221,12 @@ public:
 	ByteAddressBuffer m_ProjectoinBuffer;
 
 
-	MultiElementCommunicationBuffer<UINT> m_CommunicationBuffer;
+	MultiElementCommunicationBuffer<UINT> m_SurfelList;
+	MultiElementCommunicationBuffer<UINT> m_SurfelGrid;
 
 
 	//Adapted from https://m4xc.dev/blog/surfel-maintenance/
 	StructuredBuffer m_SurfelData;
-	StructuredBuffer m_SurfelList;
-	StructuredBuffer m_SurfelGrid;
 	StructuredBuffer m_SurfelStack; //A stack holding unique surfel IDs.Used for spawning and recycling surfels.
 	StructuredBuffer m_SurfelDebug; 
 
@@ -268,14 +251,12 @@ public:
 
 	//GPU->CPU readback buffer
 	ReadbackBuffer m_SurfelDataReadback;
-	ReadbackBuffer m_SurfelGridReadback;
-	ReadbackBuffer m_SurfelListReadback;
 	ReadbackBuffer m_SurfelDebugReadback;
 
 	//CPU->GPU data containers to hold data to pass 
 	std::vector<SurfelData> m_SurfelDataArray;
-	std::vector<UINT> m_SurfelListActual;
-	std::vector<UINT> m_SurfelGridActual;
+	//std::vector<UINT> m_SurfelListActual;
+	//std::vector<UINT> m_SurfelGrid.m_Actual;
 	std::vector<UINT> m_SurfelStackActual;
 
 	GBufferPtrs m_GBuffer;

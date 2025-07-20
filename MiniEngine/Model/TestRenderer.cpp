@@ -839,8 +839,8 @@ UINT TestRenderer::frameIndex = 0;
            data.PointedCellZ * gridDimX * gridDimY;
 
 
-		 from = SurfelIllumination->m_SurfelGridActual[linearIndex];
-		 to = SurfelIllumination->m_SurfelGridActual[linearIndex+1];
+		 from = SurfelIllumination->m_SurfelGrid.m_Actual[linearIndex];
+		 to = SurfelIllumination->m_SurfelGrid.m_Actual[linearIndex+1];
 
 	}
 
@@ -860,7 +860,8 @@ UINT TestRenderer::frameIndex = 0;
 		{
 
 			Transform t;
-			UINT surfelIndex = SurfelIllumination->m_SurfelListActual[i];
+			//UINT surfelIndex = SurfelIllumination->m_SurfelListActual[i];
+			UINT surfelIndex = SurfelIllumination->m_SurfelList.m_Actual[i];
 			SurfelData s = SurfelIllumination->m_SurfelDataArray[surfelIndex];
 			Vector4 extrudedPossition = s.position + (s.normal * 1.0f);
 
@@ -1307,7 +1308,7 @@ UINT TestRenderer::frameIndex = 0;
 
 		for (size_t i = from; i < to; i++)
 		{
-			UINT surfelIndex = SurfelIllumination->m_SurfelListActual[i];
+			UINT surfelIndex = SurfelIllumination->m_SurfelList.m_Actual[i];
 			SurfelData s = SurfelIllumination->m_SurfelDataArray[surfelIndex];
 			ss << "	S ID:	" << surfelIndex << "	POS:" << s.position.GetX() << "," << s.position.GetY() << "," << s.position.GetZ() << ",";
 			ss << "\n";
@@ -1451,8 +1452,8 @@ UINT TestRenderer::frameIndex = 0;
 			 SurfelIllumination->UpdateProjection(camera);
 			 SurfelIllumination->SendParametersGraphics(gfxContext);
 
-			 gfxContext.InsertUAVBarrier(SurfelIllumination->m_SurfelGrid);
-			 gfxContext.InsertUAVBarrier(SurfelIllumination->m_SurfelList);
+			 gfxContext.InsertUAVBarrier(SurfelIllumination->m_SurfelGrid.m_GPUBuffer);
+			 gfxContext.InsertUAVBarrier(SurfelIllumination->m_SurfelList.m_GPUBuffer);
 			 gfxContext.InsertUAVBarrier(SurfelIllumination->m_SurfelStack);
 			 gfxContext.InsertUAVBarrier(TestRaytracing::GetOutputBuffer());
 			 RenderFullScreenQuad(gfxContext);
@@ -1479,7 +1480,7 @@ UINT TestRenderer::frameIndex = 0;
 				 TestRaytracing::GetOutputBuffer(),
 				 camera);
 
-//			 gfxContext.InsertUAVBarrier(SurfelIllumination->m_SurfelGrid);
+//			 gfxContext.InsertUAVBarrier(SurfelIllumination->m_SurfelGrid.m_GPUBuffer);
 //			 gfxContext.InsertUAVBarrier(SurfelIllumination->m_SurfelList);
 //			 gfxContext.InsertUAVBarrier(SurfelIllumination->m_SurfelData);
 //			 gfxContext.InsertUAVBarrier(SurfelIllumination->m_SurfelStack);
