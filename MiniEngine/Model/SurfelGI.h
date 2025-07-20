@@ -223,10 +223,11 @@ public:
 
 	MultiElementCommunicationBuffer<UINT> m_SurfelList;
 	MultiElementCommunicationBuffer<UINT> m_SurfelGrid;
+	MultiElementCommunicationBuffer<SurfelData> m_SurfelData;
 
 
 	//Adapted from https://m4xc.dev/blog/surfel-maintenance/
-	StructuredBuffer m_SurfelData;
+	//StructuredBuffer m_SurfelData;
 	StructuredBuffer m_SurfelStack; //A stack holding unique surfel IDs.Used for spawning and recycling surfels.
 	StructuredBuffer m_SurfelDebug; 
 
@@ -249,14 +250,9 @@ public:
 
 	SurfelDebugData m_SurfelDebugActual;
 
-	//GPU->CPU readback buffer
-	ReadbackBuffer m_SurfelDataReadback;
 	ReadbackBuffer m_SurfelDebugReadback;
 
-	//CPU->GPU data containers to hold data to pass 
 	std::vector<SurfelData> m_SurfelDataArray;
-	//std::vector<UINT> m_SurfelListActual;
-	//std::vector<UINT> m_SurfelGrid.m_Actual;
 	std::vector<UINT> m_SurfelStackActual;
 
 	GBufferPtrs m_GBuffer;

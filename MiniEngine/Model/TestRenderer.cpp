@@ -1541,7 +1541,7 @@ UINT TestRenderer::frameIndex = 0;
 			}
 			else
 			{
-				cfx.InsertUAVBarrier(SurfelIllumination->m_SurfelData);
+				cfx.InsertUAVBarrier(SurfelIllumination->m_SurfelData.m_GPUBuffer);
 				SSRMIrradianceAccumulation.Dispatch(cfx, camera);
 			}
 
