@@ -213,9 +213,6 @@
   void SurfelGI::ResetSurfels(GraphicsContext& gfx)
   {
 
-	  gfx.TransitionResource(m_SurfelData.m_GPUBuffer,D3D12_RESOURCE_STATE_COPY_SOURCE);
-	  gfx.TransitionResource(m_SurfelData.m_GPUBuffer,D3D12_RESOURCE_STATE_COPY_SOURCE);
-
 	  for (int i = 0; i < _SURFEL_MAX_COUNT_ + 2; ++i) {
 		  //The surfel indices must be in a sequential order
 		  m_SurfelStack.m_Actual[i] = i - 2;
@@ -224,10 +221,6 @@
 	  m_SurfelStack.m_Actual[0] = 0 + 2;
 	  //Size of generated surfels must be zero
 	  m_SurfelStack.m_Actual[1] = 0;
-
-	  //Reset the stack to the default one 
-	  gfx.WriteBuffer(m_SurfelData.m_GPUBuffer, 0, m_SurfelStack.m_Actual.data(), m_SurfelStack.m_Actual.size() * sizeof(UINT));
-
 
 	for (int i = 0; i < _SURFEL_MAX_COUNT_; ++i) {
 		m_SurfelData.m_Actual[i].position = Math::Vector4(-99999, -99999, -99999, -99999);
@@ -245,35 +238,20 @@
 		m_SurfelData.m_Actual[i].meanOne = Math::Vector4(0, 0, 0, 0);
 		m_SurfelData.m_Actual[i].mean = Math::Vector4(0, 0, 0, 0);
 	}
-
-	  //Reset the radiuses of all surfel data
-
-	  //gfx.WriteBuffer(m_SurfelData.m_GPUBuffer, 0, &m_SurfelData.m_Actual, m_SurfelData.m_Actual.size() * sizeof(SurfelData));
-		//size_t size = m_SurfelData.m_Actual.size() * sizeof(SurfelData);
-		//gfx.WriteBuffer(m_SurfelData.m_GPUBuffer, 0, m_SurfelData.m_Actual.data(), size);
+	m_SurfelData.Write(gfx, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+	m_SurfelStack.Write(gfx, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
 
 
-	  gfx.TransitionResource(m_SurfelData.m_GPUBuffer,D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE,true);
-	  gfx.TransitionResource(m_SurfelData.m_GPUBuffer,D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE,true);
-	  
+
   }
 
   void SurfelGI::ResetSurfelsIrradiance(GraphicsContext& gfx)
   {
-
-	  gfx.TransitionResource(m_SurfelData.m_GPUBuffer,D3D12_RESOURCE_STATE_COPY_SOURCE,true);
-
-
-
 	for (int i = 0; i < _SURFEL_MAX_COUNT_; ++i) {
 		m_SurfelData.m_Actual[i].color = Math::Vector4(0, 0, 0, 0);
 		m_SurfelData.m_Actual[i].varianceAndInconsistency = Math::Vector4(0, 0, 0, 1);
 	}
-	size_t size = m_SurfelData.m_Actual.size() * sizeof(SurfelData);
-		gfx.WriteBuffer(m_SurfelData.m_GPUBuffer, 0, m_SurfelData.m_Actual.data(), size);
-
-	  gfx.TransitionResource(m_SurfelData.m_GPUBuffer,D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE,true);
-	  
+	m_SurfelData.Write(gfx, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
   }
 
   void SurfelGI::CreateRootSig()

@@ -146,7 +146,7 @@ __declspec(align(16)) struct SurfelData
 		{
 			gfx.TransitionResource(m_GPUBuffer, D3D12_RESOURCE_STATE_COPY_SOURCE);
 			gfx.WriteBuffer(m_GPUBuffer, 0, m_Actual.data(), getByteSize());
-			gfx.TransitionResource(m_SurfelStack, endState, true);
+			gfx.TransitionResource(m_GPUBuffer, endState, true);
 		}
 
 		//Read form GPU TO CPU
