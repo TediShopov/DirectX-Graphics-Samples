@@ -649,7 +649,7 @@ UINT TestRenderer::frameIndex = 0;
 	{
 		float closestDistance = 999999.0f;
 		UINT closesSurfelId = -1;
-		std::vector<SurfelData>& surfels = SurfelIllumination->m_SurfelDataArray;
+		std::vector<SurfelData>& surfels = SurfelIllumination->m_SurfelData.m_Actual;
 		for (size_t i = 0; i < surfels.size(); i++)
 		{
 			if (surfels[i].radius.GetX() <= 0.5f)
@@ -862,7 +862,8 @@ UINT TestRenderer::frameIndex = 0;
 			Transform t;
 			//UINT surfelIndex = SurfelIllumination->m_SurfelListActual[i];
 			UINT surfelIndex = SurfelIllumination->m_SurfelList.m_Actual[i];
-			SurfelData s = SurfelIllumination->m_SurfelDataArray[surfelIndex];
+			//SurfelData s = SurfelIllumination->m_SurfelDataArray[surfelIndex];
+			SurfelData s = SurfelIllumination->m_SurfelData.m_Actual[surfelIndex];
 			Vector4 extrudedPossition = s.position + (s.normal * 1.0f);
 
 
@@ -908,7 +909,7 @@ UINT TestRenderer::frameIndex = 0;
 		gfxContext.SetIndexBuffer(m_Disc->m_IndexBufferView);
 		gfxContext.SetVertexBuffer(0, m_Disc->m_VertexBufferView);
 
-		for each (SurfelData s in SurfelIllumination->m_SurfelDataArray)
+		for each (SurfelData s in SurfelIllumination->m_SurfelData.m_Actual)
 		{
 			if ((float)s.radius.GetX() == 0)
 			{
@@ -1309,7 +1310,7 @@ UINT TestRenderer::frameIndex = 0;
 		for (size_t i = from; i < to; i++)
 		{
 			UINT surfelIndex = SurfelIllumination->m_SurfelList.m_Actual[i];
-			SurfelData s = SurfelIllumination->m_SurfelDataArray[surfelIndex];
+			SurfelData s = SurfelIllumination->m_SurfelData.m_Actual[surfelIndex];
 			ss << "	S ID:	" << surfelIndex << "	POS:" << s.position.GetX() << "," << s.position.GetY() << "," << s.position.GetZ() << ",";
 			ss << "\n";
 		}
@@ -1454,7 +1455,7 @@ UINT TestRenderer::frameIndex = 0;
 
 			 gfxContext.InsertUAVBarrier(SurfelIllumination->m_SurfelGrid.m_GPUBuffer);
 			 gfxContext.InsertUAVBarrier(SurfelIllumination->m_SurfelList.m_GPUBuffer);
-			 gfxContext.InsertUAVBarrier(SurfelIllumination->m_SurfelStack);
+			 gfxContext.InsertUAVBarrier(SurfelIllumination->m_SurfelStack.m_GPUBuffer);
 			 gfxContext.InsertUAVBarrier(TestRaytracing::GetOutputBuffer());
 			 RenderFullScreenQuad(gfxContext);
 
@@ -1537,7 +1538,7 @@ UINT TestRenderer::frameIndex = 0;
 					camera,
 					SurfelIllumination->descriptorHeap,
 					SurfelIllumination->m_SurfelGen.UniformGrid,
-					SurfelIllumination->m_SurfelDataArray);
+					SurfelIllumination->m_SurfelData.m_Actual);
 			}
 			else
 			{
