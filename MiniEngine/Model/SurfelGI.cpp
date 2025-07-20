@@ -162,6 +162,11 @@
   void SurfelGI::InitializeBuffers()
   {
 
+	  m_CommunicationBuffer = MultiElementCommunicationBuffer<UINT>(L"Communication Buffer", _CELL_COUNT_);
+	  m_CommunicationBuffer.Create();
+
+
+
 	  m_ProjectoinBuffer.Create(L"Projectoin Data Buffer", 1, sizeof(ProjectionResources), &m_ProjectionData);
 	  m_SufelSettingBuffer.Create(L"Surfel Gen CBV", 1, sizeof(SurfelGenCB), &m_SurfelGen);
 	  //SURFEL SIZE STATIC BUFFER NUMB

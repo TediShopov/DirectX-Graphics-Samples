@@ -95,6 +95,94 @@ __declspec(align(16)) struct SurfelData
 		UINT   PointedCellW;
 	};
 
+	//A Utility class for grouping togheter common buffers used in Surfel GI Solutoin.
+	//For each different surfel collectoin there is usually a 
+	// 1. StrcuturedBuffer that is to be passed to the GPU
+	// 2. A Vector<T> that hold the actual that usualy initialized on CPU side
+	// 3. A readback buffer that read from (1) and write to (2)
+	// This is a single collection combinign this operations
+	template<typename T>
+	class MultiElementCommunicationBuffer
+	{
+
+	public:
+
+		 std::wstring m_name;
+		std::vector<T> m_Actual;
+		StructuredBuffer m_GPUBuffer;
+		ReadbackBuffer m_Readback;
+		UINT getByteSize()
+		{
+			return m_Actual.size() * sizeof(T);
+		}
+		MultiElementCommunicationBuffer<T>()
+		{
+			m_name = L"Default Multi Element Buffer";
+			m_Actual = std::vector<T>();
+
+		}
+		MultiElementCommunicationBuffer<T>(const std::wstring& name, UINT elementCount)
+		{
+			m_name = name;
+			m_Actual = std::vector<T>(elementCount);
+
+		}
+
+		void operator=(const MultiElementCommunicationBuffer<T> rhs)
+		{
+			this->m_name = rhs.m_name;
+			this->m_Actual = rhs.m_Actual;
+		}
+
+
+		//Actually create the buffers with m_Actual as initial data
+		void Create()
+		{
+			m_GPUBuffer.Create(m_name, m_Actual.size(), sizeof(T), m_Actual.data());
+			m_Readback.Create(m_name, m_Actual.size(), sizeof(T));
+		}
+		//Write from CPU TO GPU
+		void Write(GraphicsContext& gfx,D3D12_RESOURCE_STATES endState)
+		{
+			gfx.TransitionResource(m_GPUBuffer, D3D12_RESOURCE_STATE_COPY_SOURCE);
+			gfx.WriteBuffer(m_GPUBuffer, 0, m_Actual.data(), getByteSize());
+			gfx.TransitionResource(m_SurfelStack, endState, true);
+		}
+
+		//Read form GPU TO CPU
+		void Read(GraphicsContext& gfx,D3D12_RESOURCE_STATES endState)
+		{
+
+			gfx.TransitionResource(m_GPUBuffer, D3D12_RESOURCE_STATE_COPY_DEST, true);
+			gfx.CopyBuffer(m_Readback, m_GPUBuffer);
+			void* mappedData = m_Readback.Map();
+			memcpy(m_Actual.data(), mappedData,getByteSize());
+			m_Readback.Unmap();
+			gfx.TransitionResource(m_GPUBuffer, endState);
+		}
+
+void CopyReadbackBuffer(GraphicsContext& gfx, ReadbackBuffer& dstReadbackBuffer,  StructuredBuffer& srcBuffer, T& outData)
+{
+    gfx.CopyBuffer(dstReadbackBuffer, srcBuffer);
+    void* mappedData = dstReadbackBuffer.Map();
+    memcpy(&outData, mappedData, sizeof(T));
+    dstReadbackBuffer.Unmap();
+}
+	template<typename T>
+void CopyReadbackBufferMany(GraphicsContext& gfx, ReadbackBuffer& dstReadbackBuffer,  StructuredBuffer& srcBuffer, std::vector<T>& outData, int size = 1)
+{
+	gfx.InsertUAVBarrier(srcBuffer);
+    gfx.CopyBuffer(dstReadbackBuffer, srcBuffer);
+    void* mappedData = dstReadbackBuffer.Map();
+    memcpy(outData.data(), mappedData, sizeof(T) * size);
+    dstReadbackBuffer.Unmap();
+}
+
+
+
+
+
+	};
 
 class SurfelGI
 {
@@ -147,6 +235,11 @@ public:
 
 	ByteAddressBuffer m_SufelSettingBuffer;
 	ByteAddressBuffer m_ProjectoinBuffer;
+
+
+	MultiElementCommunicationBuffer<UINT> m_CommunicationBuffer;
+
+
 	//Adapted from https://m4xc.dev/blog/surfel-maintenance/
 	StructuredBuffer m_SurfelData;
 	StructuredBuffer m_SurfelList;
