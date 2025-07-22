@@ -74,7 +74,7 @@
 
 }
 
- void SurfelSSRMIrradianceAccumulation::Dispatch(ComputeContext& cfxA,const Camera& camera)
+ void SurfelSSRMIrradianceAccumulation::Dispatch(ComputeContext& cfxA,const Camera& camera,SurfelGenCB* genCB)
  {
 	 Transform camTempT;
 
@@ -99,7 +99,7 @@
 	 commonSSR.ssrParameters.height = height;
 	 commonSSR.ssrParameters.maxSteps = 1000;
 	 commonSSR.ssrParameters.maxLengthInWorldUnits = 1000;
-	 commonSSR.ssrParameters.thicknessInUnits = 200;
+	 commonSSR.ssrParameters.thicknessInUnits = 10;
 	 commonSSR.ssrParameters.resolution = 1;
 
 	 ComputeContext& cfx = ComputeContext::Begin(L"Surfel SSRM");
@@ -108,7 +108,7 @@
 	 commandList->SetComputeRootSignature(this->m_rootSignature.GetSignature());
 	 cfx.SetDescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, this->SRVHeap.GetHeapPointer());
 
-	 //gfxContext.SetDynamicConstantBufferView(0, sizeof(SurfelGenCB),&m_SurfelGen);
+	 cfx.SetDynamicConstantBufferView(0, sizeof(SurfelGenCB),genCB);
 	 //gfxContext.SetDynamicConstantBufferView(1, sizeof(ProjectionResources),&m_ProjectionData);
 	 cfx.SetDescriptorTable(2, SRVHeap[0]);
 	 cfx.SetDescriptorTable(3, SRVHeap[3]);

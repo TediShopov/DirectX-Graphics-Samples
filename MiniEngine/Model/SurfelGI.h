@@ -188,7 +188,8 @@ public:
 
 	UINT _CELL_COUNT_;
 	static const int _SURFEL_MAX_COUNT_ = 100000;
-	static const int _SURFEL_PER_CELL = 135;
+	//static const int _SURFEL_PER_CELL = 135;
+	static const int _SURFEL_PER_CELL = 20;
 
 	//--- PIPELINE STATE OBJECTS --
 

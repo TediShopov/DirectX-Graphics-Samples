@@ -15,6 +15,8 @@
 #include "ModelH3D.h"
 #include "CommandContext.h"
 
+class SurfelGenCB;
+
 class SurfelSSRMIrradianceAccumulation
 {
 	__declspec(align(16)) struct SSRCameraData
@@ -56,7 +58,7 @@ public:
 	void InitializePSOs();
 
 	void Setup(ColorBuffer colorBuff,DescriptorHeap nonShaderVisibleSurfelHeap);
-	void Dispatch(ComputeContext& cfxA,const Camera& camera);
+	void Dispatch(ComputeContext& cfxA,const Camera& camera,SurfelGenCB* genCB);
 
 
 

@@ -82,17 +82,21 @@ void main(
     float maxRays = 30;
     float N = lerp(minRays, maxRays, variance);
     surfelsUAV[dispatchThreadId.x].raySamples.x = N;
+    uint3 index3 = dispatchThreadId;
+    uint seed = GetThreadTemporalSeed(index3, FrameIndex);
     if(s.radius > 0)
     {
-        uint3 index3 = dispatchThreadId;
-        uint seed = GetThreadTemporalSeed(index3, FrameIndex);
         float2 rnd;
         rnd.x = RandomFloat01(seed);
         rnd.y = RandomFloat01(seed);
         float3 rayDir = CosineSampleHemisphere(rnd, s.normal);
 
+        
+        float offset = 50;
+        float3 offsetWorldPos = s.position + normalize(s.normal) * offset;
+
         float3 Li = 
-            worldSpaceRayMarchCS(s.position, rayDir, cameraData, params, gDepth, gColor, defaultSampler, float4(0, 0, 0, 0)); // returned radiance
+            worldSpaceRayMarchCS(offsetWorldPos, rayDir, cameraData, params, gDepth, gColor, defaultSampler, float4(0, 0, 0, 0)); // returned radiance
         float cosTheta = saturate(dot(rayDir, surfelsUAV[dispatchThreadId.x].normal));
         float3 radiance = Li * M_PI;
         accumulatedIrradiance += radiance;

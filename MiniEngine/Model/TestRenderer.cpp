@@ -1318,15 +1318,21 @@ UINT TestRenderer::frameIndex = 0;
 
 			ImGui::Text(perSurfelStringStream.str().c_str());
 
-			std::string a = "SURFEL COLOR";
 			ImVec4 imguiColorVecTemp(s.color.GetX(), s.color.GetY(), s.color.GetZ(), 1);
+
+			//ImVec4 imguiColorVecTemp(0,1,0,1);
 			ImVec4 imguiBgColorVec(1,1,1,1);
 
 
+			std::stringstream surfelColorName;
+			//surfelColorName << "SURFEL COLOR" << i ;
+			surfelColorName << "SURFEL COLOR: " << i << s.color.GetX() << ":	" << s.color.GetY()	  << ":		"	 << s.color.GetZ();
+			std::string a = surfelColorName.str();
 
 			ImVec4 imguiWhite(1,1,1,1);
 			ImGui::PushStyleColor(ImGuiCol_Text, ImGui::ColorConvertFloat4ToU32(imguiWhite));
 			ImGui::PushStyleColor(ImGuiCol_FrameBg, ImGui::ColorConvertFloat4ToU32(imguiColorVecTemp));
+
 			ImGui::InputText(a.c_str(), &a[0], a.size());
 			ImGui::PopStyleColor();
 			ImGui::PopStyleColor();
@@ -1570,7 +1576,7 @@ UINT TestRenderer::frameIndex = 0;
 			else
 			{
 				cfx.InsertUAVBarrier(SurfelIllumination->m_SurfelData.m_GPUBuffer);
-				SSRMIrradianceAccumulation.Dispatch(cfx, camera);
+				SSRMIrradianceAccumulation.Dispatch(cfx, camera, &SurfelIllumination->m_SurfelGen);
 			}
 
 		}

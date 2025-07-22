@@ -144,8 +144,7 @@ void MyRaygenShader()
         float3 Li = payload.color; // returned radiance
         float cosTheta = saturate(dot(rayDir, surfelsUAV[globalIndex].normal));
         //float3 radiance = Li * cosTheta * (2.0f * M_PI);
-        float3 radiance = Li * M_PI;
-        accumulatedIrradiance += radiance;
+        float3 radiance = Li * M_PI; accumulatedIrradiance += radiance;
         
     }
     meanRayDir /= N;
