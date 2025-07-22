@@ -1171,6 +1171,7 @@ UINT TestRenderer::frameIndex = 0;
 		bool pressedResetSurfels = GameInput::IsFirstPressed(GameInput::kKey_x);
 		bool pressedResetSurfelsIrradiance = GameInput::IsFirstPressed(GameInput::kKey_c);
 		bool pressedToggleSSR = GameInput::IsFirstPressed(GameInput::kKey_m);
+		bool pressedToggleCameraUpdated = GameInput::IsFirstPressed(GameInput::kKey_space);
 
 		if (pressedToggleSSR)
 		{
@@ -1306,17 +1307,36 @@ UINT TestRenderer::frameIndex = 0;
 		SurfelDebugData dd = SurfelIllumination->m_SurfelDebugActual;
 		ss << "Surfel In Pointed Cell: " << dd.PointedCellX << " " << dd.PointedCellY << " " << dd.PointedCellZ;
 		ss << "\n";
+		ImGui::Text(ss.str().c_str());
 
 		for (size_t i = from; i < to; i++)
 		{
+			std::stringstream perSurfelStringStream;
 			UINT surfelIndex = SurfelIllumination->m_SurfelList.m_Actual[i];
 			SurfelData s = SurfelIllumination->m_SurfelData.m_Actual[surfelIndex];
-			ss << "	S ID:	" << surfelIndex << "	POS:" << s.position.GetX() << "," << s.position.GetY() << "," << s.position.GetZ() << ",";
-			ss << "\n";
+			perSurfelStringStream << "	S ID:	" << surfelIndex << "	POS:" << s.position.GetX() << "," << s.position.GetY() << "," << s.position.GetZ() << ",";
+
+			ImGui::Text(perSurfelStringStream.str().c_str());
+
+			std::string a = "SURFEL COLOR";
+			ImVec4 imguiColorVecTemp(s.color.GetX(), s.color.GetY(), s.color.GetZ(), 1);
+			ImVec4 imguiBgColorVec(1,1,1,1);
+
+
+
+			ImVec4 imguiWhite(1,1,1,1);
+			ImGui::PushStyleColor(ImGuiCol_Text, ImGui::ColorConvertFloat4ToU32(imguiWhite));
+			ImGui::PushStyleColor(ImGuiCol_FrameBg, ImGui::ColorConvertFloat4ToU32(imguiColorVecTemp));
+			ImGui::InputText(a.c_str(), &a[0], a.size());
+			ImGui::PopStyleColor();
+			ImGui::PopStyleColor();
+
+
 		}
 
 
-		ImGui::Text(ss.str().c_str());
+//		float colorA[3] = { 0,0,0 };
+//		ImGui::ColorEdit3("Color One", colorA);
 
 
 		std::stringstream cameraPositionString;
