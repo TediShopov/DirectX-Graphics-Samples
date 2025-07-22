@@ -472,7 +472,8 @@ void SurfelGI::CreateOutputTexture(ColorBuffer* outputBuffer)
 
 	SendParameters(gfxContext);
 	
-	gfxContext.WriteBuffer(m_SurfelGrid.m_GPUBuffer, 0, m_SurfelGrid.m_Actual.data(), (_CELL_COUNT_) * sizeof(UINT));
+	  m_SurfelGrid.WriteFromExternal(gfxContext.GetGraphicsContext(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, m_SurfelGridResetValues,true);
+	//gfxContext.WriteBuffer(m_SurfelGrid.m_GPUBuffer, 0, m_SurfelGrid.m_Actual.data(), (_CELL_COUNT_) * sizeof(UINT));
 //	const float groupX = 256.0f;
 //	UINT dispatchX = std::ceil((float)_SURFEL_MAX_COUNT_ / groupX);
 	gfxContext.InsertUAVBarrier(m_SurfelGrid.m_GPUBuffer);
@@ -532,7 +533,8 @@ void SurfelGI::CreateOutputTexture(ColorBuffer* outputBuffer)
 
 	  //gfxContext.InsertUAVBarrier(m_SurfelGrid.m_GPUBuffer);
 	  //This should always be setting it to zeroes and the current actual "readback"  data;
-	  gfxContext.WriteBuffer(m_SurfelGrid.m_GPUBuffer, 0, m_SurfelGridResetValues.data(), (_CELL_COUNT_) * sizeof(UINT));
+	  m_SurfelGrid.WriteFromExternal(gfxContext.GetGraphicsContext(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, m_SurfelGridResetValues,true);
+	  //gfxContext.WriteBuffer(m_SurfelGrid.m_GPUBuffer, 0, m_SurfelGridResetValues.data(), (_CELL_COUNT_) * sizeof(UINT));
 
 	  //Switch to the appropriate PSO
 	  gfxContext.SetPipelineState(m_AccelerationPassSurfelCountPSO);
@@ -546,8 +548,8 @@ void SurfelGI::CreateOutputTexture(ColorBuffer* outputBuffer)
 	  const float groupX = 256.0f;
 	  UINT dispatchX = std::ceil((float)_SURFEL_MAX_COUNT_ / groupX);
 
-	  gfxContext.InsertUAVBarrier(m_SurfelGrid.m_GPUBuffer);
-	  gfxContext.InsertUAVBarrier(m_SurfelList.m_GPUBuffer);
+	  gfxContext.InsertUAVBarrier(m_SurfelGrid.m_GPUBuffer,true);
+	  gfxContext.InsertUAVBarrier(m_SurfelList.m_GPUBuffer,true);
 
 	  gfxContext.Dispatch(groupX, 1, 1);
 
@@ -612,6 +614,7 @@ void SurfelGI::CreateOutputTexture(ColorBuffer* outputBuffer)
 
 		  gfxContext.InsertUAVBarrier(m_ReductionBuffer);
 	  gfxContext.InsertUAVBarrier(m_SurfelGrid.m_GPUBuffer);
+	  gfxContext.InsertUAVBarrier(m_SurfelList.m_GPUBuffer,true);
 		  //gfxContext.Dispatch(kmaxDim, dispatchX, 1);
 		  gfxContext.Dispatch(partialBlocks, 1, 1);
 
@@ -641,6 +644,7 @@ void SurfelGI::CreateOutputTexture(ColorBuffer* outputBuffer)
 		  gfxContext.SetDescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV,reduceThenScanPSHeap.GetHeapPointer());
 		  gfxContext.SetDescriptorTable(1, reduceThenScanPSHeap[0]);
 		  gfxContext.InsertUAVBarrier(m_SurfelGrid.m_GPUBuffer);
+	  gfxContext.InsertUAVBarrier(m_SurfelList.m_GPUBuffer,true);
 		  gfxContext.Dispatch(partialBlocks, 1, 1);
 	  }
 
@@ -665,8 +669,8 @@ void SurfelGI::CreateOutputTexture(ColorBuffer* outputBuffer)
 	ScopedTimer _prof(L"Surfel Fill Acceleration Structures : SURFEL INSERTION", gfxContext);
 	const float groupX = 256.0f;
 	UINT dispatchX = std::ceil((float)_SURFEL_MAX_COUNT_ / groupX);
-	gfxContext.InsertUAVBarrier(m_SurfelGrid.m_GPUBuffer);
-	gfxContext.InsertUAVBarrier(m_SurfelList.m_GPUBuffer);
+	gfxContext.InsertUAVBarrier(m_SurfelGrid.m_GPUBuffer,true);
+	gfxContext.InsertUAVBarrier(m_SurfelList.m_GPUBuffer,true);
 	gfxContext.Dispatch(groupX, 1, 1);
 
   }
@@ -725,9 +729,10 @@ void SurfelGI::CreateOutputTexture(ColorBuffer* outputBuffer)
 	gfxContext.SetPipelineState(m_ApplicationPassPSO);
 	gfxContext.SetRootSignature(m_SurfelGenerationRT);
 
-	gfxContext.InsertUAVBarrier(m_SurfelGrid.m_GPUBuffer);
-	gfxContext.InsertUAVBarrier(m_SurfelList.m_GPUBuffer);
-	gfxContext.InsertUAVBarrier(m_SurfelData.m_GPUBuffer);
+	gfxContext.InsertUAVBarrier(m_SurfelGrid.m_GPUBuffer,true);
+	gfxContext.InsertUAVBarrier(m_SurfelList.m_GPUBuffer,true);
+	gfxContext.InsertUAVBarrier(m_SurfelData.m_GPUBuffer,true);
+	gfxContext.InsertUAVBarrier(m_SurfelStack.m_GPUBuffer,true);
 
 
 	UpdateProjection(camera);

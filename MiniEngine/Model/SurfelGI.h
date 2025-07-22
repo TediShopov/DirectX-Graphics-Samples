@@ -148,6 +148,20 @@ __declspec(align(16)) struct SurfelData
 			gfx.WriteBuffer(m_GPUBuffer, 0, m_Actual.data(), getByteSize());
 			gfx.TransitionResource(m_GPUBuffer, endState, true);
 		}
+		void WriteFromExternal(GraphicsContext& gfx,D3D12_RESOURCE_STATES endState, std::vector<T> external, bool flushImmediate = false)
+		{
+			if (external.size() != m_Actual.size())
+			{
+				//TODO throw a warning
+
+			}
+
+
+
+			gfx.TransitionResource(m_GPUBuffer, D3D12_RESOURCE_STATE_COPY_SOURCE,flushImmediate);
+			gfx.WriteBuffer(m_GPUBuffer, 0, external.data(), getByteSize());
+			gfx.TransitionResource(m_GPUBuffer, endState, flushImmediate);
+		}
 
 		//Read form GPU TO CPU
 		void Read(GraphicsContext& gfx,D3D12_RESOURCE_STATES endState, bool flushImmediate = false)

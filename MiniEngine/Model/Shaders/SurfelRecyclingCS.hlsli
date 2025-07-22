@@ -48,6 +48,7 @@ void main(
     
     
     
+    return;
 
     //if (rays > raysThreshold && (framesSinceUsed ) > 300 && chance < hSurfelCount) 
     //if (rays > raysThreshold && (framesSinceUsed ) > 60 && chance < hSurfelCount)

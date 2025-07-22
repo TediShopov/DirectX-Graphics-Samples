@@ -1538,11 +1538,17 @@ UINT TestRenderer::frameIndex = 0;
 
 		ComputeContext& cfx = reinterpret_cast<ComputeContext&>(gfxContext);
 
-		SurfelIllumination->FillAccelerationStructuresReduceThenScan(cfx);
+		if (m_stopSurfelUpdate == false || m_stopSurfelUpdate == true && m_stopSurfelUpdate != m_prevStopSurfelUpdate)
+		{
+			SurfelIllumination->FillAccelerationStructuresReduceThenScan(cfx);
+
+		}
 		//SurfelIllumination->FillAccelerationStructures(cfx);
 
 		//Control GPU Readback
 		SurfelIllumination->ReadbakcSurfelDebugData(gfxContext);
+		//SurfelIllumination->ReadbackSurfelAccelerationStructure(gfxContext);
+		//SurfelIllumination->ReadbackSurfelData(gfxContext);
 		if (m_stopSurfelUpdate == true && m_stopSurfelUpdate != m_prevStopSurfelUpdate)
 		{
 			SurfelIllumination->ReadbackSurfelAccelerationStructure(gfxContext);

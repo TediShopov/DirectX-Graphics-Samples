@@ -51,6 +51,7 @@ using Renderer::MeshSorter;
 class ModelViewer : public GameCore::IGameApp
 {
 public:
+    bool m_cameraUpdatesEnabled = true;
 
     ModelViewer( void ) {}
 
@@ -236,7 +237,18 @@ void ModelViewer::Update( float deltaT )
     else if (GameInput::IsFirstPressed(GameInput::kRShoulder))
         DebugZoom.Increment();
 
-    m_CameraController->Update(deltaT);
+
+    if(GameInput::IsFirstPressed(GameInput::kKey_space))
+    {
+        m_cameraUpdatesEnabled = !m_cameraUpdatesEnabled;
+    }
+
+
+    if (m_cameraUpdatesEnabled)
+    {
+		m_CameraController->Update(deltaT);
+
+    }
 
     GraphicsContext& gfxContext = GraphicsContext::Begin(L"Scene Update");
 
