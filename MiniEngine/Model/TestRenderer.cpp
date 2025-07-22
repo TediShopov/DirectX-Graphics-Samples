@@ -290,8 +290,8 @@ UINT TestRenderer::frameIndex = 0;
 		//m_Transform.setScale(50,50,50);
 		m_Transform.setScale(10,10,10);
 
-		m_sunData.ambientLightIntensity = 0.1f;
-		//m_sunData.ambientLightIntensity = 0;
+		//m_sunData.ambientLightIntensity = 0.1f;
+		m_sunData.ambientLightIntensity = 0;
 		m_sunData.sunInclination = 1.0f;
 		m_sunData.sunLightIntensity = 1.0f;
 

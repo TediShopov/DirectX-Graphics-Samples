@@ -237,7 +237,7 @@ SamplerState depthSampler,
 float4 skymapColor
 )
 {
-    const float thickness =  ssrParameters.thicknessInUnits/200;
+    const float thickness =  ssrParameters.thicknessInUnits;
     const float3 endVector = worldPosition + worldDirection * ssrParameters.maxLengthInWorldUnits;
 
     float3 newPos = worldPosition;
