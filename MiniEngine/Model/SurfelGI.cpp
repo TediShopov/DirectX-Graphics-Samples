@@ -180,6 +180,8 @@
 	  m_SurfelList = MultiElementCommunicationBuffer<UINT>(L"Surfel List Buffer", surfelListSize);
 	  m_SurfelGrid = MultiElementCommunicationBuffer<UINT>(L"Surfel Grid Buffer", _CELL_COUNT_);
 
+	  m_SurfelGridResetValues = std::vector<UINT>(_CELL_COUNT_, 0);
+
 
 	  m_ReductionBuffer.Create(L"ReduceThenScan Reduction Buffer", _CELL_COUNT_, sizeof(UINT));
 	  m_PrefixSumInput.Create(L"ReduceThenScan Prefix Sum Input Copy", _CELL_COUNT_, sizeof(UINT));
@@ -529,7 +531,8 @@ void SurfelGI::CreateOutputTexture(ColorBuffer* outputBuffer)
   {
 
 	  //gfxContext.InsertUAVBarrier(m_SurfelGrid.m_GPUBuffer);
-	  gfxContext.WriteBuffer(m_SurfelGrid.m_GPUBuffer, 0, m_SurfelGrid.m_Actual.data(), (_CELL_COUNT_) * sizeof(UINT));
+	  //This should always be setting it to zeroes and the current actual "readback"  data;
+	  gfxContext.WriteBuffer(m_SurfelGrid.m_GPUBuffer, 0, m_SurfelGridResetValues.data(), (_CELL_COUNT_) * sizeof(UINT));
 
 	  //Switch to the appropriate PSO
 	  gfxContext.SetPipelineState(m_AccelerationPassSurfelCountPSO);
@@ -696,21 +699,13 @@ void SurfelGI::CreateOutputTexture(ColorBuffer* outputBuffer)
 
   void SurfelGI::ReadbackSurfelAccelerationStructure(GraphicsContext& gfx)
   {
-	  //gfx.TransitionResource(m_SurfelGrid.m_GPUBuffer, D3D12_RESOURCE_STATE_COPY_DEST,true);
+	  m_SurfelList.Read(gfx, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE,true);
 
-	  m_SurfelList.Read(gfx, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
-	  m_SurfelGrid.Read(gfx, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
-	  for (size_t i = 0; i < m_SurfelGrid.m_Actual.size(); i++)
-	  {
-		  if(m_SurfelGrid.m_Actual[i] != 0)
-		  {
-			  int a = 3;
-		  }
+	  //Try with UAV barrier for surfel grid even though there is already transition resource barriers
+	  
 
-	  }
 
-	  gfx.TransitionResource(m_SurfelGrid.m_GPUBuffer, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
-	  //gfx.TransitionResource(m_SurfelList, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+	  m_SurfelGrid.Read(gfx, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE,true);
   }
 
   void SurfelGI::ApplySurfels(ComputeContext& gfxContext,const Camera& camera)

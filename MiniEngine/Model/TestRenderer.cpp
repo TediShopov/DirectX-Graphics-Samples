@@ -1521,14 +1521,15 @@ UINT TestRenderer::frameIndex = 0;
 		SurfelIllumination->FillAccelerationStructuresReduceThenScan(cfx);
 		//SurfelIllumination->FillAccelerationStructures(cfx);
 
-		if(m_stopSurfelUpdate == true && m_stopSurfelUpdate != m_prevStopSurfelUpdate)
+		//Control GPU Readback
+		SurfelIllumination->ReadbakcSurfelDebugData(gfxContext);
+		if (m_stopSurfelUpdate == true && m_stopSurfelUpdate != m_prevStopSurfelUpdate)
 		{
-			SurfelIllumination->ReadbakcSurfelDebugData(gfxContext);
 			SurfelIllumination->ReadbackSurfelAccelerationStructure(gfxContext);
+			SurfelIllumination->ReadbackSurfelData(gfxContext);
 		}
 
 
-		//TestRaytracing::DoRaytracing(camera, SurfelIllumination->descriptorHeap,SurfelIllumination->m_SurfelGen.UniformGrid);
 
 		if (m_stopSurfelUpdate == false)
 		{

@@ -150,15 +150,15 @@ __declspec(align(16)) struct SurfelData
 		}
 
 		//Read form GPU TO CPU
-		void Read(GraphicsContext& gfx,D3D12_RESOURCE_STATES endState)
+		void Read(GraphicsContext& gfx,D3D12_RESOURCE_STATES endState, bool flushImmediate = false)
 		{
 
-			gfx.TransitionResource(m_GPUBuffer, D3D12_RESOURCE_STATE_COPY_DEST, true);
+			gfx.TransitionResource(m_GPUBuffer, D3D12_RESOURCE_STATE_COPY_DEST, flushImmediate);
 			gfx.CopyBuffer(m_Readback, m_GPUBuffer);
 			void* mappedData = m_Readback.Map();
 			memcpy(m_Actual.data(), mappedData,getByteSize());
 			m_Readback.Unmap();
-			gfx.TransitionResource(m_GPUBuffer, endState);
+			gfx.TransitionResource(m_GPUBuffer, endState,flushImmediate);
 		}
 
 
@@ -227,6 +227,8 @@ public:
 
 	MultiElementCommunicationBuffer<UINT> m_SurfelStack;
 
+	//Fully initialized with zeroes
+	std::vector<UINT> m_SurfelGridResetValues;
 
 	//Adapted from https://m4xc.dev/blog/surfel-maintenance/
 	//StructuredBuffer m_SurfelData;
