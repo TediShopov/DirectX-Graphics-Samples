@@ -78,7 +78,7 @@ void main(
     float3x3 sumOuter = 0;
 
     float variance = s.msme.inconsistency;
-    float minRays = 1;
+    float minRays = 20;
     float maxRays = 30;
     float N = lerp(minRays, maxRays, variance);
     surfelsUAV[dispatchThreadId.x].raySamples.x = N;
@@ -92,7 +92,7 @@ void main(
         float3 rayDir = CosineSampleHemisphere(rnd, s.normal);
 
         
-        float offset = 50;
+        float offset = 10;
         float3 offsetWorldPos = s.position + normalize(s.normal) * offset;
 
         float3 Li = 

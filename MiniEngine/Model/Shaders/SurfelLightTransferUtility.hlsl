@@ -160,15 +160,7 @@ float3 ApplyPointLight(
 }
 
 typedef BuiltInTriangleIntersectionAttributes MyAttributes;
-void AntiAliasSpecular( inout float3 texNormal, inout float gloss )
-{
-    float normalLenSq = dot(texNormal, texNormal);
-    float invNormalLen = rsqrt(normalLenSq);
-    texNormal *= invNormalLen;
-    float normalLen = normalLenSq * invNormalLen;
-	float flatness = saturate(1 - abs(ddx(normalLen)) - abs(ddy(normalLen)));
-	gloss = exp2(lerp(0, log2(gloss), flatness));
-}
+void AntiAliasSpecular( inout float3 texNormal, inout float gloss ) { float normalLenSq = dot(texNormal, texNormal); float invNormalLen = rsqrt(normalLenSq); texNormal *= invNormalLen; float normalLen = normalLenSq * invNormalLen; float flatness = saturate(1 - abs(ddx(normalLen)) - abs(ddy(normalLen))); gloss = exp2(lerp(0, log2(gloss), flatness)); }
 
 float3x3 OuterProduct(float3 a, float3 b)
 {

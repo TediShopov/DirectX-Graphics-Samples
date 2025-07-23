@@ -43,6 +43,51 @@ cbuffer ScreenSpaceCBV : register(b1)
     SSRParameters params;
 };
 
+
+float PerspectiveCorrectZ(float4 clipA, float4 clipB, float fac)
+{
+    float za = clipA.z / clipA.w;
+    float zb = clipB.z / clipB.w;
+    return 1.0 / lerp(1.0 / za, 1.0 / zb, fac);
+}
+
+float3 perspectiveCorrectClipSpaceInterpolation(float4 clipSpaceA, float4 clipSpaceB, float lerpFac)
+{
+    clipSpaceA.xyz /= clipSpaceA.w;
+    clipSpaceB.xyz /= clipSpaceB.w;
+    float2 lerpedXY = lerp(clipSpaceA.xy, clipSpaceB.xy, lerpFac);
+    float depthCurrent = 1.0 / lerp(1.0 / clipSpaceA.z, 1.0 / clipSpaceB.z, lerpFac);
+    return float3(lerpedXY, depthCurrent);
+}
+//Round-Trip test in the form
+// Convert world position to clip space, ndc and finally to screen space
+// Interpolate bettwen screen space position and recontruct world positions 
+// These should match a linear interpolation between the world vectors
+// Some minor discrepancies are expected due to float to int conversions
+//Return the different bettwen each respective interpolation in order (4 difference in float4)
+float4 roundTripTestForDepthInterpolation(float3 worldPosA,float3 worldPosB, float3 fac)
+{
+    float3 expectedThree = lerp(worldPosA, worldPosB, fac);
+
+    float4 clipSpaceA = CSFromW(worldPosA, cameraData);
+    float4 clipSpaceB = CSFromW(worldPosB, cameraData);
+
+    float3 actualThree = worldSpacePositionFromNDC(perspectiveCorrectClipSpaceInterpolation(clipSpaceA,clipSpaceB,fac),cameraData);
+
+    float error = 5;
+    float result = length(expectedThree - actualThree);
+
+    if(result < error)
+    {
+        return float4(0,1,0,1);
+    }
+    else
+    {
+        return float4(1,0,0,1);
+        
+    }
+}
+
 [RootSignature(Renderer_RootSig)]
 MRT main(VSOutput vsOutput)
 {
@@ -52,25 +97,37 @@ MRT main(VSOutput vsOutput)
 
     uint2 pixelPos = uint2(vsOutput.position.xy);
     float gloss = 128.0;
-    //float3 normal = float3(0, 1, 0);
-    float3 normal;
-    {
-        normal = SAMPLE_TEX(texNormal) * 2.0 - 1.0;
-        AntiAliasSpecular(normal, gloss);
-        float3x3 tbn = float3x3(normalize(vsOutput.tangent), normalize(vsOutput.bitangent), normalize(vsOutput.normal));
-        normal = normalize(mul(normal, tbn));
-    }
+    float3 normal = float3(0, 1, 0);
+//    float3 normal;
+//    {
+//        normal = SAMPLE_TEX(texNormal) * 2.0 - 1.0;
+//        AntiAliasSpecular(normal, gloss);
+//        float3x3 tbn = float3x3(normalize(vsOutput.tangent), normalize(vsOutput.bitangent), normalize(vsOutput.normal));
+//        normal = normalize(mul(normal, tbn));
+//    }
     float3 colorRGB = color.Sample(defaultSampler, vsOutput.uv);
     float3 depthRGB = depth.Sample(defaultSampler, vsOutput.uv);
 
     //offset
-    float offsetValue = 50;
-    float3 offsetWorldPos = vsOutput.worldPos + normalize(normal) * offsetValue;
+    //float offsetValue = 50;
+    //float3 offsetWorldPos = vsOutput.worldPos + normalize(normal) * offsetValue;
 
     //mrt.Color = colorRGB + depthRGB;
     //mrt.Color = screenSpaceReflectionDebugColors(vsOutput.worldPos, normal, cameraData, params);
-    mrt.Color = worldSpaceReflectionsNoSkymap(offsetWorldPos, normal, cameraData, params, depth, color, defaultSampler, float4(1, 0, 0, 1));
-    //mrt.Color = screenSpaceReflectionsNoSkymap(vsOutput.worldPos, normal, cameraData, params, depth, color, defaultSampler, float4(1, 0, 0, 1));
+    //float3 colorWR = worldSpaceReflectionsNoSkymap(vsOutput.worldPos, normal, cameraData, params, depth, color, defaultSampler, float4(1, 0, 0, 1));
+    //float3 colorSR = screenSpaceReflectionsNoSkymap(vsOutput.worldPos, normal, cameraData, params, depth, color, defaultSampler, float4(1, 0, 0, 1));
+    //float3 colorWR = worldSpaceReflectionsNoSkymap(vsOutput.worldPos, normal, cameraData, params, depth, color, defaultSampler, float4(1, 0, 0, 1));
+    //float3 colorSR = screenSpaceReflectionsNoSkymap(vsOutput.worldPos, normal, cameraData, params, depth, color, defaultSampler, float4(1, 0, 0, 1));
+    //mrt.Color = colorSR;
+
+    //Testing 
+
+    mrt.Color = roundTripTestForDepthInterpolation(vsOutput.worldPos, vsOutput.worldPos + float3(20,20,20), 0.5);
+    
+
+    
+
+    //mrt.Color = (colorWR + colorSR)/2.0f;
     mrt.Normal = normal;
 
 

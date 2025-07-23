@@ -290,8 +290,8 @@ UINT TestRenderer::frameIndex = 0;
 		//m_Transform.setScale(50,50,50);
 		m_Transform.setScale(10,10,10);
 
-		//m_sunData.ambientLightIntensity = 0.1f;
-		m_sunData.ambientLightIntensity = 0;
+		m_sunData.ambientLightIntensity = 0.1f;
+		//m_sunData.ambientLightIntensity = 0;
 		m_sunData.sunInclination = 1.0f;
 		m_sunData.sunLightIntensity = 1.0f;
 
@@ -1106,7 +1106,7 @@ UINT TestRenderer::frameIndex = 0;
 		commonSSR.ssrParameters.height = g_SceneColorBuffer.GetHeight();
 		commonSSR.ssrParameters.maxSteps = 1000;
 		commonSSR.ssrParameters.maxLengthInWorldUnits = 1000;
-		commonSSR.ssrParameters.thicknessInUnits = 200;
+		commonSSR.ssrParameters.thicknessInUnits = 20;
 		commonSSR.ssrParameters.resolution = 1;
 
 
