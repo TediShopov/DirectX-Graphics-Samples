@@ -3,7 +3,7 @@
 ////////////////////////////////////////////////////////////////////////////////
 //
 #include "Global.hlsl"
-#include "HBIL/HBIL.hlsl"
+#include "HBIL.hlsl"
 
 #define MAX_SAMPLES	8	// Maximum amount of samples per circle subdivision
 
@@ -26,7 +26,7 @@ cbuffer CB_HBIL : register( b3 ) {
 	uint	_jitterOffset;					// A jitter value in [0,67] that changes per frame
 };
 
-float4	VS( float4 __position : SV_POSITION ) : SV_POSITION { return __position; }
+//float4	VS( float4 __position : SV_POSITION ) : SV_POSITION { return __position; }
 
 ////////////////////////////////////////////////////////////////////////////////
 // Implement the methods expected by the HBIL header
@@ -109,7 +109,7 @@ struct PS_OUT {
 	float4	bentCone : SV_TARGET1;
 };
 
-PS_OUT	PS( float4 __position : SV_POSITION ) {
+PS_OUT	main( float4 __position : SV_POSITION ) {
 	float2	fullScreenPixelPosition = 4.0 * (__position.xy - 0.5) + _renderPassIndex.xy + 0.5;	// Account for sub-pixel accuracy
 	float2	UV = fullScreenPixelPosition / _resolution;
 	uint2	pixelPosition = uint2( floor( __position.xy ) );

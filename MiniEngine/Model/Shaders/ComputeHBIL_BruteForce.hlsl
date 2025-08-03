@@ -3,7 +3,7 @@
 ////////////////////////////////////////////////////////////////////////////////
 //
 #include "Global.hlsl"
-#include "HBIL/HBIL.hlsl"
+#include "HBIL.hlsl"
 
 #define MAX_ANGLES	16									// Amount of circle subdivisions per pixel
 #define MAX_SAMPLES	16									// Maximum amount of samples per circle subdivision
@@ -20,7 +20,7 @@ cbuffer CB_HBIL : register( b3 ) {
 	float	_temporalAttenuationFactor;		// Attenuation factor of radiance from previous frame
 };
 
-float4	VS( float4 __Position : SV_POSITION ) : SV_POSITION { return __Position; }
+//float4	VS( float4 __Position : SV_POSITION ) : SV_POSITION { return __Position; }
 
 ////////////////////////////////////////////////////////////////////////////////
 // Implement the methods expected by the HBIL header
@@ -253,7 +253,8 @@ struct PS_OUT {
 	float4	bentCone : SV_TARGET1;
 };
 
-PS_OUT	PS( float4 __Position : SV_POSITION ) {
+PS_OUT	main( float4 __Position : SV_POSITION ) {
+//PS_OUT	PS( float4 __Position : SV_POSITION ) {
 	float2	UV = __Position.xy / _resolution;
 	uint2	pixelPosition = uint2( floor( __Position.xy ) );
 //	float	noise = frac( _time + _tex_blueNoise[pixelPosition & 0x3F] );

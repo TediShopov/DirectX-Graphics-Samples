@@ -275,6 +275,9 @@
     <None Include="Shaders\HBIL.hlsl">
       <Filter>Shaders</Filter>
     </None>
+    <None Include="Shaders\FastMath.hlsl">
+      <Filter>Shaders</Filter>
+    </None>
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="Shaders\DefaultVS.hlsl">

@@ -104,12 +104,21 @@
     <None Include="Shaders\MultiscaleMeanEstimator.hlsl">
       <FileType>Document</FileType>
     </None>
-    <FxCompile Include="Shaders\ComputeHBIL_BruteForce.hlsl" />
-    <FxCompile Include="Shaders\ComputeHBIL_Interleaved.hlsl" />
+    <FxCompile Include="Shaders\ComputeHBIL_BruteForce.hlsl">
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Pixel</ShaderType>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">6.3</ShaderModel>
+    </FxCompile>
+    <FxCompile Include="Shaders\ComputeHBIL_Interleaved.hlsl">
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Pixel</ShaderType>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">6.3</ShaderModel>
+    </FxCompile>
     <None Include="Shaders\Global.hlsl">
       <FileType>Document</FileType>
     </None>
     <None Include="Shaders\HBIL.hlsl">
+      <FileType>Document</FileType>
+    </None>
+    <None Include="Shaders\FastMath.hlsl">
       <FileType>Document</FileType>
     </None>
     <FxCompile Include="Shaders\MSMEDebugOverlayPS.hlsl">
