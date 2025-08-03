@@ -269,6 +269,12 @@
     <None Include="Shaders\ScreenSpaceReflections.hlsli">
       <Filter>Shaders</Filter>
     </None>
+    <None Include="Shaders\Global.hlsl">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="Shaders\HBIL.hlsl">
+      <Filter>Shaders</Filter>
+    </None>
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="Shaders\DefaultVS.hlsl">
@@ -416,6 +422,12 @@
       <Filter>Shaders</Filter>
     </FxCompile>
     <FxCompile Include="Shaders\SurfelIrradianceSSRMCS.hlsli">
+      <Filter>Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\ComputeHBIL_BruteForce.hlsl">
+      <Filter>Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\ComputeHBIL_Interleaved.hlsl">
       <Filter>Shaders</Filter>
     </FxCompile>
   </ItemGroup>

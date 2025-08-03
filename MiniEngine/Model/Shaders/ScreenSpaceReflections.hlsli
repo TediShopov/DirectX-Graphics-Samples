@@ -86,7 +86,6 @@ float4 CSFromW(float3 worldPosition,SSRCameraData cameraData)
 float3 worldSpacePositionFromNDC(float3 ndcPos, SSRCameraData cameraData)
 {
 
-
     float4 viewPos = mul(float4(ndcPos,1), cameraData.inverseProjMatrix);
     if(viewPos.w != 0)
         viewPos /= viewPos.w; //perspectie divide
@@ -368,6 +367,13 @@ float4 skymapColor
     return worldSpaceRayMarch(worldPosition, reflection, ssrCameraData, ssrParameters, depthTexture, colorTexture, depthSampler, skymapColor);
 }
 
+//Assumed to be perspective divided from clip space
+float3 perspectiveCorrectNDCInterpolation(float4 clipSpaceA, float4 clipSpaceB, float lerpFac)
+{
+    float2 lerpedXY = lerp(clipSpaceA.xy, clipSpaceB.xy, lerpFac);
+    float depthCurrent = 1.0 / lerp(1.0 / clipSpaceA.z, 1.0 / clipSpaceB.z, lerpFac);
+    return float3(lerpedXY, depthCurrent);
+}
 
 float4 screenSpaceReflectionsNoSkymap(
 float3 worldPosition,
@@ -382,26 +388,33 @@ float4 reflectionColorSkymap
 {
     const float thickness =  ssrParameters.thicknessInUnits;
     float3 reflection = getReflectionVector(ssrCameraData.cameraPosition, worldPosition, worldNormal);
-    float3 endPosition = worldPosition + reflection * ssrParameters.maxLengthInWorldUnits;
+    float3 endPosition = worldPosition + normalize(reflection) * ssrParameters.maxLengthInWorldUnits;
 
     int width = ssrParameters.width;
     int height = ssrParameters.height;
 
     bool breaks = false;
 
-    float3 clipSpaceStart = clipSpacePositionFromWorld(worldPosition, ssrCameraData);
-    float3 clipSpaceEnd = clipSpacePositionFromWorld(endPosition, ssrCameraData);
+//    float4 clipSpaceStart = clipSpacePositionFromWorld(worldPosition, ssrCameraData);
+//    float4 clipSpaceEnd = clipSpacePositionFromWorld(endPosition, ssrCameraData);
+
+    float4 clipSpaceStart = CSFromW(worldPosition, ssrCameraData);
+    float4 clipSpaceEnd = CSFromW(endPosition, ssrCameraData);
+    clipSpaceStart.xy /= clipSpaceStart.w;
+    clipSpaceEnd.xy /= clipSpaceEnd.w;
+
 
     //float4 clipSpacePos = clipSpaceStart;
     float4 clipSpacePos = mul(float4(worldPosition, 1.0f), ssrCameraData.cameraViewMatrix);
     clipSpacePos = mul(clipSpacePos, ssrCameraData.cameraProjMatrix);
     if(clipSpacePos.w <= 0)
         breaks = true;
-    if(isBetween(clipSpaceEnd.z, 0, 15, 0.000000000001) == false)
+    if(isBetween(clipSpaceEnd.z, 0, 1.0, 0.000000000001) == false)
     {
         breaks = true;
 	    
     }
+
 
 
 
@@ -415,16 +428,11 @@ float4 reflectionColorSkymap
     float steps = max(abs(screenXYDelta.x), abs(screenXYDelta.y) ) * ssrParameters.resolution;
     float2 step = screenXYDelta / (steps);
 
-
-    float depthDelta = clipSpaceEnd.z - clipSpaceStart.z;
-    float depthStep = depthDelta / (steps);
-
     float2 screenPos = screenSpaceStart;
-    float depthCurrent = clipSpaceStart.z;
 
 
-//    if (steps >= max(width,height))
-//        breaks = true;
+    if (steps >= max(width,height))
+        breaks = true;
     float3 unitPositionFrom = normalize(ssrCameraData.cameraPosition - worldPosition);
     //float visibility = 1 - max(dot(unitPositionFrom, reflection), 0);
     float visibility = 1;
@@ -432,10 +440,16 @@ float4 reflectionColorSkymap
     for (int i = 1; i <= steps; i++)      
     {
         screenPos = screenSpaceStart + (step * i);
-        depthCurrent = clipSpaceStart.z + (depthStep * i);
-        //Perspective Correct Depth
-        //depthCurrent = (clipSpaceStart.z * clipSpaceEnd.z) / lerp(clipSpaceEnd.z, clipSpaceStart.z, (float) i / steps);
+        //float depthCurrent = 1.0 / lerp(1.0 / clipSpaceStart.z, 1.0 / clipSpaceEnd.z, (float) i / (steps + 1));
+        //float depthCurrent = 1.0 / lerp(1.0 / clipSpaceStart.z, 1.0 / clipSpaceEnd.z, (float) i / (steps));
+        float depthCurrent = (clipSpaceStart.y * clipSpaceEnd.y) / lerp(clipSpaceEnd.y, clipSpaceStart.y,(float) i / (steps) );
+        //depthCurrent = / clipSpaceStart.w;
+
+
+
         float3 clipSpacePos = float3(getNDCFromScreen(screenPos.xy,width,height), depthCurrent);
+
+
     	// Invalid reflection: ray left the screen
         if (isClipped(clipSpacePos))
         {
@@ -446,11 +460,12 @@ float4 reflectionColorSkymap
             break;
         }
 
-        float rayDepth      = depthValueToLinearDepth(clipSpacePos.z,ssrCameraData);
+        float rayDepth      = depthValueToLinearDepth(depthCurrent,ssrCameraData);
         float sampledDepth  = depthValueToLinearDepth(
             depthTexture.Sample(depthSampler, getTexFromScreen(screenPos,width,height)).r,ssrCameraData);
 
         if (rayDepth > sampledDepth && rayDepth < sampledDepth + ssrParameters.thicknessInUnits)
+        //if (rayDepth > sampledDepth)
         {
             float4 reflectionColorTexture =  colorTexture
         		.Sample(depthSampler, getTexFromScreen(screenPos, width, height));

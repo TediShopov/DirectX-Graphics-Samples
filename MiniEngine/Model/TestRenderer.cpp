@@ -1106,7 +1106,7 @@ UINT TestRenderer::frameIndex = 0;
 		commonSSR.ssrParameters.height = g_SceneColorBuffer.GetHeight();
 		commonSSR.ssrParameters.maxSteps = 1000;
 		commonSSR.ssrParameters.maxLengthInWorldUnits = 1000;
-		commonSSR.ssrParameters.thicknessInUnits = 20;
+		commonSSR.ssrParameters.thicknessInUnits = 50;
 		commonSSR.ssrParameters.resolution = 1;
 
 

@@ -69,10 +69,13 @@ float4 roundTripTestForDepthInterpolation(float3 worldPosA,float3 worldPosB, flo
 {
     float3 expectedThree = lerp(worldPosA, worldPosB, fac);
 
-    float4 clipSpaceA = CSFromW(worldPosA, cameraData);
-    float4 clipSpaceB = CSFromW(worldPosB, cameraData);
+    //float4 clipSpaceA = CSFromW(worldPosA, cameraData);
+    //float4 clipSpaceB = CSFromW(worldPosB, cameraData);
 
-    float3 actualThree = worldSpacePositionFromNDC(perspectiveCorrectClipSpaceInterpolation(clipSpaceA,clipSpaceB,fac),cameraData);
+    float4 clipSpaceA = clipSpacePositionFromWorld(worldPosA, cameraData);
+    float4 clipSpaceB = clipSpacePositionFromWorld(worldPosB, cameraData);
+
+    float3 actualThree = worldSpacePositionFromNDC(perspectiveCorrectNDCInterpolation(clipSpaceA,clipSpaceB,fac),cameraData);
 
     float error = 5;
     float result = length(expectedThree - actualThree);
@@ -114,15 +117,16 @@ MRT main(VSOutput vsOutput)
 
     //mrt.Color = colorRGB + depthRGB;
     //mrt.Color = screenSpaceReflectionDebugColors(vsOutput.worldPos, normal, cameraData, params);
-    //float3 colorWR = worldSpaceReflectionsNoSkymap(vsOutput.worldPos, normal, cameraData, params, depth, color, defaultSampler, float4(1, 0, 0, 1));
+    //float3 color = worldSpaceReflectionsNoSkymap(vsOutput.worldPos, normal, cameraData, params, depth, color, defaultSampler, float4(1, 0, 0, 1));
     //float3 colorSR = screenSpaceReflectionsNoSkymap(vsOutput.worldPos, normal, cameraData, params, depth, color, defaultSampler, float4(1, 0, 0, 1));
-    //float3 colorWR = worldSpaceReflectionsNoSkymap(vsOutput.worldPos, normal, cameraData, params, depth, color, defaultSampler, float4(1, 0, 0, 1));
-    //float3 colorSR = screenSpaceReflectionsNoSkymap(vsOutput.worldPos, normal, cameraData, params, depth, color, defaultSampler, float4(1, 0, 0, 1));
-    //mrt.Color = colorSR;
+    //float3 color = worldSpaceReflectionsNoSkymap(vsOutput.worldPos, normal, cameraData, params, depth, color, defaultSampler, float4(1, 0, 0, 1));
+    float3 colorSR = screenSpaceReflectionsNoSkymap(vsOutput.worldPos, normal, cameraData, params, depth, color, defaultSampler, float4(1, 0, 0, 1));
+   // //mrt.Color = colorSR;
+    mrt.Color = colorSR;
 
     //Testing 
 
-    mrt.Color = roundTripTestForDepthInterpolation(vsOutput.worldPos, vsOutput.worldPos + float3(20,20,20), 0.5);
+    //mrt.Color = roundTripTestForDepthInterpolation(vsOutput.worldPos, vsOutput.worldPos + float3(20,20,20), 0.5);
     
 
     
