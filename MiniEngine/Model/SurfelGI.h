@@ -302,6 +302,7 @@ public:
 	void ReadbackSurfelData(GraphicsContext& gfx);
 	void ReadbakcSurfelDebugData(GraphicsContext& gfx);
 	void ReadbackSurfelAccelerationStructure(GraphicsContext& gfx);
+
 	void ApplySurfels(ComputeContext& gfxContext,const Camera& camera);
 	void RecycleSurfels(ComputeContext& gfxContext,const Camera& camera);
 	int GetClosestSurfelToPosition(Vector3 worldPos);

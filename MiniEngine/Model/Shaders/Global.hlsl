@@ -53,12 +53,12 @@ cbuffer	CBSH : register( b2 ) {
 }
 
 SamplerState LinearClamp	: register( s0 );
-SamplerState PointClamp		: register( s1 );
+//SamplerState PointClamp		: register( s1 );
 SamplerState LinearWrap		: register( s2 );
-SamplerState PointWrap		: register( s3 );
-SamplerState LinearMirror	: register( s4 );
-SamplerState PointMirror	: register( s5 );
-SamplerState LinearBorder	: register( s6 );	// Black border
+//SamplerState PointWrap		: register( s3 );
+//SamplerState LinearMirror	: register( s4 );
+//SamplerState PointMirror	: register( s5 );
+//SamplerState LinearBorder	: register( s6 );	// Black border
 
 
 static const float3	LUMINANCE = float3( 0.2126, 0.7152, 0.0722 );	// D65 Illuminant and 2° observer (cf. http://wiki.nuaj.net/index.php?title=Colorimetry)

@@ -54,8 +54,6 @@
 
 	FillCPUContainers();
 
-
-
 	CopyCPUContainersToRespectiveGPUBuffers();
 
 	CreateHeaps();

@@ -57,6 +57,7 @@
 #include <vector>
 #include "TestRaytracing.h"
 #include "SurfelIrradianceAccumulation.h"
+#include "HBIL.h"
 
 
 
@@ -129,6 +130,7 @@ UINT TestRenderer::frameIndex = 0;
 	 MSMEVisualization* TestRenderer::GridMSMEVisualization = nullptr;
 	 SurfelGIOnlyVisualization* TestRenderer::SurfelGIVisualization = nullptr;
 	 SurfelGIOnlyVisualization* TestRenderer::MaterialBindingDebug = nullptr;
+	 HBIL* TestRenderer::m_HBIL = nullptr;
 
 	 ModelH3D* TestRenderer::m_Model = nullptr;
 	 ModelH3D* TestRenderer::m_ModelExtra = nullptr;
@@ -577,6 +579,10 @@ UINT TestRenderer::frameIndex = 0;
 			};
 
 		bool t = ImGui_ImplDX12_Init(&info);
+
+		m_HBIL = new HBIL();
+		m_HBIL->Setup(gbuffer);
+
 
 
 
@@ -1542,7 +1548,9 @@ UINT TestRenderer::frameIndex = 0;
 	{
 
 
+
 		ComputeContext& cfx = reinterpret_cast<ComputeContext&>(gfxContext);
+
 
 		if (m_stopSurfelUpdate == false || m_stopSurfelUpdate == true && m_stopSurfelUpdate != m_prevStopSurfelUpdate)
 		{
@@ -1730,6 +1738,7 @@ UINT TestRenderer::frameIndex = 0;
 		}
 
 
+		m_HBIL->ComputeDownsampledTexture(cfx);
 
 		// --- SURFEL PASS
 		frameIndex++;

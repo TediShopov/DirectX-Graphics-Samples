@@ -113,6 +113,7 @@
     <ClCompile Include="MSMEVisualization.cpp" />
     <ClCompile Include="ModelOBJ.cpp" />
     <ClCompile Include="SurfelSSRMIrradianceAccumulation.cpp" />
+    <ClCompile Include="HBIL.cpp" />
   </ItemGroup>
   <ItemGroup>
     <Filter Include="Source Files">
@@ -233,6 +234,7 @@
     <ClInclude Include="MSMEVisualization.h" />
     <ClInclude Include="ModelOBJ.h" />
     <ClInclude Include="SurfelSSRMIrradianceAccumulation.h" />
+    <ClInclude Include="HBIL.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="Shaders\Common.hlsli">
@@ -276,6 +278,9 @@
       <Filter>Shaders</Filter>
     </None>
     <None Include="Shaders\FastMath.hlsl">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="Shaders\DownsampleDepthExpPS.hlsli">
       <Filter>Shaders</Filter>
     </None>
   </ItemGroup>
@@ -431,6 +436,9 @@
       <Filter>Shaders</Filter>
     </FxCompile>
     <FxCompile Include="Shaders\ComputeHBIL_Interleaved.hlsl">
+      <Filter>Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\DownsampleCS.hlsli">
       <Filter>Shaders</Filter>
     </FxCompile>
   </ItemGroup>
