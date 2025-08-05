@@ -9,8 +9,8 @@
 #define MAX_SAMPLES	16									// Maximum amount of samples per circle subdivision
 
 Texture2D< float >	_tex_depth : register(t0);			// Depth or distance buffer (here we're given depth)
-Texture2D< float3 >	_tex_normal : register(t1);			// Camera-space normal vectors
-Texture2D< float3 >	_tex_sourceRadiance : register(t2);	// Last frame's reprojected radiance buffer
+Texture2D 	_tex_normal : register(t1);			// Camera-space normal vectors
+Texture2D	_tex_sourceRadiance : register(t2);	// Last frame's reprojected radiance buffer
 Texture2D< float >	_tex_blueNoise : register(t3);
 
 cbuffer CB_HBIL : register( b3 ) {
@@ -246,6 +246,12 @@ _DEBUG = float4( _csBentNormal, 0 );
 	return sumRadiance;
 }
 
+
+struct PSInput
+{
+    float4 position : SV_POSITION;
+    float4 color : COLOR;
+};
 ////////////////////////////////////////////////////////////////////////////////
 // Computes bent cone & irradiance gathering from pixel's surroundings
 struct PS_OUT {
@@ -253,7 +259,13 @@ struct PS_OUT {
 	float4	bentCone : SV_TARGET1;
 };
 
-PS_OUT	main( float4 __Position : SV_POSITION ) {
+PS_OUT	main(PSInput input) {
+    float4 __Position = input.position;
+    float2 sourceResolution = _resolution;
+    float2 targetResolutoin = _resolution;
+
+	
+    PS_OUT debugEarlyOut;
 //PS_OUT	PS( float4 __Position : SV_POSITION ) {
 	float2	UV = __Position.xy / _resolution;
 	uint2	pixelPosition = uint2( floor( __Position.xy ) );
@@ -264,6 +276,12 @@ PS_OUT	main( float4 __Position : SV_POSITION ) {
 	float	noise2 = frac( _time + _tex_blueNoise[uint2( float2( 32659.167 * UV.x, 173227.3 * UV.y ) ) & 0x3F] );
 //	float	noise = 0.0;
 //	float	noise2 = frac( sin( 14357.91 * noise ) );
+
+    float2 quarterResUV = __Position.xy / targetResolutoin;
+    debugEarlyOut.irradiance = _tex_sourceRadiance.SampleLevel(LinearWrap, UV, 0);
+    //debugEarlyOut.irradiance = float4(FetchNormal(pixelPosition, 0),1);
+    debugEarlyOut.bentCone = float4(1, 0, 1, 1);
+    return debugEarlyOut;
 
 //noise2 = lerp( 0.1, 1.0, noise );
 

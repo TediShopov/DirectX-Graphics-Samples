@@ -286,17 +286,7 @@ void Graphics::InitializeCommonState(void)
     CreatePSO(g_GenerateMipsGammaPSO[2], g_pGenerateMipsGammaOddYCS);
     CreatePSO(g_GenerateMipsGammaPSO[3], g_pGenerateMipsGammaOddCS);
 
-    g_DownsampleDepthPSO.SetRootSignature(g_CommonRS);
-    g_DownsampleDepthPSO.SetRasterizerState(RasterizerTwoSided);
-    g_DownsampleDepthPSO.SetBlendState(BlendDisable);
-    g_DownsampleDepthPSO.SetDepthStencilState(DepthStateReadWrite);
-    g_DownsampleDepthPSO.SetSampleMask(0xFFFFFFFF);
-    g_DownsampleDepthPSO.SetInputLayout(0, nullptr);
-    g_DownsampleDepthPSO.SetPrimitiveTopologyType(D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE);
-    g_DownsampleDepthPSO.SetVertexShader(g_pScreenQuadCommonVS, sizeof(g_pScreenQuadCommonVS));
-    g_DownsampleDepthPSO.SetPixelShader(g_pDownsampleDepthPS, sizeof(g_pDownsampleDepthPS));
-    g_DownsampleDepthPSO.SetDepthTargetFormat(DXGI_FORMAT_D32_FLOAT);
-    g_DownsampleDepthPSO.Finalize();
+    g_DownsampleDepthPSO.SetRootSignature(g_CommonRS); g_DownsampleDepthPSO.SetRasterizerState(RasterizerTwoSided); g_DownsampleDepthPSO.SetBlendState(BlendDisable); g_DownsampleDepthPSO.SetDepthStencilState(DepthStateReadWrite); g_DownsampleDepthPSO.SetSampleMask(0xFFFFFFFF); g_DownsampleDepthPSO.SetInputLayout(0, nullptr); g_DownsampleDepthPSO.SetPrimitiveTopologyType(D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE); g_DownsampleDepthPSO.SetVertexShader(g_pScreenQuadCommonVS, sizeof(g_pScreenQuadCommonVS)); g_DownsampleDepthPSO.SetPixelShader(g_pDownsampleDepthPS, sizeof(g_pDownsampleDepthPS)); g_DownsampleDepthPSO.SetDepthTargetFormat(DXGI_FORMAT_D32_FLOAT); g_DownsampleDepthPSO.Finalize();
 }
 
 void Graphics::DestroyCommonState(void)

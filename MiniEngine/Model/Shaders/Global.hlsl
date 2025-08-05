@@ -54,7 +54,7 @@ cbuffer	CBSH : register( b2 ) {
 
 SamplerState LinearClamp	: register( s0 );
 //SamplerState PointClamp		: register( s1 );
-SamplerState LinearWrap		: register( s2 );
+SamplerState LinearWrap		: register( s1 );
 //SamplerState PointWrap		: register( s3 );
 //SamplerState LinearMirror	: register( s4 );
 //SamplerState PointMirror	: register( s5 );

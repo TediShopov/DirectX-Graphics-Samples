@@ -209,6 +209,7 @@ UINT TestRenderer::frameIndex = 0;
 	  float m_depthValue = 0.1f;
 	  float _TRI_SCALE = 0.3f;
 	  float QUAD_SCALE = 0.8f;
+	  //float QUAD_SCALE = 1;
 	 ColorVertex triangleVertices[3] =
 	{
 		{ { 0.0f, _TRI_SCALE * m_aspectRatio, m_depthValue,1}, { 1.0f, 0.0f, 0.0f, 1.0f } },
@@ -581,7 +582,8 @@ UINT TestRenderer::frameIndex = 0;
 		bool t = ImGui_ImplDX12_Init(&info);
 
 		m_HBIL = new HBIL();
-		m_HBIL->Setup(gbuffer);
+		m_HBIL->Setup(gbuffer,GridVisualization->m_TestPSO);
+		
 
 
 
@@ -1739,6 +1741,13 @@ UINT TestRenderer::frameIndex = 0;
 
 
 		m_HBIL->ComputeDownsampledTexture(cfx);
+		{
+			ScopedTimer _prof(L"Render HBIL Tri", gfxContext);
+			m_HBIL->RenderHBIL(gfxContext, camera);
+			RenderFullScreenQuad(gfxContext);
+
+		}
+
 
 		// --- SURFEL PASS
 		frameIndex++;

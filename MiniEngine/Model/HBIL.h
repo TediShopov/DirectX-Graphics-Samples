@@ -20,6 +20,7 @@
 #include "ModelH3D.h"
 
 #include "CompiledShaders/DownsampleCS.h"
+#include "CompiledShaders/ComputeHBIL_BruteForce.h"
 
 //All the extra buffers that are needed 
 
@@ -68,7 +69,7 @@ __declspec(align(16)) struct CBSH {
 	XMFLOAT4 _SH[9];
 };
 
-__declspec(align(16)) struct CB_HBIL{
+__declspec(align(16)) struct CB_HBIL {
 	XMFLOAT4	_bilateralValues;
 	float	_gatherSphereMaxRadius_m;		// Radius of the sphere that will gather our irradiance samples (in meters)
 	float	_gatherSphereMaxRadius_p;		// Radius of the sphere that will gather our irradiance samples (in pixels)
@@ -79,12 +80,13 @@ __declspec(align(16)) struct CB_HBIL{
 class HBIL
 {
 	HBIL_MAIN m_MainHBILCB; 
-	HBIL_MAIN m_HBILCameraCB;
-	HBIL_MAIN m_HBILExtraCB;
+	CB_Camera m_HBILCameraCB;
+	CBSH m_CBSH;
+	CB_HBIL m_HBILExtraCB;
 	//Hold the pointers to actual GBuffer
 	GBufferPtrs m_GBuffer;
 
-	PSO m_HBILRenderPass = {(L"HBIL Render Pass PSO")};
+	GraphicsPSO m_HBILRenderPass = {(L"HBIL Render Pass PSO")};
 	RootSignature m_HBILRenderRS;
 
 	ComputePSO m_DownsamplePSO = {(L"Downsample CS PSO")};
@@ -141,31 +143,49 @@ public:
 	void CreateHBILRootSignatue()
 	{
 		//Todo initialize the samplers correctly
-	  SamplerDesc LinearWrap;
-	  LinearWrap.MaxAnisotropy = 1;
-	  LinearWrap.Filter = D3D12_FILTER_MAXIMUM_MIN_MAG_MIP_POINT;
-	  SamplerDesc LinearPoint = LinearWrap;
+	  SamplerDesc LinearClamp;
+	  LinearClamp.AddressU = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
+	  LinearClamp.AddressV = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
+	  LinearClamp.AddressW = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
+	  LinearClamp.MaxAnisotropy = 0;
 
-	  m_DownsampleRS.Reset(5, 2);
+	  SamplerDesc LinearWrap = LinearClamp;
+	  LinearWrap.AddressU = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
+	  LinearWrap.AddressV = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
+	  LinearWrap.AddressW = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
+
+	  m_HBILRenderRS.Reset(5, 2);
 	  //Todo check the correct positioning of the static samplers
-	  m_DownsampleRS.InitStaticSampler(10, LinearPoint);
-	  m_DownsampleRS.InitStaticSampler(11, LinearWrap);
+	  m_HBILRenderRS.InitStaticSampler(0, LinearClamp);
+	  m_HBILRenderRS.InitStaticSampler(1, LinearWrap);
 
 	  //Initializing the constant buffer
 	  //This CBs are for the HBIL's global utility file
-	  m_DownsampleRS[0].InitAsConstantBuffer(0);
-	  m_DownsampleRS[1].InitAsConstantBuffer(1);
-	  m_DownsampleRS[2].InitAsConstantBuffer(2);
+	  m_HBILRenderRS[0].InitAsConstantBuffer(0);
+	  m_HBILRenderRS[1].InitAsConstantBuffer(1);
+	  m_HBILRenderRS[2].InitAsConstantBuffer(2);
 	  //This CBs are the HBIL's application files
-	  m_DownsampleRS[3].InitAsConstantBuffer(3);
+	  m_HBILRenderRS[3].InitAsConstantBuffer(3);
 	  //Supplying The Textures
-	  m_DownsampleRS[4].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 4);
+	  m_HBILRenderRS[4].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 4);
 
-	  m_DownsampleRS.Finalize(L"CS Downsampling Root Signature");
+	  m_HBILRenderRS.Finalize(L"HBIL Root Signature",D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
+
+	}
+
+	void CreateHBILPSO(GraphicsPSO quadRenderingPSO)
+	{
+		m_HBILRenderPass = quadRenderingPSO;
+		m_HBILRenderPass.SetRootSignature(m_HBILRenderRS);
+		m_HBILRenderPass.SetPixelShader(g_pComputeHBIL_BruteForce, sizeof(g_pComputeHBIL_BruteForce));
+
+		m_HBILRenderPass.Finalize();
 
 	}
 
 	DescriptorHeap m_DownsampleHeap;
+
+	DescriptorHeap m_HBILHeap;
 	ColorBuffer m_QuarterResDepth;
 	ColorBuffer m_QuarterResDiffuse;
 	ColorBuffer m_QuarterResNormal;
@@ -194,6 +214,26 @@ public:
 	  );
 
 	}
+	void CreateHBILHeap() {
+	  m_HBILHeap.Create(L"HBIL HEAP", D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 4);
+	  
+	  ExtendedUtility::CopyDescriptorsToHeap(m_HBILHeap, {
+		  m_QuarterResDepth.GetSRV(),
+		  m_QuarterResNormal.GetSRV(),
+		  m_QuarterResDiffuse.GetSRV(),
+		  m_QuarterResDepth.GetSRV()
+		  }
+	  );
+
+	  //Temporarily sending the full resolution ones
+//	  ExtendedUtility::CopyDescriptorsToHeap(m_HBILHeap, {
+//		  m_GBuffer.g_Depth->GetDepthSRV(),
+//		  m_GBuffer.g_Normal->GetSRV(),
+//		  m_GBuffer.g_Color->GetSRV(),
+//		  m_GBuffer.g_Depth->GetDepthSRV()
+//		  }
+//	  );
+	}
 
 
 
@@ -208,6 +248,16 @@ public:
 		cfx.TransitionResource(*m_GBuffer.g_Depth, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
 		cfx.TransitionResource(*m_GBuffer.g_Normal, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
 
+		cfx.TransitionResource(m_QuarterResDepth, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE,true);
+		cfx.TransitionResource(m_QuarterResDiffuse, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE,true);
+		cfx.TransitionResource(m_QuarterResNormal, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE,true);
+
+
+
+
+
+
+
 
 
 		DepthBuffer* d= m_GBuffer.g_Depth;
@@ -215,7 +265,7 @@ public:
 		//Assign the resolution to cb
 		XMFLOAT2 invSourceResolution;
 		invSourceResolution.x = 1.0f / d->GetWidth();
-		invSourceResolution.y = 1.0f / d->GetWidth();
+		invSourceResolution.y = 1.0f / d->GetHeight();
 		m_DownsampleCB.InvSourceResolution = invSourceResolution;
 
 
@@ -229,15 +279,21 @@ public:
 		cfx.Dispatch2D(d->GetWidth(), d->GetHeight(), 8, 8);
 	}
 
-	void Setup(GBufferPtrs gbuffer)
+	void Setup(GBufferPtrs gbuffer,GraphicsPSO quadPSO)
 	{
 		this->m_GBuffer = gbuffer;
 
 		InitializeQuarterResBuffer();
 
+		CreateHBILHeap();
+
 		CreateDownsampleDescriptorHeap();
 
 		CreateDownsampledRootSignature();
+
+		CreateHBILRootSignatue();
+
+		CreateHBILPSO(quadPSO);
 
 
 		CreateDownsamplePSO();
@@ -245,8 +301,55 @@ public:
 	}
 
 
-	void RenderHBIL()
+	int framesCount = 0;
+	void RenderHBIL(GraphicsContext& gfx,const Camera& camera)
 	{
+		ScopedTimer _prof(L"Render HBIL",gfx);
+
+		m_MainHBILCB._deltaTime = 0.1;
+		m_MainHBILCB._framesCount = 0;
+		m_MainHBILCB._resolution.x = m_GBuffer.g_Color->GetWidth();
+		m_MainHBILCB._resolution.y = m_GBuffer.g_Color->GetHeight();
+
+		Matrix4 invViewMatrix = Invert(camera.GetViewProjMatrix());
+		Vector3 mathPos = camera.GetPosition();
+
+		m_HBILCameraCB._camera2World = invViewMatrix;
+
+		m_HBILExtraCB._bilateralValues = XMFLOAT4(1,1,1,1);
+		m_HBILExtraCB._gatherSphereMaxRadius_m = 100;
+		m_HBILExtraCB._gatherSphereMaxRadius_p = 10;
+		m_HBILExtraCB._temporalAttenuationFactor = 0.5f;
+
+
+		//Resource barrier
+		gfx.TransitionResource(m_QuarterResDepth, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,true);
+		gfx.TransitionResource(m_QuarterResDiffuse, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,true);
+		gfx.TransitionResource(m_QuarterResNormal, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,true);
+		
+
+		//Temporaily transition the full resolution resources from the GBuffer
+//		gfx.TransitionResource(*m_GBuffer.g_Depth, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+//		gfx.TransitionResource(*m_GBuffer.g_Normal, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+//		gfx.TransitionResource(*m_GBuffer.g_Color, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,true);
+
+
+		gfx.SetPipelineState(m_HBILRenderPass);
+		gfx.SetRootSignature(m_HBILRenderRS);
+		gfx.SetDescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV,m_HBILHeap.GetHeapPointer());
+
+		gfx.SetDynamicConstantBufferView(0, sizeof(HBIL_MAIN), &m_MainHBILCB);
+		gfx.SetDynamicConstantBufferView(1, sizeof(CB_Camera), &m_HBILCameraCB);
+		gfx.SetDynamicConstantBufferView(2, sizeof(CBSH), &m_CBSH);
+		gfx.SetDynamicConstantBufferView(3, sizeof(CB_HBIL), &m_HBILExtraCB);
+
+		gfx.SetDescriptorTable(4, m_DownsampleHeap[0]);
+
+
+
+
+
+		framesCount++;
 		
 	}
 
