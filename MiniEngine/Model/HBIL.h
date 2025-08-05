@@ -221,23 +221,44 @@ public:
 	void CreateHBILHeap() {
 	  m_HBILHeap.Create(L"HBIL HEAP", D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 4);
 	  
-//	  ExtendedUtility::CopyDescriptorsToHeap(m_HBILHeap, {
-//		  m_QuarterResDepth.GetSRV(),
-//		  m_QuarterResNormal.GetSRV(),
-//		  m_QuarterResDiffuse.GetSRV(),
-//		  m_BlueNoiseTexture.GetSRV()
-//		  }
-//	  );
-
-	  //Temporarily sending the full resolution ones
 	  ExtendedUtility::CopyDescriptorsToHeap(m_HBILHeap, {
-		  m_GBuffer.g_Depth->GetDepthSRV(),
-		  m_GBuffer.g_Normal->GetSRV(),
-		  m_GBuffer.g_Color->GetSRV(),
+		  m_QuarterResDepth.GetSRV(),
+		  m_QuarterResNormal.GetSRV(),
+		  m_QuarterResDiffuse.GetSRV(),
 		  m_BlueNoiseTexture.GetSRV()
 		  }
 	  );
+
+	  //Temporarily sending the full resolution ones
+//	  ExtendedUtility::CopyDescriptorsToHeap(m_HBILHeap, {
+//		  m_GBuffer.g_Depth->GetDepthSRV(),
+//		  m_GBuffer.g_Normal->GetSRV(),
+//		  m_GBuffer.g_Color->GetSRV(),
+//		  m_BlueNoiseTexture.GetSRV()
+//		  }
+//	  );
 	}
+	Matrix4 GetLHViewMatrix(const Camera& camera)
+	{
+		//Get the camera position up, right and forward vectors
+		Vector3 position = camera.GetPosition();
+		Vector3 forward = camera.GetForwardVec();
+		Vector3 right = camera.GetRightVec();
+		Vector3 up = camera.GetUpVec();
+
+		const float lhViewMatrixData[16] = {
+			(float)right.GetX(), (float)up.GetX(), (float)forward.GetX(), 0.0f,
+			(float)right.GetY(), (float)up.GetY(), (float)forward.GetY(), 0.0f,
+			(float)right.GetZ(), (float)up.GetZ(), (float)forward.GetZ(), 0.0f,
+			-(float)Dot(right, position), -(float)Dot(up, position), -(float)Dot(forward, position), 1.0f
+		};
+
+		// Construct left-handed view matrix
+		Matrix4 viewMatrix = Matrix4(lhViewMatrixData);
+		return viewMatrix;
+
+	}
+
 
 
 
@@ -277,7 +298,8 @@ public:
 
 		//For non-uniform scaling -> use inverse transposed view matrix
 
-		m_DownsampleCB.worldToCamera = Matrix4(XMMatrixTranspose(XMMatrixInverse(nullptr,camera.GetViewMatrix())));
+		//m_DownsampleCB.worldToCamera = Matrix4(XMMatrixTranspose(XMMatrixInverse(nullptr,camera.GetViewMatrix())));
+		m_DownsampleCB.worldToCamera =Matrix4(XMMatrixTranspose(GetLHViewMatrix(camera)));
 
 		//m_DownsampleCB.worldToCamera = camera.GetViewMatrix();
 
@@ -317,35 +339,73 @@ public:
 	}
 
 
+	Matrix4 CreatePerspectiveFovLH(float fovY, float aspect, float nearZ, float farZ)
+{
+    float yScale = 1.0f / tanf(fovY * 0.5f);
+    float xScale = yScale / aspect;
+    float zRange = farZ - nearZ;
+	const float lhPerspectiveData[16] =
+	{
+
+		xScale, 0.0f,    0.0f,                     0.0f,
+		0.0f,   yScale,  0.0f,                     0.0f,
+		0.0f,   0.0f,    farZ / zRange,            1.0f,
+		0.0f,   0.0f,    -nearZ * farZ / zRange,   0.0f
+	};
+
+    return Matrix4(lhPerspectiveData);
+}
+
+
+
 	int framesCount = 0;
 	void RenderHBIL(GraphicsContext& gfx,const Camera& camera)
 	{
-		ScopedTimer _prof(L"Render HBIL",gfx);
+		ScopedTimer _prof(L"Render HBIL", gfx);
 
 		m_MainHBILCB._deltaTime = 0.1;
 		m_MainHBILCB._framesCount = 0;
 		m_MainHBILCB._resolution.x = m_GBuffer.g_Color->GetWidth();
 		m_MainHBILCB._resolution.y = m_GBuffer.g_Color->GetHeight();
 
-		//Matrix4 invViewMatrix = camera.GetViewMatrix();
-		Matrix4 invViewMatrix = Matrix4(XMMatrixIdentity());
-		//Matrix4 invViewMatrix = Matrix4(XMMatrixTranspose(XMMatrixInverse(nullptr,camera.GetViewMatrix())));
-		//Matrix4 invViewMatrix = Matrix4(XMMatrixTranspose(camera.GetViewMatrix()));
-		Vector3 mathPos = camera.GetPosition();
 
-		m_HBILCameraCB._camera2World = invViewMatrix;
+		//Get the camera position up, right and forward vectors
+		// Construct left-handed view matrix
+		Matrix4 viewMatrix = GetLHViewMatrix(camera);
 
-		m_HBILExtraCB._bilateralValues = XMFLOAT4(1,1,1,1);
+		// Construct LH perspective projection matrix
+		float fovY = XMConvertToRadians(60.0f); // example FOV
+		float aspect = 1920.0f / 1080.0f;
+		float nearZ = camera.GetNearClip();
+		float farZ = camera.GetFarClip();
+
+		Matrix4 projMatrix = CreatePerspectiveFovLH(fovY, aspect, nearZ, farZ);
+		Matrix4 viewProjMatrix = projMatrix * viewMatrix;
+
+
+
+
+		camera.GetViewMatrix();
+
+		m_HBILCameraCB._world2Camera = Matrix4(XMMatrixTranspose(viewMatrix));
+		m_HBILCameraCB._camera2Proj = Matrix4(XMMatrixTranspose(projMatrix));
+		m_HBILCameraCB._world2Proj = Matrix4(XMMatrixTranspose(viewProjMatrix));
+
+		m_HBILCameraCB._camera2World = Matrix4(XMMatrixTranspose(XMMatrixInverse(nullptr, viewMatrix)));
+		m_HBILCameraCB._proj2Camera = Matrix4(XMMatrixTranspose(XMMatrixInverse(nullptr, projMatrix)));
+		m_HBILCameraCB._proj2World = Matrix4(XMMatrixTranspose(XMMatrixInverse(nullptr, viewProjMatrix)));
+
+		m_HBILExtraCB._bilateralValues = XMFLOAT4(1, 1, 1, 1);
 		m_HBILExtraCB._gatherSphereMaxRadius_m = 100;
 		m_HBILExtraCB._gatherSphereMaxRadius_p = 10;
 		m_HBILExtraCB._temporalAttenuationFactor = 0.5f;
 
 
 		//Resource barrier
-		gfx.TransitionResource(m_QuarterResDepth, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,true);
-		gfx.TransitionResource(m_QuarterResDiffuse, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,true);
-		gfx.TransitionResource(m_QuarterResNormal, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,true);
-		
+		gfx.TransitionResource(m_QuarterResDepth, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, true);
+		gfx.TransitionResource(m_QuarterResDiffuse, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, true);
+		gfx.TransitionResource(m_QuarterResNormal, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, true);
+
 
 		//Temporaily transition the full resolution resources from the GBuffer
 //		gfx.TransitionResource(*m_GBuffer.g_Depth, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
@@ -355,7 +415,7 @@ public:
 
 		gfx.SetPipelineState(m_HBILRenderPass);
 		gfx.SetRootSignature(m_HBILRenderRS);
-		gfx.SetDescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV,m_HBILHeap.GetHeapPointer());
+		gfx.SetDescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, m_HBILHeap.GetHeapPointer());
 
 		gfx.SetDynamicConstantBufferView(0, sizeof(HBIL_MAIN), &m_MainHBILCB);
 		gfx.SetDynamicConstantBufferView(1, sizeof(CB_Camera), &m_HBILCameraCB);
@@ -369,7 +429,7 @@ public:
 
 
 		framesCount++;
-		
+
 	}
 
 

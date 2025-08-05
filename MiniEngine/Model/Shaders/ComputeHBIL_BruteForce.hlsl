@@ -276,11 +276,17 @@ PS_OUT	main(PSInput input) {
 //	float	noise = 0.0;
 //	float	noise2 = frac( sin( 14357.91 * noise ) );
 
-    float2 quarterResUV = __Position.xy / targetResolutoin;
-    float3 sampledNormal = FetchNormal(pixelPosition, 0);
-    sampledNormal = sampledNormal *0.5f + 0.5f;
-
-//    debugEarlyOut.irradiance = float4(sampledNormal, 1);
+//    float2 quarterResUV = __Position.xy / targetResolutoin;
+//    float3 sampledNormal = FetchNormal(pixelPosition, 0);
+//    sampledNormal = mul(float4(sampledNormal, 0), _camera2World);
+//    //sampledNormal.z = max(1e-3, sampledNormal.z); // Make sure it's never 0!
+//    float3 reversedNormal = mul(float4(sampledNormal, 0), _world2Camera);
+//
+//
+//	
+//
+//    debugEarlyOut.irradiance = float4(reversedNormal, 1);
+//    debugEarlyOut.irradiance = debugEarlyOut.irradiance * 0.5f + 0.5;
 //    debugEarlyOut.bentCone = float4(1, 0, 1, 1);
 //    return debugEarlyOut;
 
@@ -362,8 +368,12 @@ PS_OUT	main(PSInput input) {
 
 	// Compute local camera-space normal
     //float3 csNormal = FetchNormal(pixelPosition, 0);
-    float3 csNormal = _tex_normal[pixelPosition];
+    //float3 csNormal = _tex_normal[pixelPosition];
+    float3 csNormal = FetchNormal(pixelPosition, 0);
 			csNormal.z = max( 1e-3, csNormal.z );	// Make sure it's never 0!
+    csNormal = mul(float4(csNormal, 0), _world2Camera);
+
+	
 
 	// Compute screen radius of gather sphere
 	float	screenSize_m = 2.0 * Z * TAN_HALF_FOV;																	// Vertical size of the screen in meters when extended to distance Z
@@ -479,8 +489,11 @@ PS_OUT	main(PSInput input) {
 // WRITE DEBUG VALUE INTO BENT CONE BUFFER
 float3	DEBUG_VALUE = float3( 1,0,1 );
 DEBUG_VALUE = csNormal;
+DEBUG_VALUE = csNormal.x * wsRight + csNormal.y * wsUp + csNormal.z * wsAt;	// World-space normal
+    //float3 worldDebugNormal = mul(float4(csNormal, 0), _camera2World);
+ DEBUG_VALUE = mul(float4(csNormal, 0), _camera2World); // World-space normal
 DEBUG_VALUE = csAverageBentNormal;
-DEBUG_VALUE = csAverageBentNormal.x * wsRight + csAverageBentNormal.y * wsUp + csAverageBentNormal.z * wsAt;	// World-space normal
+//DEBUG_VALUE = csAverageBentNormal.x * wsRight + csAverageBentNormal.y * wsUp + csAverageBentNormal.z * wsAt;	// World-space normal
 //DEBUG_VALUE = cosAverageConeAngle;
 //DEBUG_VALUE = dot( ssAverageBentNormal, N );
 //DEBUG_VALUE = 0.01 * Z;
@@ -492,11 +505,12 @@ DEBUG_VALUE = csAverageBentNormal.x * wsRight + csAverageBentNormal.y * wsUp + c
 //DEBUG_VALUE = float3( GATHER_DEBUG.xy, 0 );
 //DEBUG_VALUE = float3( GATHER_DEBUG.zw, 0 );
 //DEBUG_VALUE = 0.4 * localCamera2World[3];
-DEBUG_VALUE = GATHER_DEBUG.xyz;
-Out.bentCone = float4( DEBUG_VALUE, 1 );
+//DEBUG_VALUE = GATHER_DEBUG.xyz;
+    //DEBUG_VALUE = worldDebugNormal;
+    Out.bentCone = float4( DEBUG_VALUE, 1 );
 //
 //////////////////////////////////////////////
-    Out.irradiance = Out.bentCone;
+    //Out.irradiance = Out.bentCone*0.5 + 0.5;
 
 	return Out;
 }

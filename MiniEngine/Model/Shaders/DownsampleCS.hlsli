@@ -64,7 +64,7 @@ void main(uint3 DTid : SV_DispatchThreadID)
 
     
     //float3 avgCameraSpaceNormal = mul(worldToCameraMatrix, float4(avgNormal, 0));
-    //float3 avgCameraSpaceNormal = mul( float4(avgNormal, 0),worldToCameraMatrix);
+    float3 avgCameraSpaceNormal = mul( float4(avgNormal, 0),worldToCameraMatrix);
     
     
 
