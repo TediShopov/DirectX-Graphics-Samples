@@ -14,6 +14,7 @@
 #include "Camera.h"
 #include "UniformGrid.h"
 #include "CommandContext.h"
+#include "TextureManager.h"
 
 #include "ExtendedUtility.h"
 
@@ -190,6 +191,8 @@ public:
 	ColorBuffer m_QuarterResDepth;
 	ColorBuffer m_QuarterResDiffuse;
 	ColorBuffer m_QuarterResNormal;
+	TextureRef m_BlueNoiseTexture;
+
 	void InitializeQuarterResBuffer()
 	{
 		auto d = m_GBuffer.g_Depth;
@@ -222,7 +225,7 @@ public:
 		  m_QuarterResDepth.GetSRV(),
 		  m_QuarterResNormal.GetSRV(),
 		  m_QuarterResDiffuse.GetSRV(),
-		  m_QuarterResDepth.GetSRV()
+		  m_BlueNoiseTexture.GetSRV()
 		  }
 	  );
 
@@ -292,6 +295,9 @@ public:
 	void Setup(GBufferPtrs gbuffer,GraphicsPSO quadPSO)
 	{
 		this->m_GBuffer = gbuffer;
+
+		//LOAD BLUE NOISE TEXTURE
+		m_BlueNoiseTexture= TextureManager::LoadDDSFromFile(L"Textures/blueNoise_HDR_LA0.dds");
 
 		InitializeQuarterResBuffer();
 
