@@ -25,6 +25,7 @@
 //All the extra buffers that are needed 
 
 __declspec(align(16)) struct DownsampleData {
+	Matrix4	 worldToCamera;
 	XMFLOAT2 InvSourceResolution; // 1.0 / (fullWidth, fullHeight)
 };
 	
@@ -237,7 +238,7 @@ public:
 
 
 
-	void ComputeDownsampledTexture(ComputeContext& cfx) {
+	void ComputeDownsampledTexture(ComputeContext& cfx,const Camera& camera) {
 
 		ScopedTimer _prof(L"Downsampling Depth", cfx);
 
@@ -266,7 +267,16 @@ public:
 		XMFLOAT2 invSourceResolution;
 		invSourceResolution.x = 1.0f / d->GetWidth();
 		invSourceResolution.y = 1.0f / d->GetHeight();
+
+
 		m_DownsampleCB.InvSourceResolution = invSourceResolution;
+		//m_DownsampleCB.worldToCamera = Matrix4(XMMatrixInverse(nullptr,camera.GetViewMatrix()));
+
+		//For non-uniform scaling -> use inverse transposed view matrix
+
+		m_DownsampleCB.worldToCamera = Matrix4(XMMatrixTranspose(XMMatrixInverse(nullptr,camera.GetViewMatrix())));
+
+		//m_DownsampleCB.worldToCamera = camera.GetViewMatrix();
 
 
 

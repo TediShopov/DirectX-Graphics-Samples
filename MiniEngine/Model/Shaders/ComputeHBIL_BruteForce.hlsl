@@ -278,7 +278,11 @@ PS_OUT	main(PSInput input) {
 //	float	noise2 = frac( sin( 14357.91 * noise ) );
 
     float2 quarterResUV = __Position.xy / targetResolutoin;
-    debugEarlyOut.irradiance = _tex_sourceRadiance.SampleLevel(LinearWrap, UV, 0);
+    float3 sampledNormal = _tex_normal.SampleLevel(LinearWrap, UV, 0);
+    sampledNormal = sampledNormal *0.5f + 0.5f;
+
+    //debugEarlyOut.irradiance = _tex_sourceRadiance.SampleLevel(LinearWrap, UV, 0);
+    debugEarlyOut.irradiance = float4(sampledNormal, 1);
     //debugEarlyOut.irradiance = float4(FetchNormal(pixelPosition, 0),1);
     debugEarlyOut.bentCone = float4(1, 0, 1, 1);
     return debugEarlyOut;

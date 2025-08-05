@@ -1740,7 +1740,7 @@ UINT TestRenderer::frameIndex = 0;
 		}
 
 
-		m_HBIL->ComputeDownsampledTexture(cfx);
+		m_HBIL->ComputeDownsampledTexture(cfx,camera);
 		{
 			ScopedTimer _prof(L"Render HBIL Tri", gfxContext);
 			m_HBIL->RenderHBIL(gfxContext, camera);

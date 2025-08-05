@@ -17,6 +17,7 @@ static const float FLT_MAX = 3.402823466e+38f;
 // Constants
 cbuffer CB0 : register(b0)
 {
+    matrix worldToCameraMatrix;
     float2 InvSourceResolution; // 1.0 / (fullWidth, fullHeight)
 };
 
@@ -60,6 +61,12 @@ void main(uint3 DTid : SV_DispatchThreadID)
 
     float4 avgDiffuse = diffuseSum / 16.0f;
     float3 avgNormal = normalize(normalSum / 16.0f);
+
+    
+    //float3 avgCameraSpaceNormal = mul(worldToCameraMatrix, float4(avgNormal, 0));
+    //float3 avgCameraSpaceNormal = mul( float4(avgNormal, 0),worldToCameraMatrix);
+    
+    
 
     
     
