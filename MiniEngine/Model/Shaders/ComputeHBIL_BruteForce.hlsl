@@ -24,19 +24,21 @@ cbuffer CB_HBIL : register( b3 ) {
 
 ////////////////////////////////////////////////////////////////////////////////
 // Implement the methods expected by the HBIL header
+
 float	FetchDepth( float2 _pixelPosition, float _mipLevel ) {
-//	return _tex_sourceRadiance.SampleLevel( LinearClamp, _pixelPosition / _resolution, _mipLevel ).w;
-	return Z_FAR * _tex_depth.SampleLevel( LinearClamp, _pixelPosition / _resolution, _mipLevel );
-//	return Z_FAR * _tex_depth[_pixelPosition];
+// MODIFIED FOR QUARTER RESOLUTION
+    return Z_FAR * _tex_depth.SampleLevel(LinearClamp, _pixelPosition / (_resolution ), _mipLevel);
 }
 
 float3	FetchNormal( float2 _pixelPosition, float _mipLevel ) {
-//	return _tex_normal[round( _pixelPosition )];
-	return _tex_normal.SampleLevel( LinearClamp, _pixelPosition / _resolution, _mipLevel );
+// MODIFIED FOR QUARTER RESOLUTION
+    return _tex_normal.SampleLevel(LinearClamp, _pixelPosition / (_resolution), _mipLevel);
 }
 
 float3	FetchRadiance( float2 _pixelPosition, float _mipLevel ) {
-	return _tex_sourceRadiance.SampleLevel( LinearClamp, _pixelPosition / _resolution, _mipLevel ).xyz;
+// MODIFIED FOR QUARTER RESOLUTION
+    return _tex_sourceRadiance.SampleLevel(LinearClamp, _pixelPosition / (_resolution), _mipLevel).
+    xyz;
 }
 
 // This clearly doesn't work: nasty silhouettes show up around objects
@@ -269,23 +271,18 @@ PS_OUT	main(PSInput input) {
 //PS_OUT	PS( float4 __Position : SV_POSITION ) {
 	float2	UV = __Position.xy / _resolution;
 	uint2	pixelPosition = uint2( floor( __Position.xy ) );
-//	float	noise = frac( _time + _tex_blueNoise[pixelPosition & 0x3F] );
-//	float	noise = frac( _time + _tex_blueNoise[pixelPosition & 0x3F] );
-//	float	noise = _tex_blueNoise[uint2(pixelPosition + float2( _time, 0 )) & 0x3F];
 	float	noise = frac( _tex_blueNoise[pixelPosition & 0x3F] + SQRT2 * _framesCount );	// ACTUAL GOOD VALUE!
 	float	noise2 = frac( _time + _tex_blueNoise[uint2( float2( 32659.167 * UV.x, 173227.3 * UV.y ) ) & 0x3F] );
 //	float	noise = 0.0;
 //	float	noise2 = frac( sin( 14357.91 * noise ) );
 
     float2 quarterResUV = __Position.xy / targetResolutoin;
-    float3 sampledNormal = _tex_normal.SampleLevel(LinearWrap, UV, 0);
+    float3 sampledNormal = FetchNormal(pixelPosition, 0);
     sampledNormal = sampledNormal *0.5f + 0.5f;
 
-    //debugEarlyOut.irradiance = _tex_sourceRadiance.SampleLevel(LinearWrap, UV, 0);
-    debugEarlyOut.irradiance = float4(sampledNormal, 1);
-    //debugEarlyOut.irradiance = float4(FetchNormal(pixelPosition, 0),1);
-    debugEarlyOut.bentCone = float4(1, 0, 1, 1);
-    return debugEarlyOut;
+//    debugEarlyOut.irradiance = float4(sampledNormal, 1);
+//    debugEarlyOut.bentCone = float4(1, 0, 1, 1);
+//    return debugEarlyOut;
 
 //noise2 = lerp( 0.1, 1.0, noise );
 
@@ -296,15 +293,15 @@ PS_OUT	main(PSInput input) {
 	float3	wsView = mul( float4( csView, 0.0 ), _camera2World ).xyz;
 
 	// Read back depth, normal & central radiance value from last frame
-//	float	Z = FetchDepth( pixelPosition, 0.0 );
-	float	Z = Z_FAR * _tex_depth[pixelPosition];
+    //float Z = Z_FAR * _tex_depth[pixelPosition];
+    float Z = FetchDepth(pixelPosition,0);
 
 			Z -= 1e-2;	// !IMPORTANT! Prevent acnea by offseting the central depth a tiny bit closer
 
-	float3	centralRadiance = _tex_sourceRadiance[pixelPosition].xyz;	// Read back last frame's radiance value that we can use as a fallback for neighbor areas
+    float3 centralRadiance = FetchRadiance(pixelPosition,0); // Read back last frame's radiance value that we can use as a fallback for neighbor areas
 
 	// Compute local camera-space
-	float3	wsPos = _camera2World[3].xyz + Z * Z2Distance * wsView;
+	//float3	wsPos = _camera2World[3].xyz + Z * Z2Distance * wsView;
 	float3	wsRight = normalize( cross( wsView, _camera2World[1].xyz ) );
 	float3	wsUp = cross( wsRight, wsView );
 	float3	wsAt = -wsView;
@@ -364,7 +361,8 @@ PS_OUT	main(PSInput input) {
 
 
 	// Compute local camera-space normal
-	float3	csNormal = _tex_normal[pixelPosition];
+    //float3 csNormal = FetchNormal(pixelPosition, 0);
+    float3 csNormal = _tex_normal[pixelPosition];
 			csNormal.z = max( 1e-3, csNormal.z );	// Make sure it's never 0!
 
 	// Compute screen radius of gather sphere
@@ -495,9 +493,10 @@ DEBUG_VALUE = csAverageBentNormal.x * wsRight + csAverageBentNormal.y * wsUp + c
 //DEBUG_VALUE = float3( GATHER_DEBUG.zw, 0 );
 //DEBUG_VALUE = 0.4 * localCamera2World[3];
 DEBUG_VALUE = GATHER_DEBUG.xyz;
-//Out.bentCone = float4( DEBUG_VALUE, 1 );
+Out.bentCone = float4( DEBUG_VALUE, 1 );
 //
 //////////////////////////////////////////////
+    Out.irradiance = Out.bentCone;
 
 	return Out;
 }

@@ -221,22 +221,22 @@ public:
 	void CreateHBILHeap() {
 	  m_HBILHeap.Create(L"HBIL HEAP", D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 4);
 	  
+//	  ExtendedUtility::CopyDescriptorsToHeap(m_HBILHeap, {
+//		  m_QuarterResDepth.GetSRV(),
+//		  m_QuarterResNormal.GetSRV(),
+//		  m_QuarterResDiffuse.GetSRV(),
+//		  m_BlueNoiseTexture.GetSRV()
+//		  }
+//	  );
+
+	  //Temporarily sending the full resolution ones
 	  ExtendedUtility::CopyDescriptorsToHeap(m_HBILHeap, {
-		  m_QuarterResDepth.GetSRV(),
-		  m_QuarterResNormal.GetSRV(),
-		  m_QuarterResDiffuse.GetSRV(),
+		  m_GBuffer.g_Depth->GetDepthSRV(),
+		  m_GBuffer.g_Normal->GetSRV(),
+		  m_GBuffer.g_Color->GetSRV(),
 		  m_BlueNoiseTexture.GetSRV()
 		  }
 	  );
-
-	  //Temporarily sending the full resolution ones
-//	  ExtendedUtility::CopyDescriptorsToHeap(m_HBILHeap, {
-//		  m_GBuffer.g_Depth->GetDepthSRV(),
-//		  m_GBuffer.g_Normal->GetSRV(),
-//		  m_GBuffer.g_Color->GetSRV(),
-//		  m_GBuffer.g_Depth->GetDepthSRV()
-//		  }
-//	  );
 	}
 
 
@@ -327,7 +327,10 @@ public:
 		m_MainHBILCB._resolution.x = m_GBuffer.g_Color->GetWidth();
 		m_MainHBILCB._resolution.y = m_GBuffer.g_Color->GetHeight();
 
-		Matrix4 invViewMatrix = Invert(camera.GetViewProjMatrix());
+		//Matrix4 invViewMatrix = camera.GetViewMatrix();
+		Matrix4 invViewMatrix = Matrix4(XMMatrixIdentity());
+		//Matrix4 invViewMatrix = Matrix4(XMMatrixTranspose(XMMatrixInverse(nullptr,camera.GetViewMatrix())));
+		//Matrix4 invViewMatrix = Matrix4(XMMatrixTranspose(camera.GetViewMatrix()));
 		Vector3 mathPos = camera.GetPosition();
 
 		m_HBILCameraCB._camera2World = invViewMatrix;
