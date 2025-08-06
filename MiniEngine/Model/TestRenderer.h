@@ -22,6 +22,7 @@ class HashGridVisualization;
 class MSMEVisualization;
 class SurfelGIOnlyVisualization;
 class HBIL;
+class GBufferDownsample;
 using namespace Math;
 
 //namespace TestRenderer
@@ -47,6 +48,7 @@ public:
 	static SurfelGIOnlyVisualization* SurfelGIVisualization;
 	static SurfelGIOnlyVisualization* MaterialBindingDebug;
 	static HBIL* m_HBIL;
+	static GBufferDownsample* m_GBufferDownsample;
 
 	static SphereMesh* m_Sphere;
 	static DiscMesh* m_Disc;

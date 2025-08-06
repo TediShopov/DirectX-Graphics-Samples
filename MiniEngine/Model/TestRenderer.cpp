@@ -61,8 +61,6 @@
 
 
 
-
-
 using namespace Math;
 using namespace Graphics;
 using namespace std;
@@ -131,6 +129,7 @@ UINT TestRenderer::frameIndex = 0;
 	 SurfelGIOnlyVisualization* TestRenderer::SurfelGIVisualization = nullptr;
 	 SurfelGIOnlyVisualization* TestRenderer::MaterialBindingDebug = nullptr;
 	 HBIL* TestRenderer::m_HBIL = nullptr;
+	 GBufferDownsample* TestRenderer::m_GBufferDownsample = nullptr;
 
 	 ModelH3D* TestRenderer::m_Model = nullptr;
 	 ModelH3D* TestRenderer::m_ModelExtra = nullptr;
@@ -593,7 +592,14 @@ UINT TestRenderer::frameIndex = 0;
 		bool t = ImGui_ImplDX12_Init(&info);
 
 		m_HBIL = new HBIL();
-		m_HBIL->Setup(gbuffer,GridVisualization->m_TestPSO);
+		m_GBufferDownsample = new GBufferDownsample();
+		m_GBufferDownsample->Setup(gbuffer, GridVisualization->m_TestPSO);
+
+		m_HBIL->Setup(
+			gbuffer,
+			m_GBufferDownsample->GetDownsampledBufferPtr(),
+			GridVisualization->m_TestPSO
+		);
 		
 
 
@@ -1632,10 +1638,6 @@ UINT TestRenderer::frameIndex = 0;
 				 TestRaytracing::GetOutputBuffer(),
 				 camera);
 
-//			 gfxContext.InsertUAVBarrier(SurfelIllumination->m_SurfelGrid.m_GPUBuffer);
-//			 gfxContext.InsertUAVBarrier(SurfelIllumination->m_SurfelList);
-//			 gfxContext.InsertUAVBarrier(SurfelIllumination->m_SurfelData);
-//			 gfxContext.InsertUAVBarrier(SurfelIllumination->m_SurfelStack);
 			 gfxContext.InsertUAVBarrier(TestRaytracing::GetOutputBuffer());
 
 			 SurfelIllumination->UpdateProjection(camera);
@@ -1857,7 +1859,8 @@ UINT TestRenderer::frameIndex = 0;
 		}
 
 
-		m_HBIL->ComputeDownsampledTexture(cfx,camera);
+		m_GBufferDownsample->Dispatch(cfx, camera);
+		//m_HBIL->ComputeDownsampledTexture(cfx,camera);
 		{
 
 			ScopedTimer _prof(L"Render HBIL Tri", gfxContext);

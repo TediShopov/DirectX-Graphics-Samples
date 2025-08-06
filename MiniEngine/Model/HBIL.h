@@ -78,6 +78,145 @@ __declspec(align(16)) struct CB_HBIL {
 	float	_temporalAttenuationFactor;		// Attenuation factor of radiance from previous frame
 };
 
+enum DownsampledGBuffer
+	{
+		DIFFUSE,DEPTH,NORMAL
+	};
+
+class GBufferDownsample {
+	//Hold the pointers to actual GBuffer
+	GBufferPtrs m_GBuffer;
+
+	ComputePSO m_DownsamplePSO = {(L"Downsample CS PSO")};
+	RootSignature m_DownsampleRS;
+	DownsampleData m_DownsampleCB;
+
+	//The additional resource required to comptue HBIL based on the paper
+	// •  Diffuse lighting (Fullscreen, RGB, HDR, All Mips), used to store the diffuse part of the lighting that is reprojected and re-injected next frame
+	// •  Push/Pull-Buffer (Fullscreen, RGB, HDR, All Mips), serves as the 2nd ping-pong buffer (diffuse lighting buffer  being the first one) to compute the push/pull chain after reprojection (cf. Section 3.2).   
+	ColorBuffer m_DiffuseLighting;
+	ColorBuffer m_PushPullDiffuseLighting;
+
+	DescriptorHeap m_DownsampleHeap;
+
+	
+	ColorBuffer m_DownsampledGBuffer[3];
+
+//	ColorBuffer m_QuarterResDepth;
+//	ColorBuffer m_QuarterResDiffuse;
+//	ColorBuffer m_QuarterResNormal;
+
+
+public:
+
+ColorBuffer*	GetDownsampledBufferPtr()
+	{
+		return m_DownsampledGBuffer;
+
+	}
+
+	GBufferDownsample(){}
+
+	void CreateRootSignature()
+	{
+		//Todo initialize the samplers correctly
+	  SamplerDesc LinearClamp;
+	  LinearClamp.AddressU = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
+	  LinearClamp.AddressV = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
+	  LinearClamp.AddressW = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
+	  LinearClamp.MinLOD = 0;
+
+	  m_DownsampleRS.Reset(3, 1);
+	  m_DownsampleRS.InitStaticSampler(0, LinearClamp);
+
+	  m_DownsampleRS[0].InitAsConstantBuffer(0);
+	  //The first SRV is the input texture in full resolution
+	  m_DownsampleRS[1].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 3);
+	  //The first UAV is the output texture in quarter resolution
+	  m_DownsampleRS[2].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 0, 3);
+
+	  m_DownsampleRS.Finalize(L"CS Downsampling Root Signature");
+	}
+	void CreatePSO()
+	{
+	  m_DownsamplePSO.SetRootSignature(m_DownsampleRS);
+	  m_DownsamplePSO.SetComputeShader(g_pDownsampleCS, sizeof(g_pDownsampleCS));
+	  m_DownsamplePSO.Finalize();
+
+	}
+
+	void InitializeQuarterResBuffer()
+	{
+		auto d = m_GBuffer.g_Depth;
+		m_DownsampledGBuffer[DEPTH].Create(L"Quarter Res Depth Buffer", d->GetWidth() / 4, d->GetHeight() / 4, 0, DXGI_FORMAT_R32_FLOAT);
+		m_DownsampledGBuffer[DIFFUSE].Create(L"Quarter Res Diffuse Buffer", d->GetWidth() / 4, d->GetHeight() / 4, 0, m_GBuffer.g_Color->GetFormat());
+		m_DownsampledGBuffer[NORMAL].Create(L"Quarter Res Normal Buffer", d->GetWidth() / 4, d->GetHeight() / 4, 0, m_GBuffer.g_Normal->GetFormat());
+	}
+
+
+	void CreateDescriptorHeap() {
+
+	  m_DownsampleHeap.Create(L"DOWNSAMPLE INPUT OUTPUT HEAP", D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 6);
+	  
+	  ExtendedUtility::CopyDescriptorsToHeap(m_DownsampleHeap, {
+		  m_GBuffer.g_Depth->GetDepthSRV(),
+		  m_GBuffer.g_Color->GetSRV(),
+		  m_GBuffer.g_Normal->GetSRV(),
+		  m_DownsampledGBuffer[DEPTH].GetUAV(),
+		  m_DownsampledGBuffer[DIFFUSE].GetUAV(),
+		  m_DownsampledGBuffer[NORMAL].GetUAV(),
+		  }
+	  );
+
+	}
+
+	void Dispatch(ComputeContext& cfx,const Camera& camera) {
+
+		ScopedTimer _prof(L"Downsampling Depth", cfx);
+
+		cfx.SetPipelineState(m_DownsamplePSO);
+		cfx.SetRootSignature(m_DownsampleRS);
+
+		cfx.TransitionResource(*m_GBuffer.g_Color, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+		cfx.TransitionResource(*m_GBuffer.g_Depth, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+		cfx.TransitionResource(*m_GBuffer.g_Normal, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+
+		cfx.TransitionResource(m_DownsampledGBuffer[DEPTH], D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE,true);
+		cfx.TransitionResource(m_DownsampledGBuffer[DIFFUSE], D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE,true);
+		cfx.TransitionResource(m_DownsampledGBuffer[NORMAL], D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE,true);
+
+		DepthBuffer* d= m_GBuffer.g_Depth;
+
+		//Assign the resolution to cb
+		XMFLOAT2 invSourceResolution;
+		invSourceResolution.x = 1.0f / d->GetWidth();
+		invSourceResolution.y = 1.0f / d->GetHeight();
+
+		m_DownsampleCB.InvSourceResolution = invSourceResolution;
+		cfx.SetDescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, m_DownsampleHeap.GetHeapPointer());
+		//Setup parameters
+		cfx.SetDynamicConstantBufferView(0, sizeof(DownsampleData), &m_DownsampleCB);
+		cfx.SetDescriptorTable(1,m_DownsampleHeap[0]);
+		cfx.SetDescriptorTable(2,m_DownsampleHeap[3]);
+		cfx.Dispatch2D(d->GetWidth(), d->GetHeight(), 8, 8);
+	}
+
+	bool m_debugReadingEnabled = true;
+	
+
+	void Setup(GBufferPtrs gbuffer,GraphicsPSO quadPSO)
+	{
+		this->m_GBuffer = gbuffer;
+		InitializeQuarterResBuffer();
+		CreateDescriptorHeap();
+		CreateRootSignature();
+		CreatePSO();
+	}
+
+
+};
+
+
 
 class HBIL
 {
@@ -86,6 +225,11 @@ class HBIL
 	CBSH m_CBSH;
 	//Hold the pointers to actual GBuffer
 	GBufferPtrs m_GBuffer;
+	ColorBuffer	m_DownsampledBuffers;
+
+
+
+
 
 	GraphicsPSO m_HBILRenderPass = {(L"HBIL Render Pass PSO")};
 	RootSignature m_HBILRenderRS;
@@ -122,33 +266,7 @@ public:
 		m_HBILExtraCB._gatherSphereMaxRadius_p = 1500;
 
 	}
-	void CreateDownsampledRootSignature()
-	{
-		//Todo initialize the samplers correctly
-	  SamplerDesc LinearClamp;
-	  LinearClamp.AddressU = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
-	  LinearClamp.AddressV = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
-	  LinearClamp.AddressW = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
-	  LinearClamp.MinLOD = 0;
-
-	  m_DownsampleRS.Reset(3, 1);
-	  m_DownsampleRS.InitStaticSampler(0, LinearClamp);
-
-	  m_DownsampleRS[0].InitAsConstantBuffer(0);
-	  //The first SRV is the input texture in full resolution
-	  m_DownsampleRS[1].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 3);
-	  //The first UAV is the output texture in quarter resolution
-	  m_DownsampleRS[2].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 0, 3);
-
-	  m_DownsampleRS.Finalize(L"CS Downsampling Root Signature");
-	}
-	void CreateDownsamplePSO()
-	{
-	  m_DownsamplePSO.SetRootSignature(m_DownsampleRS);
-	  m_DownsamplePSO.SetComputeShader(g_pDownsampleCS, sizeof(g_pDownsampleCS));
-	  m_DownsamplePSO.Finalize();
-
-	}
+	
 	void CreateHBILRootSignatue()
 	{
 		//Todo initialize the samplers correctly
@@ -196,12 +314,8 @@ public:
 
 	}
 
-	DescriptorHeap m_DownsampleHeap;
 
 	DescriptorHeap m_HBILHeap;
-	ColorBuffer m_QuarterResDepth;
-	ColorBuffer m_QuarterResDiffuse;
-	ColorBuffer m_QuarterResNormal;
 	TextureRef m_BlueNoiseTexture;
 
 	//All the data would be collected for a point at the exact center of the screen
@@ -225,56 +339,25 @@ public:
 	DebugHBILData m_DebugHBILActual;
 	ByteAddressBuffer m_DebugHBIL;
 	ReadbackBuffer m_DebugHBILReadback;
+	ColorBuffer* m_downsampledGBuffers;
 
 
-	void InitializeQuarterResBuffer()
-	{
-		auto d = m_GBuffer.g_Depth;
-		m_QuarterResDepth.Create(L"Quarter Res Depth Buffer", d->GetWidth() / 4, d->GetHeight() / 4, 0, DXGI_FORMAT_R32_FLOAT);
-
-		//TODO make sure of the formats require by the HBIL shader implementation
-
-		m_QuarterResDiffuse.Create(L"Quarter Res Diffuse Buffer", d->GetWidth() / 4, d->GetHeight() / 4, 0, m_GBuffer.g_Color->GetFormat());
-		m_QuarterResNormal.Create(L"Quarter Res Normal Buffer", d->GetWidth() / 4, d->GetHeight() / 4, 0, m_GBuffer.g_Normal->GetFormat());
-
-	}
+	
 
 
 
-	void CreateDownsampleDescriptorHeap() {
-	  m_DownsampleHeap.Create(L"DOWNSAMPLE INPUT OUTPUT HEAP", D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 6);
-	  
-	  ExtendedUtility::CopyDescriptorsToHeap(m_DownsampleHeap, {
-		  m_GBuffer.g_Depth->GetDepthSRV(),
-		  m_GBuffer.g_Color->GetSRV(),
-		  m_GBuffer.g_Normal->GetSRV(),
-		  m_QuarterResDepth.GetUAV(),
-		  m_QuarterResDiffuse.GetUAV(),
-		  m_QuarterResNormal.GetUAV(),
-		  }
-	  );
-
-	}
-	void CreateHBILHeap() {
+	void CreateHBILHeap(ColorBuffer* quarterResGBuffer) {
 	  m_HBILHeap.Create(L"HBIL HEAP", D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 5);
 	  
 	  ExtendedUtility::CopyDescriptorsToHeap(m_HBILHeap, {
-		  m_QuarterResDepth.GetSRV(),
-		  m_QuarterResNormal.GetSRV(),
-		  m_QuarterResDiffuse.GetSRV(),
+		  quarterResGBuffer[DEPTH].GetSRV(),
+		  quarterResGBuffer[NORMAL].GetSRV(),
+		  quarterResGBuffer[DIFFUSE].GetSRV(),
 		  m_BlueNoiseTexture.GetSRV(),
 		  m_DebugHBIL.GetUAV()
 		  }
 	  );
 
-	  //Temporarily sending the full resolution ones
-//	  ExtendedUtility::CopyDescriptorsToHeap(m_HBILHeap, {
-//		  m_GBuffer.g_Depth->GetDepthSRV(),
-//		  m_GBuffer.g_Normal->GetSRV(),
-//		  m_GBuffer.g_Color->GetSRV(),
-//		  m_BlueNoiseTexture.GetSRV()
-//		  }
-//	  );
 	}
 	Matrix4 GetLHViewMatrix(const Camera& camera)
 	{
@@ -298,60 +381,6 @@ public:
 	}
 
 
-
-
-	void ComputeDownsampledTexture(ComputeContext& cfx,const Camera& camera) {
-
-		ScopedTimer _prof(L"Downsampling Depth", cfx);
-
-		cfx.SetPipelineState(m_DownsamplePSO);
-		cfx.SetRootSignature(m_DownsampleRS);
-
-		cfx.TransitionResource(*m_GBuffer.g_Color, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
-		cfx.TransitionResource(*m_GBuffer.g_Depth, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
-		cfx.TransitionResource(*m_GBuffer.g_Normal, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
-
-		cfx.TransitionResource(m_QuarterResDepth, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE,true);
-		cfx.TransitionResource(m_QuarterResDiffuse, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE,true);
-		cfx.TransitionResource(m_QuarterResNormal, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE,true);
-
-
-
-
-
-
-
-
-
-		DepthBuffer* d= m_GBuffer.g_Depth;
-
-		//Assign the resolution to cb
-		XMFLOAT2 invSourceResolution;
-		invSourceResolution.x = 1.0f / d->GetWidth();
-		invSourceResolution.y = 1.0f / d->GetHeight();
-
-
-		m_DownsampleCB.InvSourceResolution = invSourceResolution;
-		//m_DownsampleCB.worldToCamera = Matrix4(XMMatrixInverse(nullptr,camera.GetViewMatrix()));
-
-		//For non-uniform scaling -> use inverse transposed view matrix
-
-		//m_DownsampleCB.worldToCamera = Matrix4(XMMatrixTranspose(XMMatrixInverse(nullptr,camera.GetViewMatrix())));
-		m_DownsampleCB.worldToCamera =Matrix4(XMMatrixTranspose(GetLHViewMatrix(camera)));
-
-		//m_DownsampleCB.worldToCamera = camera.GetViewMatrix();
-
-
-
-		cfx.SetDescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, m_DownsampleHeap.GetHeapPointer());
-		//Setup parameters
-		cfx.SetDynamicConstantBufferView(0, sizeof(DownsampleData), &m_DownsampleCB);
-		cfx.SetDescriptorTable(1,m_DownsampleHeap[0]);
-		cfx.SetDescriptorTable(2,m_DownsampleHeap[3]);
-
-		cfx.Dispatch2D(d->GetWidth(), d->GetHeight(), 8, 8);
-	}
-
 	bool m_debugReadingEnabled = true;
 	void ReadDebugHBIL(GraphicsContext& gfx,D3D12_RESOURCE_STATES endState ,bool flushImmediate = true)
 	{
@@ -370,22 +399,17 @@ public:
 
 	}
 
-	void Setup(GBufferPtrs gbuffer,GraphicsPSO quadPSO)
+	void Setup(GBufferPtrs gbuffer,ColorBuffer* downsampledGBuffers,GraphicsPSO quadPSO)
 	{
 		this->m_GBuffer = gbuffer;
+		m_downsampledGBuffers = downsampledGBuffers;
 
 		//LOAD BLUE NOISE TEXTURE
 		m_BlueNoiseTexture= TextureManager::LoadDDSFromFile(L"Textures/blueNoise_HDR_LA0.dds");
 		m_DebugHBIL.Create(L"Debug HBIL Buffer",1,sizeof(DebugHBILData));
 		m_DebugHBILReadback.Create(L"Debug HBIL Buffer",1,sizeof(DebugHBILData));
 
-		InitializeQuarterResBuffer();
-
-		CreateHBILHeap();
-
-		CreateDownsampleDescriptorHeap();
-
-		CreateDownsampledRootSignature();
+		CreateHBILHeap(downsampledGBuffers);
 
 		CreateHBILRootSignatue();
 
@@ -394,10 +418,6 @@ public:
 		//Create the render targets
 		//m_IrradianceRenderTarget.Create(L"HBIL Irradiance Render Target", gbuffer.g_Color->GetWidth(), gbuffer.g_Color->GetHeight(),0,DXGI_FORMAT_R11G11B10_FLOAT);
 		//m_BentConesRenderTarget.Create(L"HBIL Bent Cones Render Target", gbuffer.g_Color->GetWidth(), gbuffer.g_Color->GetHeight(),0,DXGI_FORMAT_R11G11B10_FLOAT);
-
-
-		CreateDownsamplePSO();
-
 	}
 
 
@@ -481,9 +501,9 @@ public:
 
 
 		//Resource barrier
-		gfx.TransitionResource(m_QuarterResDepth, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, true);
-		gfx.TransitionResource(m_QuarterResDiffuse, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, true);
-		gfx.TransitionResource(m_QuarterResNormal, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, true);
+		gfx.TransitionResource(m_downsampledGBuffers[0], D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, true);
+		gfx.TransitionResource(m_downsampledGBuffers[1], D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, true);
+		gfx.TransitionResource(m_downsampledGBuffers[2], D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, true);
 
 
 		//Temporaily transition the full resolution resources from the GBuffer

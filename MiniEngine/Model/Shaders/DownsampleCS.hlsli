@@ -4,8 +4,7 @@ SamplerState samplerLinearClamp : register(s0);
 
 Texture2D<float> SourceDepthTex : register(t0);     // Input full-res texture (e.g., linear depth or luminance)
 Texture2D SourceDiffuseTex : register(t1);          // Input full-res diffuse light texture
-Texture2D SourceNormalTex : register(t2);           // Input full-res normal texture
-
+Texture2D SourceNormalTex : register(t2);           // Input full-res normal texture 
 RWTexture2D<float> TargetDepthTex : register(u0);  // Output: 1/4 resolution (width / 4, height / 4)
 RWTexture2D<float4> TargetDiffuseTex : register(u1);        // Output: 1/4 resolution (width / 4, height / 4)
 RWTexture2D<float3> TargetNormalTex : register(u2);         // Output: 1/4 resolution (width / 4, height / 4)
