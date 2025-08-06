@@ -1521,10 +1521,11 @@ UINT TestRenderer::frameIndex = 0;
 					 RenderSpheresAlongRay(blue,LocalSpaceAt, LocalCameraAt, samples,offset,gfxContext,camera.GetViewProjMatrix(),camera.GetPosition(),TestRenderer::kOpaque);
 
 					 Vector3 NormalSampledAtW = Vector3(XMVector3Normalize( XMLoadFloat4(&d.normalAtW)));
-					 NormalSampledAtW.SetZ(-NormalSampledAtW.GetZ());
+					 //NormalSampledAtW.SetZ(-NormalSampledAtW.GetZ());
 					 Vector3 RecomputedNormal = Vector3(XMVector3Normalize(XMLoadFloat4(&d.recomputedNormal)));
-					 RecomputedNormal.SetZ(-RecomputedNormal.GetZ());
+					 //RecomputedNormal.SetZ(-RecomputedNormal.GetZ());
 					 Vector3 BentNormalAtW = Vector3(XMVector3Normalize(XMLoadFloat4(&d.bentNormalAtW)));
+					 //BentNormalAtW.SetZ(-BentNormalAtW.GetZ());
 
 					 RenderSpheresAlongRay(green,LocalSpaceAt, NormalSampledAtW, samples+50,offset+150,gfxContext,camera.GetViewProjMatrix(),camera.GetPosition(),TestRenderer::kOpaque);
 

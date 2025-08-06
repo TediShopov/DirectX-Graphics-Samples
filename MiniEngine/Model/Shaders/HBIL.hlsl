@@ -10,7 +10,7 @@
 // !!SLIGHTLY LESS ACCURATE!!
 
 // !!MORE ACCURATE BUT ALSO MORE EXPENSIVE!!
-#define SAMPLE_NEIGHBOR_RADIANCE	1	// Define this to sample neighbor samples' radiance, otherwise only the central sample's radiance is used (much faster but also less accurate)
+#define SAMPLE_NEIGHBOR_RADIANCE	0	// Define this to sample neighbor samples' radiance, otherwise only the central sample's radiance is used (much faster but also less accurate)
 // !!MORE ACCURATE BUT ALSO MORE EXPENSIVE!!
 
 // !!MORE EXPENSIVE AND LESS ACCURATE => DON'T USE EXCEPT FOR DEBUG!!
