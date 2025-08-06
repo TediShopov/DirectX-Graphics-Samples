@@ -110,6 +110,10 @@ class HBIL
 	ColorBuffer m_SplitNormal;
 	DepthBuffer m_SplitDepth;
 
+
+	ColorBuffer m_IrradianceRenderTarget;
+	ColorBuffer m_BentConesRenderTarget;
+
 public:
 	HBIL()
 	{
@@ -179,7 +183,10 @@ public:
 	void CreateHBILPSO(GraphicsPSO quadRenderingPSO)
 	{
 		m_HBILRenderPass = quadRenderingPSO;
+		
 		m_HBILRenderPass.SetRootSignature(m_HBILRenderRS);
+		//DXGI_FORMAT formats[2] = { DXGI_FORMAT_R11G11B10_FLOAT,DXGI_FORMAT_R11G11B10_FLOAT };
+		//m_HBILRenderPass.SetRenderTargetFormats(2, formats,DXGI_FORMAT_UNKNOWN);
 		m_HBILRenderPass.SetPixelShader(g_pComputeHBIL_BruteForce, sizeof(g_pComputeHBIL_BruteForce));
 
 		m_HBILRenderPass.Finalize();
@@ -198,7 +205,9 @@ public:
 	//U:0.5 V:0.5
 	struct DebugHBILData {
 		XMFLOAT4 reconstructedWorldSpacePosition;
-		XMFLOAT4 notamAtW;
+		XMFLOAT4 normalAtW;
+		XMFLOAT4 recomputedNormal;
+		XMFLOAT4 bentNormalAtW;
 
 		XMFLOAT4 localCameraDirectionUp;
 		XMFLOAT4 localCameraDirectionRight;
@@ -379,6 +388,10 @@ public:
 
 		CreateHBILPSO(quadPSO);
 
+		//Create the render targets
+		m_IrradianceRenderTarget.Create(L"HBIL Irradiance Render Target", gbuffer.g_Color->GetWidth(), gbuffer.g_Color->GetHeight(),0,DXGI_FORMAT_R11G11B10_FLOAT);
+		m_BentConesRenderTarget.Create(L"HBIL Bent Cones Render Target", gbuffer.g_Color->GetWidth(), gbuffer.g_Color->GetHeight(),0,DXGI_FORMAT_R11G11B10_FLOAT);
+
 
 		CreateDownsamplePSO();
 
@@ -488,6 +501,17 @@ public:
 		gfx.SetDynamicConstantBufferView(3, sizeof(CB_HBIL), &m_HBILExtraCB);
 		gfx.SetDescriptorTable(4, m_HBILHeap[0]);
 		gfx.SetDescriptorTable(5, m_HBILHeap[4]);
+
+//		gfx.TransitionResource(m_IrradianceRenderTarget, D3D12_RESOURCE_STATE_RENDER_TARGET, true);
+//		gfx.TransitionResource(m_BentConesRenderTarget, D3D12_RESOURCE_STATE_RENDER_TARGET, true);
+//
+//		const D3D12_CPU_DESCRIPTOR_HANDLE handles[2]
+//		{
+//			m_IrradianceRenderTarget.GetRTV(),
+//			m_BentConesRenderTarget.GetRTV()
+//		};
+//		gfx.SetRenderTargets(2, handles);
+
 
 
 

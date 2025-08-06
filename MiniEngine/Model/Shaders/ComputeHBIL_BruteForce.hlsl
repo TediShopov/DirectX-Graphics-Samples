@@ -16,7 +16,9 @@ Texture2D< float >	_tex_blueNoise : register(t3);
 struct DebugHBILData
 {
 	float4 reconstructedWorldSpacePosition;
-	float4 notamAtW;
+	float4 normalAtW;
+	float4 recomputedNormal;
+	float4 bentNormalAtW;
 
 	float4 localCameraDirectionUp;
 	float4 localCameraDirectionRight;
@@ -66,7 +68,9 @@ float	FetchDepth( float2 _pixelPosition, float _mipLevel ) {
 }
 
 float3	FetchNormal( float2 _pixelPosition, float _mipLevel ) {
-    return _tex_normal.SampleLevel(LinearClamp, _pixelPosition / (_resolution), _mipLevel);
+    float3 normal =  _tex_normal.SampleLevel(LinearClamp, _pixelPosition / (_resolution), _mipLevel);
+    normal.z *= -1;
+    return normal;
 }
 
 float3	FetchRadiance( float2 _pixelPosition, float _mipLevel ) {
@@ -302,11 +306,13 @@ struct PS_OUT {
 //
 //	
 //    PS_OUT debugEarlyOut;
-//	//float2	UV = __Position.xy / _resolution;
+//
+//	float2	UV = __Position.xy / _resolution;
+//	uint2	pixelPosition = uint2( floor( __Position.xy ) );
+//
+//    //float2 UV = float2(0.5f, 0.5f);
 //	//uint2	pixelPosition = uint2( floor( __Position.xy ) );
-//    float2 UV = float2(0.5f, 0.5f);
-//	//uint2	pixelPosition = uint2( floor( __Position.xy ) );
-//	uint2	pixelPosition = uint2(_resolution.x*UV.x,_resolution.y*UV.y);
+//	//uint2	pixelPosition = uint2(_resolution.x*UV.x,_resolution.y*UV.y);
 //	float	noise = 1;	// ACTUAL GOOD VALUE!
 //	float	noise2 = 1;
 //
@@ -346,17 +352,23 @@ struct PS_OUT {
 //			csNormal.z = max( 1e-3, csNormal.z );	// Make sure it's never 0!
 //    csNormal = mul(float4(csNormal, 0), _world2Camera);
 //
-//
-//    _debug_hbil[0].reconstructedWorldSpacePosition = float4(wsPos,1);
 //	
-//    _debug_hbil[0].localCameraDirectionRight = float4(wsRight,0);
-//    _debug_hbil[0].localCameraDirectionAt = float4(wsAt,0);
-//    _debug_hbil[0].localCameraDirectionUp = float4(wsUp,0);
-//
-//    _debug_hbil[0].globalCameraDirectionRight = float4(gcsRight,0);
-//    _debug_hbil[0].globalCameraDirectionAt = float4(0,0,0,0);
-//    _debug_hbil[0].globalCameraDirectionUp = float4(gcsUp,0);
+//    float eps=0.0005f;
+//    if (abs(UV.x - 0.5f) < eps && abs(UV.y - 0.5f) < eps)
+//    {
+//        _debug_hbil[0].reconstructedWorldSpacePosition = float4(wsPos, 1);
 //	
+//        _debug_hbil[0].localCameraDirectionRight = float4(wsRight, 0);
+//        _debug_hbil[0].localCameraDirectionAt = float4(wsAt, 0);
+//        _debug_hbil[0].localCameraDirectionUp = float4(wsUp, 0);
+//
+//        _debug_hbil[0].globalCameraDirectionRight = float4(gcsRight, 0);
+//        _debug_hbil[0].globalCameraDirectionAt = float4(0, 0, 0, 0);
+//        _debug_hbil[0].globalCameraDirectionUp = float4(gcsUp, 0);
+//	
+//		
+//    }
+//
 //	
 //    debugEarlyOut.irradiance = float4(csNormal,0);
 //	debugEarlyOut.bentCone = float4(wsAt,0);
@@ -372,10 +384,6 @@ PS_OUT	main(PSInput input) {
     float2 sourceResolution = _resolution;
     float2 targetResolutoin = _resolution;
 
-    _debug_hbil[0].reconstructedWorldSpacePosition = 1;
-    _debug_hbil[0].localCameraDirectionRight = 2;
-    _debug_hbil[0].localCameraDirectionUp = 3;
-    _debug_hbil[0].localCameraDirectionAt = 4;
 	
     PS_OUT debugEarlyOut;
 //PS_OUT	PS( float4 __Position : SV_POSITION ) {
@@ -385,24 +393,6 @@ PS_OUT	main(PSInput input) {
 	//float	noise2 = frac( _time + _tex_blueNoise[uint2( float2( 32659.167 * UV.x, 173227.3 * UV.y ) ) & 0x3F] );
 	float	noise = 1;	// ACTUAL GOOD VALUE!
 	float	noise2 = 1;
-//	float	noise = 0.0;
-//	float	noise2 = frac( sin( 14357.91 * noise ) );
-
-//    float2 quarterResUV = __Position.xy / targetResolutoin;
-//    float3 sampledNormal = FetchNormal(pixelPosition, 0);
-//    sampledNormal = mul(float4(sampledNormal, 0), _camera2World);
-//    //sampledNormal.z = max(1e-3, sampledNormal.z); // Make sure it's never 0!
-//    float3 reversedNormal = mul(float4(sampledNormal, 0), _world2Camera);
-//
-//
-//	
-//
-//    debugEarlyOut.irradiance = float4(reversedNormal, 1);
-//    debugEarlyOut.irradiance = debugEarlyOut.irradiance * 0.5f + 0.5;
-//    debugEarlyOut.bentCone = float4(1, 0, 1, 1);
-//    return debugEarlyOut;
-
-//noise2 = lerp( 0.1, 1.0, noise );
 
 	// Setup camera ray
 	float3	csView = BuildCameraRay( UV );
@@ -419,7 +409,7 @@ PS_OUT	main(PSInput input) {
     float3 centralRadiance = FetchRadiance(pixelPosition,0); // Read back last frame's radiance value that we can use as a fallback for neighbor areas
 
 	// Compute local camera-space
-	//float3	wsPos = _camera2World[3].xyz + Z * Z2Distance * wsView;
+	float3	wsPos = _camera2World[3].xyz + Z * Z2Distance * wsView;
 	float3	wsRight = normalize( cross( wsView, _camera2World[1].xyz ) );
 	float3	wsUp = cross( wsRight, wsView );
 	float3	wsAt = -wsView;
@@ -429,63 +419,16 @@ PS_OUT	main(PSInput input) {
 	float3	gcsRight = float3( dot( wsRight, _camera2World[0].xyz ), dot( wsRight, _camera2World[1].xyz ), dot( wsRight, _camera2World[2].xyz ) );
 	float3	gcsUp = float3( dot( wsUp, _camera2World[0].xyz ), dot( wsUp, _camera2World[1].xyz ), dot( wsUp, _camera2World[2].xyz ) );
 
-
-
-// Simulate perfect alignment
-//gcsRight = float3( 1, 0, 0 );
-//gcsUp = float3( 0, 1, 0 );
-
-
-
-	// Compute the correction factors for our horizon angles
-	// The idea is that we need to walk in screen space but still want to express our angles in local camera space
-	// The configuration of the problem for this situation is something like this:
-	//	
-	//	             ---
-	//	        ---
-	//	x  ---  a      x'
-	//	*------R-------* Z0 ---> X
-	//	|\--    b      |
-	//	|    --        |
-	//	| \     --     z
-	//	|          --  |
-	//	|  \   theta  -* Z1
-	//	|              |
-	//	|   \          |
-	//	|              |
-	//	|    \         |
-	//	|              |
-	//	|  a  \        |
-	//
-	// We walk from x to x' along the global camera space's X axis for a distance R and we sample a new depth Z1 (along the camera's Z axis)
-	// The local camera space's view axis makes an angle "a" with the global camera space's Z axis (the vertical axis).
-	// Its tangent plane (represented at the top, starting slant from x) also makes an angle alpha with the screen plane represented by X
-	// We are looking for cos(theta) and we simply note that theta + a + b = PI/2
-	// Thus, cos(theta) = cos( PI/2 - a - b ) = sin( a + b ) = sin(a)*cos(b) + cos(a)*sin(b)
-	// We easily find that cos(b) = R / sqrt( z² + R² ) and sin(b) = z / sqrt( z² + R² )
-	// So finaly:
-	//	cos(theta) = [sin(a)*R + cos(a)*z] / sqrt( z² + R² )
-	//
-	// We notice that it behaves a bit like a rotation and is finally an angular interpolation between sin(b) and cos(b) that depends on the camera axis deviation...
-	//
-	float2	sinCosGamma;
-//	sinCosGamma.y = csView.z;// dot( wsView, _camera2World[2].xyz );
-//	sinCosGamma.x = sqrt( 1.0 - sinCosGamma.y*sinCosGamma.y );
-//	sinCosGamma *= 0.99;	// Needed otherwise sometimes the cos(theta) is outside the [-1,1] range and acos gives a NaN!
-
-
-// Simulate perfect alignment
-//sinCosGamma = float2( 0, 1 );
-
-
-	// Compute local camera-space normal
-    //float3 csNormal = FetchNormal(pixelPosition, 0);
-    //float3 csNormal = _tex_normal[pixelPosition];
-    float3 csNormal = FetchNormal(pixelPosition, 0);
-			csNormal.z = max( 1e-3, csNormal.z );	// Make sure it's never 0!
-    csNormal = mul(float4(csNormal, 0), _world2Camera);
-
+    float eps=0.0005f;
 	
+	
+	float2	sinCosGamma;
+    float3 wsSurfaceNormal = FetchNormal(pixelPosition, 0);
+    float3 csNormal;
+    csNormal.x = dot(wsSurfaceNormal, wsRight);
+    csNormal.y = dot(wsSurfaceNormal, wsUp);
+    csNormal.z = dot(wsSurfaceNormal, wsAt);
+			//csNormal.z = max( 1e-3, csNormal.z );	// Make sure it's never 0!
 
 	// Compute screen radius of gather sphere
 	float	screenSize_m = 2.0 * Z * TAN_HALF_FOV;																	// Vertical size of the screen in meters when extended to distance Z
@@ -620,32 +563,30 @@ DEBUG_VALUE = csAverageBentNormal.x * wsRight + csAverageBentNormal.y * wsUp + c
 //DEBUG_VALUE = 0.4 * localCamera2World[3];
 //DEBUG_VALUE = GATHER_DEBUG.xyz;
     //DEBUG_VALUE = worldDebugNormal;
-    Out.bentCone = float4( DEBUG_VALUE, 1 );
+    //Out.bentCone = float4( DEBUG_VALUE, 1 );
 //
 //////////////////////////////////////////////
-	if(UV.x ==0.5 && UV.y = 0.5)
+    if (abs(UV.x - 0.5f) < eps && abs(UV.y - 0.5f) < eps)
     {
-		
-    _debug_hbil[0].reconstructedWorldSpacePosition = float4(wsPos,1);
+        _debug_hbil[0].reconstructedWorldSpacePosition = float4(wsPos, 1);
+        _debug_hbil[0].normalAtW = float4(FetchNormal(pixelPosition, 0), 1);
+        _debug_hbil[0].recomputedNormal = float4(csNormal.x * wsRight + csNormal.y * wsUp + csNormal.z * wsAt, 0);
+        _debug_hbil[0].bentNormalAtW = float4(csAverageBentNormal.x * wsRight + csAverageBentNormal.y * wsUp + csAverageBentNormal.z * wsAt, 0);
 	
-    _debug_hbil[0].localCameraDirectionRight = float4(wsRight,0);
-    _debug_hbil[0].localCameraDirectionAt = float4(wsAt,0);
-    _debug_hbil[0].localCameraDirectionUp = float4(wsUp,0);
+        _debug_hbil[0].localCameraDirectionRight = float4(wsRight, 0);
+        _debug_hbil[0].localCameraDirectionAt = float4(wsAt, 0);
+        _debug_hbil[0].localCameraDirectionUp = float4(wsUp, 0);
 
-    _debug_hbil[0].globalCameraDirectionRight = float4(gcsRight,0);
-    _debug_hbil[0].globalCameraDirectionAt = float4(0,0,0,0);
-    _debug_hbil[0].globalCameraDirectionUp = float4(gcsUp,0);
-	
-	
-    debugEarlyOut.irradiance = float4(csNormal,0);
-	debugEarlyOut.bentCone = float4(wsAt,0);
-//    //Out.irradiance = float4(0, 0, 0, 1);;
+        _debug_hbil[0].globalCameraDirectionRight = float4(gcsRight, 0);
+        _debug_hbil[0].globalCameraDirectionAt = float4(0, 0, 0, 0);
+        _debug_hbil[0].globalCameraDirectionUp = float4(gcsUp, 0);
     }
+    Out.irradiance = float4(FetchNormal(pixelPosition, 0), 1);
+    Out.bentCone = float4(csNormal.x * wsRight + csNormal.y * wsUp + csNormal.z * wsAt, 1);
+
 	
-    Out.irradiance = Out.bentCone;
-	Out.irradiance = Out.bentCone*0.5 + 0.5;
-    Out.irradiance = clamp(Out.irradiance, float4(0, 0, 0, 1), float4(1, 1, 1, 0));
-    //Out.irradiance = float4(0, 0, 0, 1);;
+    Out.irradiance = Out.irradiance * 0.5f +0.5f;
+    Out.bentCone = Out.bentCone * 0.5f +0.5f;
 
 	return Out;
 }

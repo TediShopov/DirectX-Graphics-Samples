@@ -800,7 +800,8 @@ UINT TestRenderer::frameIndex = 0;
 			Vector3 currentPoint = rayOrigin + (rayDirection * i * offset/samplesAlongRay);
 			Transform t;
 			t.setPosition(currentPoint);
-			t.setScale(10 , 10, 10);
+			float scale = 5;
+			t.setScale(scale,scale,scale);
 
 			VSConstants vsConstants = SetupObjectVSConstants(gfxContext, ViewProjMat, viewerPos, Filter);
 			vsConstants.modelToWorld =Matrix4(t.getTransformMatrix());
@@ -1485,17 +1486,19 @@ UINT TestRenderer::frameIndex = 0;
 					 //DEBUG RENDERING OF RAYS OF HBIL SAMPLED WITH SPHERES
 					 auto d = m_HBIL->m_DebugHBILActual;
 
-					 float samples = 20;
-					 float offset = 100;
+					 float samples = 10;
+					 float offset = 50;
 					 Vector4 red = Vector4(1, 0, 0, 1);
 					 Vector4 blue = Vector4(0, 0, 1, 1);
-					 Vector4 green = Vector4(1, 0, 0, 1);
+					 Vector4 green = Vector4(0, 1, 0, 1);
+					 Vector4 magenta = Vector4(1, 0, 1, 1);
+					 Vector4 yellow = Vector4(1, 1, 0, 1);
 
 
 
-					 RenderSpheresAlongRay(red,last_camera_data.GetPosition(), last_camera_data.GetUpVec(), samples, offset, gfxContext, camera.GetViewProjMatrix(), camera.GetPosition(), TestRenderer::kOpaque);
-					 RenderSpheresAlongRay(red,last_camera_data.GetPosition(), last_camera_data.GetRightVec(), samples, offset, gfxContext, camera.GetViewProjMatrix(), camera.GetPosition(), TestRenderer::kOpaque);
-					 RenderSpheresAlongRay(red,last_camera_data.GetPosition(), last_camera_data.GetForwardVec(), samples, offset, gfxContext, camera.GetViewProjMatrix(), camera.GetPosition(), TestRenderer::kOpaque);
+//					 RenderSpheresAlongRay(red,last_camera_data.GetPosition(), last_camera_data.GetUpVec(), samples, offset, gfxContext, camera.GetViewProjMatrix(), camera.GetPosition(), TestRenderer::kOpaque);
+//					 RenderSpheresAlongRay(red,last_camera_data.GetPosition(), last_camera_data.GetRightVec(), samples, offset, gfxContext, camera.GetViewProjMatrix(), camera.GetPosition(), TestRenderer::kOpaque);
+//					 RenderSpheresAlongRay(red,last_camera_data.GetPosition(), last_camera_data.GetForwardVec(), samples, offset, gfxContext, camera.GetViewProjMatrix(), camera.GetPosition(), TestRenderer::kOpaque);
 
 					 //Render local camera-space vectors
 					 Vector3 LocalSpaceAt = Vector3(XMLoadFloat4(&d.reconstructedWorldSpacePosition));
@@ -1506,6 +1509,17 @@ UINT TestRenderer::frameIndex = 0;
 					 RenderSpheresAlongRay(blue,LocalSpaceAt, LocalCameraUp, samples,offset,gfxContext,camera.GetViewProjMatrix(),camera.GetPosition(),TestRenderer::kOpaque);
 					 RenderSpheresAlongRay(blue,LocalSpaceAt, LocalCameraRight, samples,offset,gfxContext,camera.GetViewProjMatrix(),camera.GetPosition(),TestRenderer::kOpaque);
 					 RenderSpheresAlongRay(blue,LocalSpaceAt, LocalCameraAt, samples,offset,gfxContext,camera.GetViewProjMatrix(),camera.GetPosition(),TestRenderer::kOpaque);
+
+					 Vector3 NormalSampledAtW = Vector3(XMVector3Normalize( XMLoadFloat4(&d.normalAtW)));
+					 Vector3 RecomputedNormal = Vector3(XMVector3Normalize(XMLoadFloat4(&d.recomputedNormal)));
+					 Vector3 BentNormalAtW = Vector3(XMVector3Normalize(XMLoadFloat4(&d.bentNormalAtW)));
+
+					 RenderSpheresAlongRay(green,LocalSpaceAt, NormalSampledAtW, samples+50,offset+150,gfxContext,camera.GetViewProjMatrix(),camera.GetPosition(),TestRenderer::kOpaque);
+
+					 RenderSpheresAlongRay(yellow,LocalSpaceAt, RecomputedNormal, samples+50,offset+150,gfxContext,camera.GetViewProjMatrix(),camera.GetPosition(),TestRenderer::kOpaque);
+
+					 //RenderSpheresAlongRay(magenta,LocalSpaceAt, BentNormalAtW, samples,offset,gfxContext,camera.GetViewProjMatrix(),camera.GetPosition(),TestRenderer::kOpaque);
+
 
 
 					 
