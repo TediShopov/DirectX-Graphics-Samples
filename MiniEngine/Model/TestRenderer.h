@@ -111,6 +111,7 @@ protected:
 	static void RenderLightShadows(GraphicsContext& gfxContext, const Camera& camera);
 	static void RenderScreenSpaceTriangle(GraphicsContext& Context);
 	static void RenderSphereObject(RENDER_OBJECT_INSTANCE_PARAMS);
+	static void RenderSpheresAlongRay(Vector4 color,Vector3 rayOrigin, Vector3 rayDirection, int samples ,float offset,RENDER_OBJECT_INSTANCE_PARAMS);
 	static void RenderOBJObject(RENDER_OBJECT_INSTANCE_PARAMS);
 	static void RenderOBJObjectCorrectPipeline(RENDER_OBJECT_INSTANCE_PARAMS);
 

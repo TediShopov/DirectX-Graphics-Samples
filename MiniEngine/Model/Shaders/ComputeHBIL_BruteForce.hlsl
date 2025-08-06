@@ -13,6 +13,22 @@ Texture2D 	_tex_normal : register(t1);			// Camera-space normal vectors
 Texture2D	_tex_sourceRadiance : register(t2);	// Last frame's reprojected radiance buffer
 Texture2D< float >	_tex_blueNoise : register(t3);
 
+struct DebugHBILData
+{
+	float4 reconstructedWorldSpacePosition;
+	float4 notamAtW;
+
+	float4 localCameraDirectionUp;
+	float4 localCameraDirectionRight;
+	float4 localCameraDirectionAt;
+
+	float4 globalCameraDirectionUp;
+	float4 globalCameraDirectionRight;
+	float4 globalCameraDirectionAt;
+};
+
+RWStructuredBuffer<DebugHBILData> _debug_hbil : register(u0);
+
 cbuffer CB_HBIL : register( b3 ) {
 	float4	_bilateralValues;
 	float	_gatherSphereMaxRadius_m;		// Radius of the sphere that will gather our irradiance samples (in meters)
@@ -25,18 +41,35 @@ cbuffer CB_HBIL : register( b3 ) {
 ////////////////////////////////////////////////////////////////////////////////
 // Implement the methods expected by the HBIL header
 
+float LinearizeDepth(float z, float nearZ, float farZ)
+{
+    return (nearZ * farZ) / (farZ - z * (farZ - nearZ));
+}
+
+float RemapFloat(float value, float inMin, float inMax, float outMin, float outMax)
+{
+    float normalized = (value - inMin) / (inMax - inMin);
+    normalized = saturate(normalized);
+    return outMin + normalized * (outMax - outMin);
+}
+
+//The below code expects the returned Z values to be in "meters"
+//By the simple multiplication of the depth buffer with a scalar it is evident that the 
+// depth buffer is linear 
 float	FetchDepth( float2 _pixelPosition, float _mipLevel ) {
-// MODIFIED FOR QUARTER RESOLUTION
-    return Z_FAR * _tex_depth.SampleLevel(LinearClamp, _pixelPosition / (_resolution ), _mipLevel);
+
+    float depthRaw = _tex_depth.SampleLevel(LinearClamp, _pixelPosition / (_resolution), _mipLevel);
+    float linearDepth = LinearizeDepth(depthRaw, _ZNearFar_Q_Z.y, _ZNearFar_Q_Z.z);
+    return linearDepth;
+    //float normalizedDepth = RemapFloat(linearDepth,  _ZNearFar_Q_Z.x, _ZNearFar_Q_Z.y, 0, 1);
+    //return _ZNearFar_Q_Z.y * normalizedDepth;
 }
 
 float3	FetchNormal( float2 _pixelPosition, float _mipLevel ) {
-// MODIFIED FOR QUARTER RESOLUTION
     return _tex_normal.SampleLevel(LinearClamp, _pixelPosition / (_resolution), _mipLevel);
 }
 
 float3	FetchRadiance( float2 _pixelPosition, float _mipLevel ) {
-// MODIFIED FOR QUARTER RESOLUTION
     return _tex_sourceRadiance.SampleLevel(LinearClamp, _pixelPosition / (_resolution), _mipLevel).
     xyz;
 }
@@ -261,18 +294,97 @@ struct PS_OUT {
 	float4	bentCone : SV_TARGET1;
 };
 
+
+//PS_OUT	main(PSInput input) {
+//    float4 __Position = input.position;
+//    float2 sourceResolution = _resolution;
+//   float2 targetResolutoin = _resolution;
+//
+//	
+//    PS_OUT debugEarlyOut;
+//	//float2	UV = __Position.xy / _resolution;
+//	//uint2	pixelPosition = uint2( floor( __Position.xy ) );
+//    float2 UV = float2(0.5f, 0.5f);
+//	//uint2	pixelPosition = uint2( floor( __Position.xy ) );
+//	uint2	pixelPosition = uint2(_resolution.x*UV.x,_resolution.y*UV.y);
+//	float	noise = 1;	// ACTUAL GOOD VALUE!
+//	float	noise2 = 1;
+//
+//	
+//	// Setup camera ray
+//	float3	csView = BuildCameraRay( UV );
+//	float	Z2Distance = length( csView );
+//			csView /= Z2Distance;
+//	float3	wsView = mul( float4( csView, 0.0 ), _camera2World ).xyz;
+//
+//	// Read back depth, normal & central radiance value from last frame
+//    //float Z = Z_FAR * _tex_depth[pixelPosition];
+//    float Z = FetchDepth(pixelPosition,0);
+//
+//			Z -= 1e-2;	// !IMPORTANT! Prevent acnea by offseting the central depth a tiny bit closer
+//
+//    float3 centralRadiance = FetchRadiance(pixelPosition,0); // Read back last frame's radiance value that we can use as a fallback for neighbor areas
+//
+//	// Compute local camera-space
+//	float3	wsPos = _camera2World[3].xyz + Z * Z2Distance * wsView;
+//	float3	wsRight = normalize( cross( wsView, _camera2World[1].xyz ) );
+//	float3	wsUp = cross( wsRight, wsView );
+//	float3	wsAt = -wsView;
+//
+//
+//	// Express local camera-space vectors in global camera-space
+//	float3	gcsRight = float3( dot( wsRight, _camera2World[0].xyz ), dot( wsRight, _camera2World[1].xyz ), dot( wsRight, _camera2World[2].xyz ) );
+//	float3	gcsUp = float3( dot( wsUp, _camera2World[0].xyz ), dot( wsUp, _camera2World[1].xyz ), dot( wsUp, _camera2World[2].xyz ) );
+//
+//
+//
+//
+//
+//	float2	sinCosGamma;
+//
+//    float3 csNormal = FetchNormal(pixelPosition, 0);
+//			csNormal.z = max( 1e-3, csNormal.z );	// Make sure it's never 0!
+//    csNormal = mul(float4(csNormal, 0), _world2Camera);
+//
+//
+//    _debug_hbil[0].reconstructedWorldSpacePosition = float4(wsPos,1);
+//	
+//    _debug_hbil[0].localCameraDirectionRight = float4(wsRight,0);
+//    _debug_hbil[0].localCameraDirectionAt = float4(wsAt,0);
+//    _debug_hbil[0].localCameraDirectionUp = float4(wsUp,0);
+//
+//    _debug_hbil[0].globalCameraDirectionRight = float4(gcsRight,0);
+//    _debug_hbil[0].globalCameraDirectionAt = float4(0,0,0,0);
+//    _debug_hbil[0].globalCameraDirectionUp = float4(gcsUp,0);
+//	
+//	
+//    debugEarlyOut.irradiance = float4(csNormal,0);
+//	debugEarlyOut.bentCone = float4(wsAt,0);
+//    //Out.irradiance = float4(0, 0, 0, 1);;
+//
+//	return debugEarlyOut;
+//}
+
+
+
 PS_OUT	main(PSInput input) {
     float4 __Position = input.position;
     float2 sourceResolution = _resolution;
     float2 targetResolutoin = _resolution;
 
+    _debug_hbil[0].reconstructedWorldSpacePosition = 1;
+    _debug_hbil[0].localCameraDirectionRight = 2;
+    _debug_hbil[0].localCameraDirectionUp = 3;
+    _debug_hbil[0].localCameraDirectionAt = 4;
 	
     PS_OUT debugEarlyOut;
 //PS_OUT	PS( float4 __Position : SV_POSITION ) {
 	float2	UV = __Position.xy / _resolution;
 	uint2	pixelPosition = uint2( floor( __Position.xy ) );
-	float	noise = frac( _tex_blueNoise[pixelPosition & 0x3F] + SQRT2 * _framesCount );	// ACTUAL GOOD VALUE!
-	float	noise2 = frac( _time + _tex_blueNoise[uint2( float2( 32659.167 * UV.x, 173227.3 * UV.y ) ) & 0x3F] );
+	//float	noise = frac( _tex_blueNoise[pixelPosition & 0x3F] + SQRT2 * _framesCount );	// ACTUAL GOOD VALUE!
+	//float	noise2 = frac( _time + _tex_blueNoise[uint2( float2( 32659.167 * UV.x, 173227.3 * UV.y ) ) & 0x3F] );
+	float	noise = 1;	// ACTUAL GOOD VALUE!
+	float	noise2 = 1;
 //	float	noise = 0.0;
 //	float	noise2 = frac( sin( 14357.91 * noise ) );
 
@@ -453,7 +565,7 @@ PS_OUT	main(PSInput input) {
 
 	#if MAX_ANGLES > 1
 		varianceAO /= MAX_ANGLES;
-	#endif
+  #endif
 //	float	stdDeviation = PI * sqrt( varianceAO );		// Technically in [0,2PI]
 	float	stdDeviation = 0.5 * sqrt( varianceAO );	// Now AO standard deviation in [0,1]
 
@@ -493,7 +605,8 @@ DEBUG_VALUE = csNormal.x * wsRight + csNormal.y * wsUp + csNormal.z * wsAt;	// W
     //float3 worldDebugNormal = mul(float4(csNormal, 0), _camera2World);
  DEBUG_VALUE = mul(float4(csNormal, 0), _camera2World); // World-space normal
 DEBUG_VALUE = csAverageBentNormal;
-//DEBUG_VALUE = csAverageBentNormal.x * wsRight + csAverageBentNormal.y * wsUp + csAverageBentNormal.z * wsAt;	// World-space normal
+    //DEBUG_VALUE = mul(float4(csAverageBentNormal, 0), _camera2World); // World-space normal
+DEBUG_VALUE = csAverageBentNormal.x * wsRight + csAverageBentNormal.y * wsUp + csAverageBentNormal.z * wsAt;	// World-space normal
 //DEBUG_VALUE = cosAverageConeAngle;
 //DEBUG_VALUE = dot( ssAverageBentNormal, N );
 //DEBUG_VALUE = 0.01 * Z;
@@ -510,7 +623,29 @@ DEBUG_VALUE = csAverageBentNormal;
     Out.bentCone = float4( DEBUG_VALUE, 1 );
 //
 //////////////////////////////////////////////
-    //Out.irradiance = Out.bentCone*0.5 + 0.5;
+	if(UV.x ==0.5 && UV.y = 0.5)
+    {
+		
+    _debug_hbil[0].reconstructedWorldSpacePosition = float4(wsPos,1);
+	
+    _debug_hbil[0].localCameraDirectionRight = float4(wsRight,0);
+    _debug_hbil[0].localCameraDirectionAt = float4(wsAt,0);
+    _debug_hbil[0].localCameraDirectionUp = float4(wsUp,0);
+
+    _debug_hbil[0].globalCameraDirectionRight = float4(gcsRight,0);
+    _debug_hbil[0].globalCameraDirectionAt = float4(0,0,0,0);
+    _debug_hbil[0].globalCameraDirectionUp = float4(gcsUp,0);
+	
+	
+    debugEarlyOut.irradiance = float4(csNormal,0);
+	debugEarlyOut.bentCone = float4(wsAt,0);
+//    //Out.irradiance = float4(0, 0, 0, 1);;
+    }
+	
+    Out.irradiance = Out.bentCone;
+	Out.irradiance = Out.bentCone*0.5 + 0.5;
+    Out.irradiance = clamp(Out.irradiance, float4(0, 0, 0, 1), float4(1, 1, 1, 0));
+    //Out.irradiance = float4(0, 0, 0, 1);;
 
 	return Out;
 }

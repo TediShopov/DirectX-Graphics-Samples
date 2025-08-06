@@ -156,7 +156,7 @@ public:
 	  LinearWrap.AddressV = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
 	  LinearWrap.AddressW = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
 
-	  m_HBILRenderRS.Reset(5, 2);
+	  m_HBILRenderRS.Reset(6, 2);
 	  //Todo check the correct positioning of the static samplers
 	  m_HBILRenderRS.InitStaticSampler(0, LinearClamp);
 	  m_HBILRenderRS.InitStaticSampler(1, LinearWrap);
@@ -170,6 +170,7 @@ public:
 	  m_HBILRenderRS[3].InitAsConstantBuffer(3);
 	  //Supplying The Textures
 	  m_HBILRenderRS[4].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 4);
+	  m_HBILRenderRS[5].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 0, 1);
 
 	  m_HBILRenderRS.Finalize(L"HBIL Root Signature",D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
 
@@ -193,6 +194,27 @@ public:
 	ColorBuffer m_QuarterResNormal;
 	TextureRef m_BlueNoiseTexture;
 
+	//All the data would be collected for a point at the exact center of the screen
+	//U:0.5 V:0.5
+	struct DebugHBILData {
+		XMFLOAT4 reconstructedWorldSpacePosition;
+		XMFLOAT4 notamAtW;
+
+		XMFLOAT4 localCameraDirectionUp;
+		XMFLOAT4 localCameraDirectionRight;
+		XMFLOAT4 localCameraDirectionAt;
+
+		XMFLOAT4 globalCameraDirectionUp;
+		XMFLOAT4 globalCameraDirectionRight;
+		XMFLOAT4 globalCameraDirectionAt;
+	};
+
+
+	DebugHBILData m_DebugHBILActual;
+	ByteAddressBuffer m_DebugHBIL;
+	ReadbackBuffer m_DebugHBILReadback;
+
+
 	void InitializeQuarterResBuffer()
 	{
 		auto d = m_GBuffer.g_Depth;
@@ -204,6 +226,9 @@ public:
 		m_QuarterResNormal.Create(L"Quarter Res Normal Buffer", d->GetWidth() / 4, d->GetHeight() / 4, 0, m_GBuffer.g_Normal->GetFormat());
 
 	}
+
+
+
 	void CreateDownsampleDescriptorHeap() {
 	  m_DownsampleHeap.Create(L"DOWNSAMPLE INPUT OUTPUT HEAP", D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 6);
 	  
@@ -213,19 +238,20 @@ public:
 		  m_GBuffer.g_Normal->GetSRV(),
 		  m_QuarterResDepth.GetUAV(),
 		  m_QuarterResDiffuse.GetUAV(),
-		  m_QuarterResNormal.GetUAV()
+		  m_QuarterResNormal.GetUAV(),
 		  }
 	  );
 
 	}
 	void CreateHBILHeap() {
-	  m_HBILHeap.Create(L"HBIL HEAP", D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 4);
+	  m_HBILHeap.Create(L"HBIL HEAP", D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 5);
 	  
 	  ExtendedUtility::CopyDescriptorsToHeap(m_HBILHeap, {
 		  m_QuarterResDepth.GetSRV(),
 		  m_QuarterResNormal.GetSRV(),
 		  m_QuarterResDiffuse.GetSRV(),
-		  m_BlueNoiseTexture.GetSRV()
+		  m_BlueNoiseTexture.GetSRV(),
+		  m_DebugHBIL.GetUAV()
 		  }
 	  );
 
@@ -314,12 +340,32 @@ public:
 		cfx.Dispatch2D(d->GetWidth(), d->GetHeight(), 8, 8);
 	}
 
+	bool m_debugReadingEnabled = true;
+	void ReadDebugHBIL(GraphicsContext& gfx,D3D12_RESOURCE_STATES endState ,bool flushImmediate = true)
+	{
+		if (m_debugReadingEnabled)
+		{
+			gfx.TransitionResource(m_DebugHBIL, D3D12_RESOURCE_STATE_COPY_DEST, flushImmediate);
+			gfx.CopyBuffer(m_DebugHBILReadback, m_DebugHBIL);
+			void* mappedData = m_DebugHBILReadback.Map();
+			memcpy(&m_DebugHBILActual, mappedData, sizeof(m_DebugHBILActual));
+			m_DebugHBILReadback.Unmap();
+			gfx.TransitionResource(m_DebugHBIL, endState, flushImmediate);
+
+		}
+
+
+
+	}
+
 	void Setup(GBufferPtrs gbuffer,GraphicsPSO quadPSO)
 	{
 		this->m_GBuffer = gbuffer;
 
 		//LOAD BLUE NOISE TEXTURE
 		m_BlueNoiseTexture= TextureManager::LoadDDSFromFile(L"Textures/blueNoise_HDR_LA0.dds");
+		m_DebugHBIL.Create(L"Debug HBIL Buffer",1,sizeof(DebugHBILData));
+		m_DebugHBILReadback.Create(L"Debug HBIL Buffer",1,sizeof(DebugHBILData));
 
 		InitializeQuarterResBuffer();
 
@@ -367,6 +413,10 @@ public:
 		m_MainHBILCB._framesCount = 0;
 		m_MainHBILCB._resolution.x = m_GBuffer.g_Color->GetWidth();
 		m_MainHBILCB._resolution.y = m_GBuffer.g_Color->GetHeight();
+		m_MainHBILCB._coneAngleBias = 0.01f;
+		m_MainHBILCB._framesCount = framesCount;
+		m_MainHBILCB._flags = 0;
+
 
 
 		//Get the camera position up, right and forward vectors
@@ -374,8 +424,8 @@ public:
 		Matrix4 viewMatrix = GetLHViewMatrix(camera);
 
 		// Construct LH perspective projection matrix
-		float fovY = XMConvertToRadians(60.0f); // example FOV
-		float aspect = 1920.0f / 1080.0f;
+		float fovY = camera.GetFOV(); // example FOV
+		float aspect = m_GBuffer.g_Color->GetWidth() /m_GBuffer.g_Color->GetHeight() ;
 		float nearZ = camera.GetNearClip();
 		float farZ = camera.GetFarClip();
 
@@ -385,7 +435,6 @@ public:
 
 
 
-		camera.GetViewMatrix();
 
 		m_HBILCameraCB._world2Camera = Matrix4(XMMatrixTranspose(viewMatrix));
 		m_HBILCameraCB._camera2Proj = Matrix4(XMMatrixTranspose(projMatrix));
@@ -395,7 +444,23 @@ public:
 		m_HBILCameraCB._proj2Camera = Matrix4(XMMatrixTranspose(XMMatrixInverse(nullptr, projMatrix)));
 		m_HBILCameraCB._proj2World = Matrix4(XMMatrixTranspose(XMMatrixInverse(nullptr, viewProjMatrix)));
 
-		m_HBILExtraCB._bilateralValues = XMFLOAT4(1, 1, 1, 1);
+		//Try without the transpose
+
+//		m_HBILCameraCB._world2Camera = Matrix4((viewMatrix));
+//		m_HBILCameraCB._camera2Proj = Matrix4((projMatrix));
+//		m_HBILCameraCB._world2Proj = Matrix4((viewProjMatrix));
+//
+//		m_HBILCameraCB._camera2World = Matrix4((XMMatrixInverse(nullptr, viewMatrix)));
+//		m_HBILCameraCB._proj2Camera = Matrix4((XMMatrixInverse(nullptr, projMatrix)));
+//		m_HBILCameraCB._proj2World = Matrix4((XMMatrixInverse(nullptr, viewProjMatrix)));
+
+
+
+
+		float Q = camera.GetFarClip() / (camera.GetFarClip() - camera.GetNearClip());
+		m_HBILCameraCB._ZNearFar_Q_Z = XMFLOAT4(camera.GetNearClip(),camera.GetFarClip(),Q,0);
+
+		m_HBILExtraCB._bilateralValues = XMFLOAT4(0, 0, 0, 0);
 		m_HBILExtraCB._gatherSphereMaxRadius_m = 100;
 		m_HBILExtraCB._gatherSphereMaxRadius_p = 10;
 		m_HBILExtraCB._temporalAttenuationFactor = 0.5f;
@@ -421,8 +486,8 @@ public:
 		gfx.SetDynamicConstantBufferView(1, sizeof(CB_Camera), &m_HBILCameraCB);
 		gfx.SetDynamicConstantBufferView(2, sizeof(CBSH), &m_CBSH);
 		gfx.SetDynamicConstantBufferView(3, sizeof(CB_HBIL), &m_HBILExtraCB);
-
-		gfx.SetDescriptorTable(4, m_DownsampleHeap[0]);
+		gfx.SetDescriptorTable(4, m_HBILHeap[0]);
+		gfx.SetDescriptorTable(5, m_HBILHeap[4]);
 
 
 

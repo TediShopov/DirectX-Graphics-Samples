@@ -171,6 +171,17 @@ UINT TestRenderer::frameIndex = 0;
 	 bool m_prevStopSurfelUpdate = false;
 	 bool m_renderOnlyCurrentCellSurfels = false;
 	 bool m_useSimpleAlgorithm = true;
+
+	 //Control if we should be updating the debug rays sample from the HBIL pass
+	 bool m_hbil_updateDebug = true;
+	 //Control if we should be drawing those on the rays in the scene in global space
+	 bool m_hbil_drawDebug = true;
+	 //Control if we should drawing render results of hbil on texture quad in front of camera
+	 bool m_hbil_render = true;
+	 Camera last_camera_data;
+	 //Vector3 m_hbil_cameraLastPos;
+
+
 	 
 	 //bool m_useSSRMonly = false;
 	 bool m_useSSRMonly = true;
@@ -778,14 +789,38 @@ UINT TestRenderer::frameIndex = 0;
 
 
 	}
+	void TestRenderer::RenderSpheresAlongRay(Vector4 color,Vector3 rayOrigin, Vector3 rayDirection,int samplesAlongRay,float offset, RENDER_OBJECT_INSTANCE_PARAMS)
+	{
+		//E.g after 20 samples the offset from original position should be "offset"
+		//  rayDir*raySamples = offset
+
+
+		for (size_t i = 0; i < samplesAlongRay; i++)
+		{
+			Vector3 currentPoint = rayOrigin + (rayDirection * i * offset/samplesAlongRay);
+			Transform t;
+			t.setPosition(currentPoint);
+			t.setScale(10 , 10, 10);
+
+			VSConstants vsConstants = SetupObjectVSConstants(gfxContext, ViewProjMat, viewerPos, Filter);
+			vsConstants.modelToWorld =Matrix4(t.getTransformMatrix());
+			gfxContext.SetDynamicConstantBufferView(Renderer::kMeshConstants, sizeof(vsConstants), &vsConstants);
+
+			gfxContext.SetDynamicConstantBufferView(Renderer::kCommonCBV, sizeof(Vector4), &color);
+
+			RenderSphereObject(gfxContext, ViewProjMat, viewerPos, Filter);
+		}
+
+	}
 	void TestRenderer::RenderSphereObject(RENDER_OBJECT_INSTANCE_PARAMS)
 	{
-		VSConstants vsConstants = SetupObjectVSConstants(gfxContext, ViewProjMat, viewerPos, Filter);
-		gfxContext.SetDynamicConstantBufferView(Renderer::kMeshConstants, sizeof(vsConstants), &vsConstants);
 		
 		const UINT vertexBufferSize = sizeof(triangleVertices);
 		gfxContext.SetIndexBuffer(m_Sphere->m_IndexBufferView);
 		gfxContext.SetVertexBuffer(0, m_Sphere->m_VertexBufferView);
+
+
+		//gfxContext.SetDynamicConstantBufferView(Renderer::kCommonCBV, sizeof(Vector4), &s.color);
 		//--- Draw three indices of the triangle
 		gfxContext.DrawIndexed(m_Sphere->m_Indices.size(), 0, 0);
 
@@ -1180,6 +1215,13 @@ UINT TestRenderer::frameIndex = 0;
 		bool pressedResetSurfelsIrradiance = GameInput::IsFirstPressed(GameInput::kKey_c);
 		bool pressedToggleSSR = GameInput::IsFirstPressed(GameInput::kKey_m);
 		bool pressedToggleCameraUpdated = GameInput::IsFirstPressed(GameInput::kKey_space);
+		bool pressedToggleDebugHBIL = GameInput::IsFirstPressed(GameInput::kKey_p);
+		if (pressedToggleDebugHBIL)
+		{
+			m_hbil_render = !m_hbil_render;
+			m_hbil_updateDebug = !m_hbil_updateDebug;
+
+		}
 
 		if (pressedToggleSSR)
 		{
@@ -1298,6 +1340,15 @@ UINT TestRenderer::frameIndex = 0;
 			ImGui::DragFloat("Sun Inclination", &m_sunData.sunInclination,0.01,0,1.0f);
 			ImGui::DragFloat("Sun Ambient Light ", &m_sunData.ambientLightIntensity,0.01,0,1.0f);
 			ImGui::DragFloat("Sun Intensity", &m_sunData.sunLightIntensity,0.01,0,1.0f);
+
+		}
+		static bool hbilDebug = true;
+		if(ImGui::CollapsingHeader("hbilDebug Data", &hbilDebug))
+		{
+			//ImGui::DragFloat3("Sun Direction", &m_sunData.sunDirection.x,0.01,0,1.0f);
+			ImGui::Checkbox("Update HBIL", &m_hbil_updateDebug);
+			ImGui::Checkbox("Render HBIL", &m_hbil_render);
+			ImGui::Checkbox("Debug Visualize HBIL Rays ", &m_hbil_drawDebug);
 
 		}
 
@@ -1428,6 +1479,45 @@ UINT TestRenderer::frameIndex = 0;
 					 RenderRelevantSurfels(gfxContext, camera.GetViewProjMatrix(), camera.GetPosition(), TestRenderer::kOpaque);
 				 else
 					 RenderSurfels(gfxContext, camera.GetViewProjMatrix(), camera.GetPosition(), TestRenderer::kOpaque);
+
+				 if(m_hbil_drawDebug)
+				 {
+					 //DEBUG RENDERING OF RAYS OF HBIL SAMPLED WITH SPHERES
+					 auto d = m_HBIL->m_DebugHBILActual;
+
+					 float samples = 20;
+					 float offset = 100;
+					 Vector4 red = Vector4(1, 0, 0, 1);
+					 Vector4 blue = Vector4(0, 0, 1, 1);
+					 Vector4 green = Vector4(1, 0, 0, 1);
+
+
+
+					 RenderSpheresAlongRay(red,last_camera_data.GetPosition(), last_camera_data.GetUpVec(), samples, offset, gfxContext, camera.GetViewProjMatrix(), camera.GetPosition(), TestRenderer::kOpaque);
+					 RenderSpheresAlongRay(red,last_camera_data.GetPosition(), last_camera_data.GetRightVec(), samples, offset, gfxContext, camera.GetViewProjMatrix(), camera.GetPosition(), TestRenderer::kOpaque);
+					 RenderSpheresAlongRay(red,last_camera_data.GetPosition(), last_camera_data.GetForwardVec(), samples, offset, gfxContext, camera.GetViewProjMatrix(), camera.GetPosition(), TestRenderer::kOpaque);
+
+					 //Render local camera-space vectors
+					 Vector3 LocalSpaceAt = Vector3(XMLoadFloat4(&d.reconstructedWorldSpacePosition));
+					 Vector3 LocalCameraUp = Vector3(XMLoadFloat4(&d.localCameraDirectionUp));
+					 Vector3 LocalCameraRight = Vector3(XMLoadFloat4(&d.localCameraDirectionRight));
+					 Vector3 LocalCameraAt = Vector3(XMLoadFloat4(&d.localCameraDirectionAt));
+
+					 RenderSpheresAlongRay(blue,LocalSpaceAt, LocalCameraUp, samples,offset,gfxContext,camera.GetViewProjMatrix(),camera.GetPosition(),TestRenderer::kOpaque);
+					 RenderSpheresAlongRay(blue,LocalSpaceAt, LocalCameraRight, samples,offset,gfxContext,camera.GetViewProjMatrix(),camera.GetPosition(),TestRenderer::kOpaque);
+					 RenderSpheresAlongRay(blue,LocalSpaceAt, LocalCameraAt, samples,offset,gfxContext,camera.GetViewProjMatrix(),camera.GetPosition(),TestRenderer::kOpaque);
+
+
+					 
+
+				 }
+
+
+				 
+
+
+
+
 
 			 }
 
@@ -1742,9 +1832,21 @@ UINT TestRenderer::frameIndex = 0;
 
 		m_HBIL->ComputeDownsampledTexture(cfx,camera);
 		{
+
 			ScopedTimer _prof(L"Render HBIL Tri", gfxContext);
-			m_HBIL->RenderHBIL(gfxContext, camera);
-			RenderFullScreenQuad(gfxContext);
+			if (m_hbil_updateDebug && m_hbil_render)
+			{
+				m_HBIL->RenderHBIL(gfxContext, camera);
+				RenderFullScreenQuad(gfxContext);
+				m_HBIL->ReadDebugHBIL(gfxContext, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, true);
+				//m_hbil_cameraLastPos = camera.GetPosition();
+				last_camera_data = camera;
+			}
+
+			
+
+
+
 
 		}
 
@@ -1762,6 +1864,8 @@ UINT TestRenderer::frameIndex = 0;
 			SurfelIllumination->ReadbackSurfelData(gfxContext);
 
 		}
+
+
 		SurfelIllumination->ApplySurfels(cfx, camera);
 		
 		if (m_stopSurfelUpdate == false)
