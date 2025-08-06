@@ -69,7 +69,7 @@ float	FetchDepth( float2 _pixelPosition, float _mipLevel ) {
 
 float3	FetchNormal( float2 _pixelPosition, float _mipLevel ) {
     float3 normal =  _tex_normal.SampleLevel(LinearClamp, _pixelPosition / (_resolution), _mipLevel);
-    normal.z *= -1;
+    //normal.z *= -1;
     return normal;
 }
 
@@ -428,7 +428,7 @@ PS_OUT	main(PSInput input) {
     csNormal.x = dot(wsSurfaceNormal, wsRight);
     csNormal.y = dot(wsSurfaceNormal, wsUp);
     csNormal.z = dot(wsSurfaceNormal, wsAt);
-			//csNormal.z = max( 1e-3, csNormal.z );	// Make sure it's never 0!
+			csNormal.z = max( 1e-3, csNormal.z );	// Make sure it's never 0!
 
 	// Compute screen radius of gather sphere
 	float	screenSize_m = 2.0 * Z * TAN_HALF_FOV;																	// Vertical size of the screen in meters when extended to distance Z
@@ -581,12 +581,15 @@ DEBUG_VALUE = csAverageBentNormal.x * wsRight + csAverageBentNormal.y * wsUp + c
         _debug_hbil[0].globalCameraDirectionAt = float4(0, 0, 0, 0);
         _debug_hbil[0].globalCameraDirectionUp = float4(gcsUp, 0);
     }
-    Out.irradiance = float4(FetchNormal(pixelPosition, 0), 1);
-    Out.bentCone = float4(csNormal.x * wsRight + csNormal.y * wsUp + csNormal.z * wsAt, 1);
 
-	
-    Out.irradiance = Out.irradiance * 0.5f +0.5f;
-    Out.bentCone = Out.bentCone * 0.5f +0.5f;
+//    Out.irradiance = float4(csNormal.x * wsRight + csNormal.y * wsUp + csNormal.z * wsAt, 1);
+//    Out.irradiance.xyz = Out.irradiance.xyz * 0.5f + 0.5f;
+//    //Out.irradiance = clamp(Out.irradiance, 0, 1);
+//    Out.irradiance = float4(csAverageBentNormal.x * wsRight + csAverageBentNormal.y * wsUp + csAverageBentNormal.z * wsAt,1);
+//    Out.irradiance.xyz = Out.irradiance.xyz * 0.5f + 0.5f;
+//    Out.irradiance = float4(csAverageBentNormal,1);
+//    Out.irradiance.xyz = Out.irradiance.xyz * 0.5f + 0.5f;
+
 
 	return Out;
 }

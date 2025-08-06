@@ -84,7 +84,6 @@ class HBIL
 	HBIL_MAIN m_MainHBILCB; 
 	CB_Camera m_HBILCameraCB;
 	CBSH m_CBSH;
-	CB_HBIL m_HBILExtraCB;
 	//Hold the pointers to actual GBuffer
 	GBufferPtrs m_GBuffer;
 
@@ -111,12 +110,16 @@ class HBIL
 	DepthBuffer m_SplitDepth;
 
 
-	ColorBuffer m_IrradianceRenderTarget;
-	ColorBuffer m_BentConesRenderTarget;
+//	ColorBuffer m_IrradianceRenderTarget;
+//	ColorBuffer m_BentConesRenderTarget;
 
 public:
+
+	CB_HBIL m_HBILExtraCB;
 	HBIL()
 	{
+		m_HBILExtraCB._gatherSphereMaxRadius_m = 1000;
+		m_HBILExtraCB._gatherSphereMaxRadius_p = 1500;
 
 	}
 	void CreateDownsampledRootSignature()
@@ -389,8 +392,8 @@ public:
 		CreateHBILPSO(quadPSO);
 
 		//Create the render targets
-		m_IrradianceRenderTarget.Create(L"HBIL Irradiance Render Target", gbuffer.g_Color->GetWidth(), gbuffer.g_Color->GetHeight(),0,DXGI_FORMAT_R11G11B10_FLOAT);
-		m_BentConesRenderTarget.Create(L"HBIL Bent Cones Render Target", gbuffer.g_Color->GetWidth(), gbuffer.g_Color->GetHeight(),0,DXGI_FORMAT_R11G11B10_FLOAT);
+		//m_IrradianceRenderTarget.Create(L"HBIL Irradiance Render Target", gbuffer.g_Color->GetWidth(), gbuffer.g_Color->GetHeight(),0,DXGI_FORMAT_R11G11B10_FLOAT);
+		//m_BentConesRenderTarget.Create(L"HBIL Bent Cones Render Target", gbuffer.g_Color->GetWidth(), gbuffer.g_Color->GetHeight(),0,DXGI_FORMAT_R11G11B10_FLOAT);
 
 
 		CreateDownsamplePSO();
@@ -426,7 +429,7 @@ public:
 		m_MainHBILCB._framesCount = 0;
 		m_MainHBILCB._resolution.x = m_GBuffer.g_Color->GetWidth();
 		m_MainHBILCB._resolution.y = m_GBuffer.g_Color->GetHeight();
-		m_MainHBILCB._coneAngleBias = 0.01f;
+		m_MainHBILCB._coneAngleBias = 0.1f;
 		m_MainHBILCB._framesCount = framesCount;
 		m_MainHBILCB._flags = 0;
 
@@ -474,8 +477,6 @@ public:
 		m_HBILCameraCB._ZNearFar_Q_Z = XMFLOAT4(camera.GetNearClip(),camera.GetFarClip(),Q,0);
 
 		m_HBILExtraCB._bilateralValues = XMFLOAT4(0, 0, 0, 0);
-		m_HBILExtraCB._gatherSphereMaxRadius_m = 100;
-		m_HBILExtraCB._gatherSphereMaxRadius_p = 10;
 		m_HBILExtraCB._temporalAttenuationFactor = 0.5f;
 
 
@@ -504,7 +505,7 @@ public:
 
 //		gfx.TransitionResource(m_IrradianceRenderTarget, D3D12_RESOURCE_STATE_RENDER_TARGET, true);
 //		gfx.TransitionResource(m_BentConesRenderTarget, D3D12_RESOURCE_STATE_RENDER_TARGET, true);
-//
+
 //		const D3D12_CPU_DESCRIPTOR_HANDLE handles[2]
 //		{
 //			m_IrradianceRenderTarget.GetRTV(),

@@ -8,7 +8,9 @@
 #define INVPI	0.31830988618379067153776752674503
 #define SQRT2	1.4142135623730950488016887242097
 
-#define TAN_HALF_FOV	0.6		// tan( vertical FOV / 2 ) with vertical FOV = 90°
+//#define TAN_HALF_FOV	0.6		// tan( vertical FOV / 2 ) with vertical FOV = 90°
+#define TAN_HALF_FOV	0.414213568		// tan( vertical FOV / 2 ) with vertical FOV = 90°
+
 #define Z_FAR			100.0	// 100m max encoded in the depth buffer
 
 cbuffer CB_Main : register(b0) {

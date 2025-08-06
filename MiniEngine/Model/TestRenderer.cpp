@@ -1243,6 +1243,7 @@ UINT TestRenderer::frameIndex = 0;
 		}
 
 
+
 		if (pressedTogglePhysicalSurfels)
 			m_drawPhysicalSurfelInstances = !m_drawPhysicalSurfelInstances;
 		if (pressedToggleUseSSRMOnly)
@@ -1350,6 +1351,12 @@ UINT TestRenderer::frameIndex = 0;
 			ImGui::Checkbox("Update HBIL", &m_hbil_updateDebug);
 			ImGui::Checkbox("Render HBIL", &m_hbil_render);
 			ImGui::Checkbox("Debug Visualize HBIL Rays ", &m_hbil_drawDebug);
+
+
+		//m_HBILExtraCB._gatherSphereMaxRadius_m = 1000;
+		//m_HBILExtraCB._gatherSphereMaxRadius_p = 50;
+			ImGui::SliderFloat("Gathre Sphere Max Radius Meters", &m_HBIL->m_HBILExtraCB._gatherSphereMaxRadius_m,100,4000);
+			ImGui::SliderFloat("Garher Spherre Max Radius Pixels", &m_HBIL->m_HBILExtraCB._gatherSphereMaxRadius_p,0,1500);
 
 		}
 
@@ -1495,6 +1502,9 @@ UINT TestRenderer::frameIndex = 0;
 					 Vector4 yellow = Vector4(1, 1, 0, 1);
 
 
+					 float HALF_FOV = tan(camera.GetFOV()/2);
+
+
 
 //					 RenderSpheresAlongRay(red,last_camera_data.GetPosition(), last_camera_data.GetUpVec(), samples, offset, gfxContext, camera.GetViewProjMatrix(), camera.GetPosition(), TestRenderer::kOpaque);
 //					 RenderSpheresAlongRay(red,last_camera_data.GetPosition(), last_camera_data.GetRightVec(), samples, offset, gfxContext, camera.GetViewProjMatrix(), camera.GetPosition(), TestRenderer::kOpaque);
@@ -1511,14 +1521,16 @@ UINT TestRenderer::frameIndex = 0;
 					 RenderSpheresAlongRay(blue,LocalSpaceAt, LocalCameraAt, samples,offset,gfxContext,camera.GetViewProjMatrix(),camera.GetPosition(),TestRenderer::kOpaque);
 
 					 Vector3 NormalSampledAtW = Vector3(XMVector3Normalize( XMLoadFloat4(&d.normalAtW)));
+					 NormalSampledAtW.SetZ(-NormalSampledAtW.GetZ());
 					 Vector3 RecomputedNormal = Vector3(XMVector3Normalize(XMLoadFloat4(&d.recomputedNormal)));
+					 RecomputedNormal.SetZ(-RecomputedNormal.GetZ());
 					 Vector3 BentNormalAtW = Vector3(XMVector3Normalize(XMLoadFloat4(&d.bentNormalAtW)));
 
 					 RenderSpheresAlongRay(green,LocalSpaceAt, NormalSampledAtW, samples+50,offset+150,gfxContext,camera.GetViewProjMatrix(),camera.GetPosition(),TestRenderer::kOpaque);
 
 					 RenderSpheresAlongRay(yellow,LocalSpaceAt, RecomputedNormal, samples+50,offset+150,gfxContext,camera.GetViewProjMatrix(),camera.GetPosition(),TestRenderer::kOpaque);
 
-					 //RenderSpheresAlongRay(magenta,LocalSpaceAt, BentNormalAtW, samples,offset,gfxContext,camera.GetViewProjMatrix(),camera.GetPosition(),TestRenderer::kOpaque);
+					 RenderSpheresAlongRay(magenta,LocalSpaceAt, BentNormalAtW, samples,offset,gfxContext,camera.GetViewProjMatrix(),camera.GetPosition(),TestRenderer::kOpaque);
 
 
 
