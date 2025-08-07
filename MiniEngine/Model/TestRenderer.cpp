@@ -58,6 +58,7 @@
 #include "TestRaytracing.h"
 #include "SurfelIrradianceAccumulation.h"
 #include "HBIL.h"
+#include "GBufferDownsample.h"
 
 
 

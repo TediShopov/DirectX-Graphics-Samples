@@ -235,6 +235,7 @@
     <ClInclude Include="ModelOBJ.h" />
     <ClInclude Include="SurfelSSRMIrradianceAccumulation.h" />
     <ClInclude Include="HBIL.h" />
+    <ClInclude Include="GBufferDownsample.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="Shaders\Common.hlsli">

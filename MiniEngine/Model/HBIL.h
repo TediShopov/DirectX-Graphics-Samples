@@ -20,15 +20,10 @@
 
 #include "ModelH3D.h"
 
-#include "CompiledShaders/DownsampleCS.h"
 #include "CompiledShaders/ComputeHBIL_BruteForce.h"
 
 //All the extra buffers that are needed 
 
-__declspec(align(16)) struct DownsampleData {
-	Matrix4	 worldToCamera;
-	XMFLOAT2 InvSourceResolution; // 1.0 / (fullWidth, fullHeight)
-};
 	
  __declspec(align(16)) struct HBIL_MAIN {
 	XMFLOAT2		_resolution;	// viewport resolution (in pixels)
@@ -78,144 +73,6 @@ __declspec(align(16)) struct CB_HBIL {
 	float	_temporalAttenuationFactor;		// Attenuation factor of radiance from previous frame
 };
 
-enum DownsampledGBuffer
-	{
-		DIFFUSE,DEPTH,NORMAL
-	};
-
-class GBufferDownsample {
-	//Hold the pointers to actual GBuffer
-	GBufferPtrs m_GBuffer;
-
-	ComputePSO m_DownsamplePSO = {(L"Downsample CS PSO")};
-	RootSignature m_DownsampleRS;
-	DownsampleData m_DownsampleCB;
-
-	//The additional resource required to comptue HBIL based on the paper
-	// •  Diffuse lighting (Fullscreen, RGB, HDR, All Mips), used to store the diffuse part of the lighting that is reprojected and re-injected next frame
-	// •  Push/Pull-Buffer (Fullscreen, RGB, HDR, All Mips), serves as the 2nd ping-pong buffer (diffuse lighting buffer  being the first one) to compute the push/pull chain after reprojection (cf. Section 3.2).   
-	ColorBuffer m_DiffuseLighting;
-	ColorBuffer m_PushPullDiffuseLighting;
-
-	DescriptorHeap m_DownsampleHeap;
-
-	
-	ColorBuffer m_DownsampledGBuffer[3];
-
-//	ColorBuffer m_QuarterResDepth;
-//	ColorBuffer m_QuarterResDiffuse;
-//	ColorBuffer m_QuarterResNormal;
-
-
-public:
-
-ColorBuffer*	GetDownsampledBufferPtr()
-	{
-		return m_DownsampledGBuffer;
-
-	}
-
-	GBufferDownsample(){}
-
-	void CreateRootSignature()
-	{
-		//Todo initialize the samplers correctly
-	  SamplerDesc LinearClamp;
-	  LinearClamp.AddressU = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
-	  LinearClamp.AddressV = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
-	  LinearClamp.AddressW = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
-	  LinearClamp.MinLOD = 0;
-
-	  m_DownsampleRS.Reset(3, 1);
-	  m_DownsampleRS.InitStaticSampler(0, LinearClamp);
-
-	  m_DownsampleRS[0].InitAsConstantBuffer(0);
-	  //The first SRV is the input texture in full resolution
-	  m_DownsampleRS[1].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 3);
-	  //The first UAV is the output texture in quarter resolution
-	  m_DownsampleRS[2].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 0, 3);
-
-	  m_DownsampleRS.Finalize(L"CS Downsampling Root Signature");
-	}
-	void CreatePSO()
-	{
-	  m_DownsamplePSO.SetRootSignature(m_DownsampleRS);
-	  m_DownsamplePSO.SetComputeShader(g_pDownsampleCS, sizeof(g_pDownsampleCS));
-	  m_DownsamplePSO.Finalize();
-
-	}
-
-	void InitializeQuarterResBuffer()
-	{
-		auto d = m_GBuffer.g_Depth;
-		m_DownsampledGBuffer[DEPTH].Create(L"Quarter Res Depth Buffer", d->GetWidth() / 4, d->GetHeight() / 4, 0, DXGI_FORMAT_R32_FLOAT);
-		m_DownsampledGBuffer[DIFFUSE].Create(L"Quarter Res Diffuse Buffer", d->GetWidth() / 4, d->GetHeight() / 4, 0, m_GBuffer.g_Color->GetFormat());
-		m_DownsampledGBuffer[NORMAL].Create(L"Quarter Res Normal Buffer", d->GetWidth() / 4, d->GetHeight() / 4, 0, m_GBuffer.g_Normal->GetFormat());
-	}
-
-
-	void CreateDescriptorHeap() {
-
-	  m_DownsampleHeap.Create(L"DOWNSAMPLE INPUT OUTPUT HEAP", D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 6);
-	  
-	  ExtendedUtility::CopyDescriptorsToHeap(m_DownsampleHeap, {
-		  m_GBuffer.g_Depth->GetDepthSRV(),
-		  m_GBuffer.g_Color->GetSRV(),
-		  m_GBuffer.g_Normal->GetSRV(),
-		  m_DownsampledGBuffer[DEPTH].GetUAV(),
-		  m_DownsampledGBuffer[DIFFUSE].GetUAV(),
-		  m_DownsampledGBuffer[NORMAL].GetUAV(),
-		  }
-	  );
-
-	}
-
-	void Dispatch(ComputeContext& cfx,const Camera& camera) {
-
-		ScopedTimer _prof(L"Downsampling Depth", cfx);
-
-		cfx.SetPipelineState(m_DownsamplePSO);
-		cfx.SetRootSignature(m_DownsampleRS);
-
-		cfx.TransitionResource(*m_GBuffer.g_Color, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
-		cfx.TransitionResource(*m_GBuffer.g_Depth, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
-		cfx.TransitionResource(*m_GBuffer.g_Normal, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
-
-		cfx.TransitionResource(m_DownsampledGBuffer[DEPTH], D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE,true);
-		cfx.TransitionResource(m_DownsampledGBuffer[DIFFUSE], D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE,true);
-		cfx.TransitionResource(m_DownsampledGBuffer[NORMAL], D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE,true);
-
-		DepthBuffer* d= m_GBuffer.g_Depth;
-
-		//Assign the resolution to cb
-		XMFLOAT2 invSourceResolution;
-		invSourceResolution.x = 1.0f / d->GetWidth();
-		invSourceResolution.y = 1.0f / d->GetHeight();
-
-		m_DownsampleCB.InvSourceResolution = invSourceResolution;
-		cfx.SetDescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, m_DownsampleHeap.GetHeapPointer());
-		//Setup parameters
-		cfx.SetDynamicConstantBufferView(0, sizeof(DownsampleData), &m_DownsampleCB);
-		cfx.SetDescriptorTable(1,m_DownsampleHeap[0]);
-		cfx.SetDescriptorTable(2,m_DownsampleHeap[3]);
-		cfx.Dispatch2D(d->GetWidth(), d->GetHeight(), 8, 8);
-	}
-
-	bool m_debugReadingEnabled = true;
-	
-
-	void Setup(GBufferPtrs gbuffer,GraphicsPSO quadPSO)
-	{
-		this->m_GBuffer = gbuffer;
-		InitializeQuarterResBuffer();
-		CreateDescriptorHeap();
-		CreateRootSignature();
-		CreatePSO();
-	}
-
-
-};
-
 
 
 class HBIL
@@ -227,17 +84,8 @@ class HBIL
 	GBufferPtrs m_GBuffer;
 	ColorBuffer	m_DownsampledBuffers;
 
-
-
-
-
 	GraphicsPSO m_HBILRenderPass = {(L"HBIL Render Pass PSO")};
 	RootSignature m_HBILRenderRS;
-
-	ComputePSO m_DownsamplePSO = {(L"Downsample CS PSO")};
-	RootSignature m_DownsampleRS;
-	DownsampleData m_DownsampleCB;
-
 
 	//The additional resource required to comptue HBIL based on the paper
 	// •  Diffuse lighting (Fullscreen, RGB, HDR, All Mips), used to store the diffuse part of the lighting that is reprojected and re-injected next frame
@@ -260,59 +108,11 @@ class HBIL
 public:
 
 	CB_HBIL m_HBILExtraCB;
-	HBIL()
-	{
-		m_HBILExtraCB._gatherSphereMaxRadius_m = 1000;
-		m_HBILExtraCB._gatherSphereMaxRadius_p = 1500;
-
-	}
+	HBIL();
 	
-	void CreateHBILRootSignatue()
-	{
-		//Todo initialize the samplers correctly
-	  SamplerDesc LinearClamp;
-	  LinearClamp.AddressU = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
-	  LinearClamp.AddressV = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
-	  LinearClamp.AddressW = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
-	  LinearClamp.MaxAnisotropy = 0;
+	void CreateHBILRootSignatue();
 
-	  SamplerDesc LinearWrap = LinearClamp;
-	  LinearWrap.AddressU = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
-	  LinearWrap.AddressV = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
-	  LinearWrap.AddressW = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
-
-	  m_HBILRenderRS.Reset(6, 2);
-	  //Todo check the correct positioning of the static samplers
-	  m_HBILRenderRS.InitStaticSampler(0, LinearClamp);
-	  m_HBILRenderRS.InitStaticSampler(1, LinearWrap);
-
-	  //Initializing the constant buffer
-	  //This CBs are for the HBIL's global utility file
-	  m_HBILRenderRS[0].InitAsConstantBuffer(0);
-	  m_HBILRenderRS[1].InitAsConstantBuffer(1);
-	  m_HBILRenderRS[2].InitAsConstantBuffer(2);
-	  //This CBs are the HBIL's application files
-	  m_HBILRenderRS[3].InitAsConstantBuffer(3);
-	  //Supplying The Textures
-	  m_HBILRenderRS[4].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 4);
-	  m_HBILRenderRS[5].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 0, 1);
-
-	  m_HBILRenderRS.Finalize(L"HBIL Root Signature",D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
-
-	}
-
-	void CreateHBILPSO(GraphicsPSO quadRenderingPSO)
-	{
-		m_HBILRenderPass = quadRenderingPSO;
-		
-		m_HBILRenderPass.SetRootSignature(m_HBILRenderRS);
-		//DXGI_FORMAT formats[2] = { DXGI_FORMAT_R11G11B10_FLOAT,DXGI_FORMAT_R11G11B10_FLOAT };
-		//m_HBILRenderPass.SetRenderTargetFormats(2, formats,DXGI_FORMAT_UNKNOWN);
-		m_HBILRenderPass.SetPixelShader(g_pComputeHBIL_BruteForce, sizeof(g_pComputeHBIL_BruteForce));
-
-		m_HBILRenderPass.Finalize();
-
-	}
+	void CreateHBILPSO(GraphicsPSO quadRenderingPSO);
 
 
 	DescriptorHeap m_HBILHeap;
@@ -346,201 +146,22 @@ public:
 
 
 
-	void CreateHBILHeap(ColorBuffer* quarterResGBuffer) {
-	  m_HBILHeap.Create(L"HBIL HEAP", D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 5);
-	  
-	  ExtendedUtility::CopyDescriptorsToHeap(m_HBILHeap, {
-		  quarterResGBuffer[DEPTH].GetSRV(),
-		  quarterResGBuffer[NORMAL].GetSRV(),
-		  quarterResGBuffer[DIFFUSE].GetSRV(),
-		  m_BlueNoiseTexture.GetSRV(),
-		  m_DebugHBIL.GetUAV()
-		  }
-	  );
-
-	}
-	Matrix4 GetLHViewMatrix(const Camera& camera)
-	{
-		//Get the camera position up, right and forward vectors
-		Vector3 position = camera.GetPosition();
-		Vector3 forward = camera.GetForwardVec();
-		Vector3 right = camera.GetRightVec();
-		Vector3 up = camera.GetUpVec();
-
-		const float lhViewMatrixData[16] = {
-			(float)right.GetX(), (float)up.GetX(), (float)forward.GetX(), 0.0f,
-			(float)right.GetY(), (float)up.GetY(), (float)forward.GetY(), 0.0f,
-			(float)right.GetZ(), (float)up.GetZ(), (float)forward.GetZ(), 0.0f,
-			-(float)Dot(right, position), -(float)Dot(up, position), -(float)Dot(forward, position), 1.0f
-		};
-
-		// Construct left-handed view matrix
-		Matrix4 viewMatrix = Matrix4(lhViewMatrixData);
-		return viewMatrix;
-
-	}
+	void CreateHBILHeap(ColorBuffer* quarterResGBuffer);
+	Matrix4 GetLHViewMatrix(const Camera& camera);
 
 
 	bool m_debugReadingEnabled = true;
-	void ReadDebugHBIL(GraphicsContext& gfx,D3D12_RESOURCE_STATES endState ,bool flushImmediate = true)
-	{
-		if (m_debugReadingEnabled)
-		{
-			gfx.TransitionResource(m_DebugHBIL, D3D12_RESOURCE_STATE_COPY_DEST, flushImmediate);
-			gfx.CopyBuffer(m_DebugHBILReadback, m_DebugHBIL);
-			void* mappedData = m_DebugHBILReadback.Map();
-			memcpy(&m_DebugHBILActual, mappedData, sizeof(m_DebugHBILActual));
-			m_DebugHBILReadback.Unmap();
-			gfx.TransitionResource(m_DebugHBIL, endState, flushImmediate);
+	void ReadDebugHBIL(GraphicsContext& gfx,D3D12_RESOURCE_STATES endState ,bool flushImmediate = true);
 
-		}
+	void Setup(GBufferPtrs gbuffer,ColorBuffer* downsampledGBuffers,GraphicsPSO quadPSO);
 
 
-
-	}
-
-	void Setup(GBufferPtrs gbuffer,ColorBuffer* downsampledGBuffers,GraphicsPSO quadPSO)
-	{
-		this->m_GBuffer = gbuffer;
-		m_downsampledGBuffers = downsampledGBuffers;
-
-		//LOAD BLUE NOISE TEXTURE
-		m_BlueNoiseTexture= TextureManager::LoadDDSFromFile(L"Textures/blueNoise_HDR_LA0.dds");
-		m_DebugHBIL.Create(L"Debug HBIL Buffer",1,sizeof(DebugHBILData));
-		m_DebugHBILReadback.Create(L"Debug HBIL Buffer",1,sizeof(DebugHBILData));
-
-		CreateHBILHeap(downsampledGBuffers);
-
-		CreateHBILRootSignatue();
-
-		CreateHBILPSO(quadPSO);
-
-		//Create the render targets
-		//m_IrradianceRenderTarget.Create(L"HBIL Irradiance Render Target", gbuffer.g_Color->GetWidth(), gbuffer.g_Color->GetHeight(),0,DXGI_FORMAT_R11G11B10_FLOAT);
-		//m_BentConesRenderTarget.Create(L"HBIL Bent Cones Render Target", gbuffer.g_Color->GetWidth(), gbuffer.g_Color->GetHeight(),0,DXGI_FORMAT_R11G11B10_FLOAT);
-	}
-
-
-	Matrix4 CreatePerspectiveFovLH(float fovY, float aspect, float nearZ, float farZ)
-{
-    float yScale = 1.0f / tanf(fovY * 0.5f);
-    float xScale = yScale / aspect;
-    float zRange = farZ - nearZ;
-	const float lhPerspectiveData[16] =
-	{
-
-		xScale, 0.0f,    0.0f,                     0.0f,
-		0.0f,   yScale,  0.0f,                     0.0f,
-		0.0f,   0.0f,    farZ / zRange,            1.0f,
-		0.0f,   0.0f,    -nearZ * farZ / zRange,   0.0f
-	};
-
-    return Matrix4(lhPerspectiveData);
-}
+	Matrix4 CreatePerspectiveFovLH(float fovY, float aspect, float nearZ, float farZ);
 
 
 
 	int framesCount = 0;
-	void RenderHBIL(GraphicsContext& gfx,const Camera& camera)
-	{
-		ScopedTimer _prof(L"Render HBIL", gfx);
-
-		m_MainHBILCB._deltaTime = 0.1;
-		m_MainHBILCB._framesCount = 0;
-		m_MainHBILCB._resolution.x = m_GBuffer.g_Color->GetWidth();
-		m_MainHBILCB._resolution.y = m_GBuffer.g_Color->GetHeight();
-		m_MainHBILCB._coneAngleBias = 0.1f;
-		m_MainHBILCB._framesCount = framesCount;
-		m_MainHBILCB._flags = 0;
-
-
-
-		//Get the camera position up, right and forward vectors
-		// Construct left-handed view matrix
-		Matrix4 viewMatrix = GetLHViewMatrix(camera);
-
-		// Construct LH perspective projection matrix
-		float fovY = camera.GetFOV(); // example FOV
-		float aspect = m_GBuffer.g_Color->GetWidth() /m_GBuffer.g_Color->GetHeight() ;
-		float nearZ = camera.GetNearClip();
-		float farZ = camera.GetFarClip();
-
-		Matrix4 projMatrix = CreatePerspectiveFovLH(fovY, aspect, nearZ, farZ);
-		Matrix4 viewProjMatrix = projMatrix * viewMatrix;
-
-
-
-
-
-		m_HBILCameraCB._world2Camera = Matrix4(XMMatrixTranspose(viewMatrix));
-		m_HBILCameraCB._camera2Proj = Matrix4(XMMatrixTranspose(projMatrix));
-		m_HBILCameraCB._world2Proj = Matrix4(XMMatrixTranspose(viewProjMatrix));
-
-		m_HBILCameraCB._camera2World = Matrix4(XMMatrixTranspose(XMMatrixInverse(nullptr, viewMatrix)));
-		m_HBILCameraCB._proj2Camera = Matrix4(XMMatrixTranspose(XMMatrixInverse(nullptr, projMatrix)));
-		m_HBILCameraCB._proj2World = Matrix4(XMMatrixTranspose(XMMatrixInverse(nullptr, viewProjMatrix)));
-
-		//Try without the transpose
-
-//		m_HBILCameraCB._world2Camera = Matrix4((viewMatrix));
-//		m_HBILCameraCB._camera2Proj = Matrix4((projMatrix));
-//		m_HBILCameraCB._world2Proj = Matrix4((viewProjMatrix));
-//
-//		m_HBILCameraCB._camera2World = Matrix4((XMMatrixInverse(nullptr, viewMatrix)));
-//		m_HBILCameraCB._proj2Camera = Matrix4((XMMatrixInverse(nullptr, projMatrix)));
-//		m_HBILCameraCB._proj2World = Matrix4((XMMatrixInverse(nullptr, viewProjMatrix)));
-
-
-
-
-		float Q = camera.GetFarClip() / (camera.GetFarClip() - camera.GetNearClip());
-		m_HBILCameraCB._ZNearFar_Q_Z = XMFLOAT4(camera.GetNearClip(),camera.GetFarClip(),Q,0);
-
-		m_HBILExtraCB._bilateralValues = XMFLOAT4(0, 0, 0, 0);
-		m_HBILExtraCB._temporalAttenuationFactor = 0.5f;
-
-
-		//Resource barrier
-		gfx.TransitionResource(m_downsampledGBuffers[0], D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, true);
-		gfx.TransitionResource(m_downsampledGBuffers[1], D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, true);
-		gfx.TransitionResource(m_downsampledGBuffers[2], D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, true);
-
-
-		//Temporaily transition the full resolution resources from the GBuffer
-//		gfx.TransitionResource(*m_GBuffer.g_Depth, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
-//		gfx.TransitionResource(*m_GBuffer.g_Normal, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
-//		gfx.TransitionResource(*m_GBuffer.g_Color, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,true);
-
-
-		gfx.SetPipelineState(m_HBILRenderPass);
-		gfx.SetRootSignature(m_HBILRenderRS);
-		gfx.SetDescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, m_HBILHeap.GetHeapPointer());
-
-		gfx.SetDynamicConstantBufferView(0, sizeof(HBIL_MAIN), &m_MainHBILCB);
-		gfx.SetDynamicConstantBufferView(1, sizeof(CB_Camera), &m_HBILCameraCB);
-		gfx.SetDynamicConstantBufferView(2, sizeof(CBSH), &m_CBSH);
-		gfx.SetDynamicConstantBufferView(3, sizeof(CB_HBIL), &m_HBILExtraCB);
-		gfx.SetDescriptorTable(4, m_HBILHeap[0]);
-		gfx.SetDescriptorTable(5, m_HBILHeap[4]);
-
-//		gfx.TransitionResource(m_IrradianceRenderTarget, D3D12_RESOURCE_STATE_RENDER_TARGET, true);
-//		gfx.TransitionResource(m_BentConesRenderTarget, D3D12_RESOURCE_STATE_RENDER_TARGET, true);
-
-//		const D3D12_CPU_DESCRIPTOR_HANDLE handles[2]
-//		{
-//			m_IrradianceRenderTarget.GetRTV(),
-//			m_BentConesRenderTarget.GetRTV()
-//		};
-//		gfx.SetRenderTargets(2, handles);
-
-
-
-
-
-
-		framesCount++;
-
-	}
+	void RenderHBIL(GraphicsContext& gfx,const Camera& camera);
 
 
 
