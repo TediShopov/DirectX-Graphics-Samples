@@ -73,13 +73,34 @@ __declspec(align(16)) struct CB_HBIL {
 	float	_temporalAttenuationFactor;		// Attenuation factor of radiance from previous frame
 };
 
+	//All the data would be collected for a point at the exact center of the screen
+	//U:0.5 V:0.5
+	struct DebugHBILData {
+		XMFLOAT4 reconstructedWorldSpacePosition;
+		XMFLOAT4 normalAtW;
+		XMFLOAT4 recomputedNormal;
+		XMFLOAT4 bentNormalAtW;
+
+		XMFLOAT4 localCameraDirectionUp;
+		XMFLOAT4 localCameraDirectionRight;
+		XMFLOAT4 localCameraDirectionAt;
+
+		XMFLOAT4 globalCameraDirectionUp;
+		XMFLOAT4 globalCameraDirectionRight;
+		XMFLOAT4 globalCameraDirectionAt;
+	};
 
 
 class HBIL
 {
+protected:
+	bool m_debugReadingEnabled = true;
+	int framesCount = 0;
+
 	HBIL_MAIN m_MainHBILCB; 
 	CB_Camera m_HBILCameraCB;
 	CBSH m_CBSH;
+
 	//Hold the pointers to actual GBuffer
 	GBufferPtrs m_GBuffer;
 	ColorBuffer	m_DownsampledBuffers;
@@ -101,69 +122,30 @@ class HBIL
 	ColorBuffer m_SplitNormal;
 	DepthBuffer m_SplitDepth;
 
-
-//	ColorBuffer m_IrradianceRenderTarget;
-//	ColorBuffer m_BentConesRenderTarget;
-
-public:
-
-	CB_HBIL m_HBILExtraCB;
-	HBIL();
-	
-	void CreateHBILRootSignatue();
-
-	void CreateHBILPSO(GraphicsPSO quadRenderingPSO);
-
-
-	DescriptorHeap m_HBILHeap;
-	TextureRef m_BlueNoiseTexture;
-
-	//All the data would be collected for a point at the exact center of the screen
-	//U:0.5 V:0.5
-	struct DebugHBILData {
-		XMFLOAT4 reconstructedWorldSpacePosition;
-		XMFLOAT4 normalAtW;
-		XMFLOAT4 recomputedNormal;
-		XMFLOAT4 bentNormalAtW;
-
-		XMFLOAT4 localCameraDirectionUp;
-		XMFLOAT4 localCameraDirectionRight;
-		XMFLOAT4 localCameraDirectionAt;
-
-		XMFLOAT4 globalCameraDirectionUp;
-		XMFLOAT4 globalCameraDirectionRight;
-		XMFLOAT4 globalCameraDirectionAt;
-	};
-
-
-	DebugHBILData m_DebugHBILActual;
 	ByteAddressBuffer m_DebugHBIL;
 	ReadbackBuffer m_DebugHBILReadback;
 	ColorBuffer* m_downsampledGBuffers;
 
+	DescriptorHeap m_HBILHeap;
+	TextureRef m_BlueNoiseTexture;
 
-	
+public:
+	DebugHBILData m_DebugHBILActual;
 
+	CB_HBIL m_HBILExtraCB;
+	HBIL();
 
-
-	void CreateHBILHeap(ColorBuffer* quarterResGBuffer);
-	Matrix4 GetLHViewMatrix(const Camera& camera);
-
-
-	bool m_debugReadingEnabled = true;
-	void ReadDebugHBIL(GraphicsContext& gfx,D3D12_RESOURCE_STATES endState ,bool flushImmediate = true);
-
+#pragma region Initialization
 	void Setup(GBufferPtrs gbuffer,ColorBuffer* downsampledGBuffers,GraphicsPSO quadPSO);
 
+	void CreateHBILPSO(GraphicsPSO quadRenderingPSO);
 
-	Matrix4 CreatePerspectiveFovLH(float fovY, float aspect, float nearZ, float farZ);
+	void CreateHBILRootSignatue();
 
+	void CreateHBILHeap(ColorBuffer* quarterResGBuffer);
+#pragma endregion
+	void ReadDebugHBIL(GraphicsContext& gfx,D3D12_RESOURCE_STATES endState ,bool flushImmediate = true);
 
-
-	int framesCount = 0;
 	void RenderHBIL(GraphicsContext& gfx,const Camera& camera);
-
-
-
 };
 

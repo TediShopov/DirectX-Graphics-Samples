@@ -6,7 +6,7 @@
 #include "HBIL.hlsl"
 
 #define MAX_ANGLES	16									// Amount of circle subdivisions per pixel
-#define MAX_SAMPLES	16									// Maximum amount of samples per circle subdivision
+#define MAX_SAMPLES	32									// Maximum amount of samples per circle subdivision
 
 Texture2D< float >	_tex_depth : register(t0);			// Depth or distance buffer (here we're given depth)
 Texture2D 	_tex_normal : register(t1);			// Camera-space normal vectors
@@ -378,6 +378,61 @@ struct PS_OUT {
 //}
 
 
+float2	BilateralFilter( float2 _ssCentralPosition, float _centralZ, float3 _lcsCentralNormal, float2 _ssCurrentPosition, float _currentZ, float3 _lcsCurrentNormal, float _radius_meters, float _horizonCosTheta, float _newCosTheta ) {
+
+	// Rebuild camera-space positions & normals
+	// This has room for *A LOT* of optimization!!!
+	//
+		// For central point
+	//TODO change _target resolution with _resolution for now
+	float2	UV0 = _ssCentralPosition / _resolution;
+	float3	csView0 = BuildCameraRay( UV0 );
+	float3	csPos0 = _centralZ * csView0;
+			csView0 = normalize( csView0 );
+	float3	csAt0 = -csView0;
+	float3	csRight0 = normalize( cross( csAt0, float3( 0, 1, 0 ) ) );
+	float3	csUp0 = cross( csRight0, csAt0 );
+	float3	csNormal0 = _lcsCentralNormal.x * csRight0 + _lcsCentralNormal.y * csUp0 + _lcsCentralNormal.z * csAt0;
+
+		// For current point
+	float2	UV1 = _ssCurrentPosition / _resolution;
+	float3	csView1 = BuildCameraRay( UV1 );
+	float3	csPos1 = _currentZ * csView1;
+			csView1 = normalize( csView1 );
+	float3	csAt1 = -csView1;
+	float3	csRight1 = normalize( cross( csAt1, float3( 0, 1, 0 ) ) );
+	float3	csUp1 = cross( csRight1, csAt1 );
+	float3	csNormal1 = _lcsCurrentNormal.x * csRight1 + _lcsCurrentNormal.y * csUp1 + _lcsCurrentNormal.z * csAt1;
+
+	// ====== Compute depth filter value ======
+	// Our criterion is that current position and normal must see our central position to contribute...
+	float3	csToCentralPosition = csPos0 - csPos1;
+	float	distance2CentralPosition = length( csToCentralPosition );
+			csToCentralPosition /= distance2CentralPosition;
+
+	const float2	toleranceMin = float2( -0.02, -0.04 );
+	const float2	toleranceMax = float2( -0.4, -0.8 );
+	float	verticality = smoothstep( 0.5, 0.9, saturate( -dot( csToCentralPosition, csNormal0 ) ) );
+	float2	tolerance = lerp( toleranceMin, toleranceMax, verticality );	// We grow more tolerant for very vertical pixels
+	float	depthFilter = smoothstep( tolerance.y, tolerance.x, dot( csToCentralPosition, csNormal1 ) );
+
+	// ====== Compute radiance filter value ======
+	// To avoid sudden radiance jumps we use a dot product
+	#if 0
+		float	radianceFilter = saturate( dot( csToCentralPosition, csNormal1 ) );
+//				radianceFilter = pow( radianceFilter, 0.5 );
+				radianceFilter = fastSqrtNR0( radianceFilter );				// Not full dot product, sqrt( dot( ) ) actually! (smoother result)
+				radianceFilter = 1.0
+							   - saturate( 0.5 * distance2CentralPosition )	// Dot product fade out is fully effective after 2 meters
+							   * (1.0 - radianceFilter);
+	#else
+		float	radianceFilter = 1.0
+							   - saturate( 0.5 * distance2CentralPosition )	// Dot product fade out is fully effective after 2 meters
+							   * pow2( 1.0 - saturate( dot( csToCentralPosition, csNormal1 ) ) );
+	#endif
+
+	return float2( depthFilter, radianceFilter );
+}
 
 PS_OUT	main(PSInput input) {
     float4 __Position = input.position;
@@ -483,7 +538,16 @@ PS_OUT	main(PSInput input) {
 		// Gather irradiance and average cone direction for that slice
 		float3	csBentNormal;
 		float	AO;
-		sumIrradiance += GatherIrradiance_TEMP( __Position.xy, ssDirection, _resolution, csDirection, csNormal, noise, sinCosGamma, radiusStepSize_meters, samplesCount, Z, centralRadiance, csBentNormal, AO, GATHER_DEBUG );
+//		sumIrradiance += GatherIrradiance_TEMP( 
+//		__Position.xy, ssDirection, _resolution, 
+//		csDirection, csNormal, 
+//		noise, sinCosGamma, radiusStepSize_meters, samplesCount, Z, centralRadiance, csBentNormal, AO, GATHER_DEBUG );
+
+        sumIrradiance += GatherIrradiance(
+		__Position.xy, ssDirection, _resolution, 
+		csDirection, csNormal, 
+		sinCosGamma, radiusStepSize_meters, samplesCount, Z, centralRadiance, noise, csBentNormal, AO);
+
 		csAverageBentNormal += csBentNormal;
 		sumAO += AO;
 

@@ -70,26 +70,6 @@
 
 }
 
- Matrix4 HBIL::GetLHViewMatrix(const Camera& camera)
-{
-	//Get the camera position up, right and forward vectors
-	Vector3 position = camera.GetPosition();
-	Vector3 forward = camera.GetForwardVec();
-	Vector3 right = camera.GetRightVec();
-	Vector3 up = camera.GetUpVec();
-
-	const float lhViewMatrixData[16] = {
-		(float)right.GetX(), (float)up.GetX(), (float)forward.GetX(), 0.0f,
-		(float)right.GetY(), (float)up.GetY(), (float)forward.GetY(), 0.0f,
-		(float)right.GetZ(), (float)up.GetZ(), (float)forward.GetZ(), 0.0f,
-		-(float)Dot(right, position), -(float)Dot(up, position), -(float)Dot(forward, position), 1.0f
-	};
-
-	// Construct left-handed view matrix
-	Matrix4 viewMatrix = Matrix4(lhViewMatrixData);
-	return viewMatrix;
-
-}
 
  void HBIL::ReadDebugHBIL(GraphicsContext& gfx, D3D12_RESOURCE_STATES endState, bool flushImmediate)
 {
@@ -129,22 +109,6 @@
 	//m_BentConesRenderTarget.Create(L"HBIL Bent Cones Render Target", gbuffer.g_Color->GetWidth(), gbuffer.g_Color->GetHeight(),0,DXGI_FORMAT_R11G11B10_FLOAT);
 }
 
- Matrix4 HBIL::CreatePerspectiveFovLH(float fovY, float aspect, float nearZ, float farZ)
-{
-	float yScale = 1.0f / tanf(fovY * 0.5f);
-	float xScale = yScale / aspect;
-	float zRange = farZ - nearZ;
-	const float lhPerspectiveData[16] =
-	{
-
-		xScale, 0.0f,    0.0f,                     0.0f,
-		0.0f,   yScale,  0.0f,                     0.0f,
-		0.0f,   0.0f,    farZ / zRange,            1.0f,
-		0.0f,   0.0f,    -nearZ * farZ / zRange,   0.0f
-	};
-
-	return Matrix4(lhPerspectiveData);
-}
 
  void HBIL::RenderHBIL(GraphicsContext& gfx, const Camera& camera)
 {
@@ -162,7 +126,7 @@
 
 	//Get the camera position up, right and forward vectors
 	// Construct left-handed view matrix
-	Matrix4 viewMatrix = GetLHViewMatrix(camera);
+	Matrix4 viewMatrix = ExtendedUtility::GetLHViewMatrix(camera);
 
 	// Construct LH perspective projection matrix
 	float fovY = camera.GetFOV(); // example FOV
@@ -170,7 +134,7 @@
 	float nearZ = camera.GetNearClip();
 	float farZ = camera.GetFarClip();
 
-	Matrix4 projMatrix = CreatePerspectiveFovLH(fovY, aspect, nearZ, farZ);
+	Matrix4 projMatrix = ExtendedUtility::CreatePerspectiveFovLH(fovY, aspect, nearZ, farZ);
 	Matrix4 viewProjMatrix = projMatrix * viewMatrix;
 
 
