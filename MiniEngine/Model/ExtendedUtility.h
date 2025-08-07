@@ -8,6 +8,7 @@
 struct GBufferPtrs
 {
 	ColorBuffer* g_Color;
+	ColorBuffer* g_Diffuse;
 	ColorBuffer* g_Normal;
 	DepthBuffer* g_Depth;
 

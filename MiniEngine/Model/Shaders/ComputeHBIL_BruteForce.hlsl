@@ -425,6 +425,9 @@ PS_OUT	main(PSInput input) {
 	float2	sinCosGamma;
     float3 wsSurfaceNormal = FetchNormal(pixelPosition, 0);
     float3 csNormal;
+    //csNormal = mul(float4(wsSurfaceNormal, 0), _world2Camera);
+    //csNormal = mul(float4(wsSurfaceNormal, 0), _camera2World);
+	
     csNormal.x = dot(wsSurfaceNormal, wsRight);
     csNormal.y = dot(wsSurfaceNormal, wsUp);
     csNormal.z = dot(wsSurfaceNormal, wsAt);

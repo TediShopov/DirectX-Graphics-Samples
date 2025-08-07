@@ -61,7 +61,8 @@
 	ExtendedUtility::CopyDescriptorsToHeap(m_HBILHeap, {
 		quarterResGBuffer[DEPTH].GetSRV(),
 		quarterResGBuffer[NORMAL].GetSRV(),
-		quarterResGBuffer[DIFFUSE].GetSRV(),
+		//quarterResGBuffer[DIFFUSE].GetSRV(),
+		m_GBuffer.g_Diffuse->GetSRV(),
 		m_BlueNoiseTexture.GetSRV(),
 		m_DebugHBIL.GetUAV()
 		}

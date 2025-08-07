@@ -304,8 +304,8 @@ UINT TestRenderer::frameIndex = 0;
 		//m_Transform.setScale(50,50,50);
 		m_Transform.setScale(10,10,10);
 
-		m_sunData.ambientLightIntensity = 0.1f;
-		//m_sunData.ambientLightIntensity = 0;
+		//m_sunData.ambientLightIntensity = 0.1f;
+		m_sunData.ambientLightIntensity = 0;
 		m_sunData.sunInclination = 1.0f;
 		m_sunData.sunLightIntensity = 1.0f;
 
@@ -475,10 +475,14 @@ UINT TestRenderer::frameIndex = 0;
 		g_Device->CopyDescriptors(1, &Renderer::m_CommonTextures, &DestCount, DestCount, SourceTextures, SourceCounts, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 
 
+		//CopyColorAndDepthBuffers(gfxContext);
+
 		GBufferPtrs gbuffer{
 			&g_SceneColorBuffer,
+			&colorCopyBuffer,
 			&g_SceneNormalBuffer,
-			&g_SceneDepthBuffer
+			&g_SceneDepthBuffer,
+
 
 		};
 
