@@ -87,6 +87,7 @@
     <ClInclude Include="glTF.h" />
     <ClInclude Include="HashGridVisualization.h" />
     <ClInclude Include="HBIL.h" />
+    <ClInclude Include="HBILInterleaved.h" />
     <ClInclude Include="Imgui\imgui-master\imgui.h" />
     <ClInclude Include="IndexOptimizePostTransform.h" />
     <ClInclude Include="json.hpp" />
@@ -108,6 +109,10 @@
       <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">6.3</ShaderModel>
     </FxCompile>
     <None Include="Shaders\DownsampleDepthExpPS.hlsli" />
+    <FxCompile Include="Shaders\GBufferSlice.hlsli">
+      <FileType>Document</FileType>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">6.3</ShaderModel>
+    </FxCompile>
     <None Include="Shaders\MultiscaleMeanEstimator.hlsl">
       <FileType>Document</FileType>
     </None>
@@ -159,6 +164,7 @@
     <ClCompile Include="glTF.cpp" />
     <ClCompile Include="HashGridVisualization.cpp" />
     <ClCompile Include="HBIL.cpp" />
+    <ClCompile Include="HBILInterleaved.cpp" />
     <ClCompile Include="Imgui\imgui-master\backends\imgui_impl_dx12.cpp" />
     <ClCompile Include="Imgui\imgui-master\backends\imgui_impl_win32.cpp" />
     <ClCompile Include="Imgui\imgui-master\imgui.cpp" />

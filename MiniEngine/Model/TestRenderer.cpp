@@ -59,6 +59,7 @@
 #include "SurfelIrradianceAccumulation.h"
 #include "HBIL.h"
 #include "GBufferDownsample.h"
+#include "HBILInterleaved.h"
 
 
 
@@ -131,6 +132,7 @@ UINT TestRenderer::frameIndex = 0;
 	 SurfelGIOnlyVisualization* TestRenderer::MaterialBindingDebug = nullptr;
 	 HBIL* TestRenderer::m_HBIL = nullptr;
 	 GBufferDownsample* TestRenderer::m_GBufferDownsample = nullptr;
+	 GBufferSlice* TestRenderer::m_GBufferSlice = nullptr;
 
 	 ModelH3D* TestRenderer::m_Model = nullptr;
 	 ModelH3D* TestRenderer::m_ModelExtra = nullptr;
@@ -598,7 +600,9 @@ UINT TestRenderer::frameIndex = 0;
 
 		m_HBIL = new HBIL();
 		m_GBufferDownsample = new GBufferDownsample();
+		m_GBufferSlice = new GBufferSlice();
 		m_GBufferDownsample->Setup(gbuffer, GridVisualization->m_TestPSO);
+		m_GBufferSlice->Setup(m_GBufferDownsample->GetDownsampledBufferPtr(), GridVisualization->m_TestPSO);
 
 		m_HBIL->Setup(
 			gbuffer,
@@ -1865,6 +1869,7 @@ UINT TestRenderer::frameIndex = 0;
 
 
 		m_GBufferDownsample->Dispatch(cfx, camera);
+		m_GBufferSlice->Dispatch(cfx, camera);
 		//m_HBIL->ComputeDownsampledTexture(cfx,camera);
 		{
 

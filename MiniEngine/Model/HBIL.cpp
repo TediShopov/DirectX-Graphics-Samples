@@ -110,20 +110,8 @@
 }
 
 
- void HBIL::RenderHBIL(GraphicsContext& gfx, const Camera& camera)
-{
-	ScopedTimer _prof(L"Render HBIL", gfx);
-
-	m_MainHBILCB._deltaTime = 0.1;
-	m_MainHBILCB._framesCount = 0;
-	m_MainHBILCB._resolution.x = m_GBuffer.g_Color->GetWidth();
-	m_MainHBILCB._resolution.y = m_GBuffer.g_Color->GetHeight();
-	m_MainHBILCB._coneAngleBias = 0.1f;
-	m_MainHBILCB._framesCount = framesCount;
-	m_MainHBILCB._flags = 0;
-
-
-
+ void HBIL::UpdateCameraCBufferLH(const Camera& camera, CB_Camera& cameraCBuffer)
+ {
 	//Get the camera position up, right and forward vectors
 	// Construct left-handed view matrix
 	Matrix4 viewMatrix = ExtendedUtility::GetLHViewMatrix(camera);
@@ -141,44 +129,49 @@
 
 
 
-	m_HBILCameraCB._world2Camera = Matrix4(XMMatrixTranspose(viewMatrix));
-	m_HBILCameraCB._camera2Proj = Matrix4(XMMatrixTranspose(projMatrix));
-	m_HBILCameraCB._world2Proj = Matrix4(XMMatrixTranspose(viewProjMatrix));
+	cameraCBuffer._world2Camera = Matrix4(XMMatrixTranspose(viewMatrix));
+	cameraCBuffer._camera2Proj = Matrix4(XMMatrixTranspose(projMatrix));
+	cameraCBuffer._world2Proj = Matrix4(XMMatrixTranspose(viewProjMatrix));
 
-	m_HBILCameraCB._camera2World = Matrix4(XMMatrixTranspose(XMMatrixInverse(nullptr, viewMatrix)));
-	m_HBILCameraCB._proj2Camera = Matrix4(XMMatrixTranspose(XMMatrixInverse(nullptr, projMatrix)));
-	m_HBILCameraCB._proj2World = Matrix4(XMMatrixTranspose(XMMatrixInverse(nullptr, viewProjMatrix)));
+	cameraCBuffer._camera2World = Matrix4(XMMatrixTranspose(XMMatrixInverse(nullptr, viewMatrix)));
+	cameraCBuffer._proj2Camera = Matrix4(XMMatrixTranspose(XMMatrixInverse(nullptr, projMatrix)));
+	cameraCBuffer._proj2World = Matrix4(XMMatrixTranspose(XMMatrixInverse(nullptr, viewProjMatrix)));
 
 	//Try without the transpose
 
-	//		m_HBILCameraCB._world2Camera = Matrix4((viewMatrix));
-	//		m_HBILCameraCB._camera2Proj = Matrix4((projMatrix));
-	//		m_HBILCameraCB._world2Proj = Matrix4((viewProjMatrix));
+	//		cameraCBuffer._world2Camera = Matrix4((viewMatrix));
+	//		cameraCBuffer._camera2Proj = Matrix4((projMatrix));
+	//		cameraCBuffer._world2Proj = Matrix4((viewProjMatrix));
 	//
-	//		m_HBILCameraCB._camera2World = Matrix4((XMMatrixInverse(nullptr, viewMatrix)));
-	//		m_HBILCameraCB._proj2Camera = Matrix4((XMMatrixInverse(nullptr, projMatrix)));
-	//		m_HBILCameraCB._proj2World = Matrix4((XMMatrixInverse(nullptr, viewProjMatrix)));
+	//		cameraCBuffer._camera2World = Matrix4((XMMatrixInverse(nullptr, viewMatrix)));
+	//		cameraCBuffer._proj2Camera = Matrix4((XMMatrixInverse(nullptr, projMatrix)));
+	//		cameraCBuffer._proj2World = Matrix4((XMMatrixInverse(nullptr, viewProjMatrix)));
 
 
 
 
 	float Q = camera.GetFarClip() / (camera.GetFarClip() - camera.GetNearClip());
-	m_HBILCameraCB._ZNearFar_Q_Z = XMFLOAT4(camera.GetNearClip(), camera.GetFarClip(), Q, 0);
+	cameraCBuffer._ZNearFar_Q_Z = XMFLOAT4(camera.GetNearClip(), camera.GetFarClip(), Q, 0);
 
-	m_HBILExtraCB._bilateralValues = XMFLOAT4(0, 0, 0, 0);
+ }
+
+ void HBIL::RenderHBIL(GraphicsContext& gfx, const Camera& camera)
+{
+	ScopedTimer _prof(L"Render HBIL", gfx);
+
+	m_MainHBILCB._deltaTime = 0.1;
+	m_MainHBILCB._framesCount = 0;
+	m_MainHBILCB._resolution.x = m_GBuffer.g_Color->GetWidth();
+	m_MainHBILCB._resolution.y = m_GBuffer.g_Color->GetHeight();
+	m_MainHBILCB._coneAngleBias = 0.1f;
+	m_MainHBILCB._framesCount = framesCount;
+	m_MainHBILCB._flags = 0;
+
+
+	UpdateCameraCBufferLH(camera, m_HBILCameraCB);
+
+	m_HBILExtraCB._bilateralValues = XMFLOAT4(1, 1, 1, 1);
 	m_HBILExtraCB._temporalAttenuationFactor = 0.5f;
-
-
-	//Resource barrier
-	gfx.TransitionResource(m_downsampledGBuffers[0], D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, true);
-	gfx.TransitionResource(m_downsampledGBuffers[1], D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, true);
-	gfx.TransitionResource(m_downsampledGBuffers[2], D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, true);
-
-
-	//Temporaily transition the full resolution resources from the GBuffer
-	//		gfx.TransitionResource(*m_GBuffer.g_Depth, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
-	//		gfx.TransitionResource(*m_GBuffer.g_Normal, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
-	//		gfx.TransitionResource(*m_GBuffer.g_Color, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,true);
 
 
 	gfx.SetPipelineState(m_HBILRenderPass);
@@ -191,21 +184,6 @@
 	gfx.SetDynamicConstantBufferView(3, sizeof(CB_HBIL), &m_HBILExtraCB);
 	gfx.SetDescriptorTable(4, m_HBILHeap[0]);
 	gfx.SetDescriptorTable(5, m_HBILHeap[4]);
-
-	//		gfx.TransitionResource(m_IrradianceRenderTarget, D3D12_RESOURCE_STATE_RENDER_TARGET, true);
-	//		gfx.TransitionResource(m_BentConesRenderTarget, D3D12_RESOURCE_STATE_RENDER_TARGET, true);
-
-	//		const D3D12_CPU_DESCRIPTOR_HANDLE handles[2]
-	//		{
-	//			m_IrradianceRenderTarget.GetRTV(),
-	//			m_BentConesRenderTarget.GetRTV()
-	//		};
-	//		gfx.SetRenderTargets(2, handles);
-
-
-
-
-
 
 	framesCount++;
 

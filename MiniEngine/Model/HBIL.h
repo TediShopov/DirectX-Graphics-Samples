@@ -136,15 +136,19 @@ public:
 	HBIL();
 
 #pragma region Initialization
-	void Setup(GBufferPtrs gbuffer,ColorBuffer* downsampledGBuffers,GraphicsPSO quadPSO);
+	virtual void Setup(GBufferPtrs gbuffer,ColorBuffer* downsampledGBuffers,GraphicsPSO quadPSO);
 
 	void CreateHBILPSO(GraphicsPSO quadRenderingPSO);
 
-	void CreateHBILRootSignatue();
+	virtual void CreateHBILRootSignatue();
 
-	void CreateHBILHeap(ColorBuffer* quarterResGBuffer);
+	virtual void CreateHBILHeap(ColorBuffer* quarterResGBuffer);
 #pragma endregion
 	void ReadDebugHBIL(GraphicsContext& gfx,D3D12_RESOURCE_STATES endState ,bool flushImmediate = true);
+
+	//Setups the camera constant buffer to be send to the HBIL algortihm
+	//Make sure the coordinate system is LEFT HANDED !!! 
+	void UpdateCameraCBufferLH(const Camera& camera, CB_Camera& cameraCBuffer);
 
 	void RenderHBIL(GraphicsContext& gfx,const Camera& camera);
 };

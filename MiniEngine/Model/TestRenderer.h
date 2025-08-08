@@ -23,6 +23,7 @@ class MSMEVisualization;
 class SurfelGIOnlyVisualization;
 class HBIL;
 class GBufferDownsample;
+class GBufferSlice;
 using namespace Math;
 
 //namespace TestRenderer
@@ -49,6 +50,7 @@ public:
 	static SurfelGIOnlyVisualization* MaterialBindingDebug;
 	static HBIL* m_HBIL;
 	static GBufferDownsample* m_GBufferDownsample;
+	static GBufferSlice* m_GBufferSlice;
 
 	static SphereMesh* m_Sphere;
 	static DiscMesh* m_Disc;
