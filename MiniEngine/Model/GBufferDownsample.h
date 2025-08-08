@@ -96,7 +96,7 @@ __declspec(align(16)) struct DownsampleData {
 		{
 			auto d = m_GBuffer.g_Depth;
 			m_DownsampledGBuffer[DEPTH].Create(L"Quarter Res Depth Buffer", d->GetWidth() / 4, d->GetHeight() / 4, 0, DXGI_FORMAT_R32_FLOAT);
-			m_DownsampledGBuffer[DIFFUSE].Create(L"Quarter Res Diffuse Buffer", d->GetWidth() / 4, d->GetHeight() / 4, 0, m_GBuffer.g_Color->GetFormat());
+			m_DownsampledGBuffer[DIFFUSE].Create(L"Quarter Res Diffuse Buffer", d->GetWidth() / 4, d->GetHeight() / 4, 0, m_GBuffer.g_Diffuse->GetFormat());
 			m_DownsampledGBuffer[NORMAL].Create(L"Quarter Res Normal Buffer", d->GetWidth() / 4, d->GetHeight() / 4, 0, m_GBuffer.g_Normal->GetFormat());
 		}
 
@@ -107,7 +107,7 @@ __declspec(align(16)) struct DownsampleData {
 		  
 		  ExtendedUtility::CopyDescriptorsToHeap(m_DownsampleHeap, {
 			  m_GBuffer.g_Depth->GetDepthSRV(),
-			  m_GBuffer.g_Color->GetSRV(),
+			  m_GBuffer.g_Diffuse->GetSRV(),
 			  m_GBuffer.g_Normal->GetSRV(),
 			  m_DownsampledGBuffer[DEPTH].GetUAV(),
 			  m_DownsampledGBuffer[DIFFUSE].GetUAV(),
@@ -124,7 +124,7 @@ __declspec(align(16)) struct DownsampleData {
 			cfx.SetPipelineState(m_DownsamplePSO);
 			cfx.SetRootSignature(m_DownsampleRS);
 
-			cfx.TransitionResource(*m_GBuffer.g_Color, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+			cfx.TransitionResource(*m_GBuffer.g_Diffuse, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
 			cfx.TransitionResource(*m_GBuffer.g_Depth, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
 			cfx.TransitionResource(*m_GBuffer.g_Normal, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
 

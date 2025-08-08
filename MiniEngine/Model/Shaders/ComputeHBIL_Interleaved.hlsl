@@ -5,7 +5,7 @@
 #include "Global.hlsl"
 #include "HBIL.hlsl"
 
-#define MAX_SAMPLES	8	// Maximum amount of samples per circle subdivision
+#define MAX_SAMPLES	32	// Maximum amount of samples per circle subdivision
 
 Texture2DArray< float >		_tex_splitDepth : register(t0);		// Depth or distance buffer (here we're given depth)
 Texture2DArray< float3 >	_tex_splitNormal : register(t1);	// Camera-space normal vectors
@@ -147,13 +147,13 @@ PS_OUT	main(PSInput input)
 	float2	UV = fullScreenPixelPosition / _resolution;
 	uint2	pixelPosition = uint2( floor( __position.xy ) );
 	//--- EARLY OUT TO CHECK TILIING ---
-	PS_OUT	earlyOut;
-    //float3 rad = _tex_splitRadiance[uint3(pixelPosition, _renderPassIndex.z)].xyz;
-    float3 normal = _tex_splitNormal[uint3(pixelPosition, _renderPassIndex.z)].xyz;
-    //earlyOut.irradiance = float4(normal,1);
-    float3 rad = _tex_splitRadiance[uint3(pixelPosition, _renderPassIndex.z)].xyz;
-    earlyOut.irradiance = float4(rad,1);
-    return earlyOut;
+//	PS_OUT	earlyOut;
+//    //float3 rad = _tex_splitRadiance[uint3(pixelPosition, _renderPassIndex.z)].xyz;
+//    float3 normal = _tex_splitNormal[uint3(pixelPosition, _renderPassIndex.z)].xyz;
+//    //earlyOut.irradiance = float4(normal,1);
+//    float3 rad = _tex_splitRadiance[uint3(pixelPosition, _renderPassIndex.z)].xyz;
+//    earlyOut.irradiance = float4(rad,1);
+//    return earlyOut;
 	//Out.irradiance = float4( radiance, 0 );
 	//Out.bentCone = csBentCone;
 
@@ -189,10 +189,11 @@ PS_OUT	main(PSInput input)
 	float3	centralRadiance = _tex_splitRadiance[uint3( pixelPosition, _renderPassIndex.z )].xyz;	// Read back last frame's radiance value that we can use as a fallback for neighbor areas
 
 	// Compute local camera-space normal
-	float3	csNormal;
-			csNormal.xy = _tex_splitNormal[uint3( pixelPosition, _renderPassIndex.z )];
-			csNormal.z = sqrt( saturate( 1.0 - dot( csNormal.xy, csNormal.xy ) ) );
-			csNormal.z = max( 1e-3, csNormal.z );	// Make sure it's never 0!
+//	float3	csNormal;
+//			csNormal.xy = _tex_splitNormal[uint3( pixelPosition, _renderPassIndex.z )];
+//			csNormal.z = sqrt( saturate( 1.0 - dot( csNormal.xy, csNormal.xy ) ) );
+//			csNormal.z = max( 1e-3, csNormal.z );	// Make sure it's never 0!
+
 
 
 	/////////////////////////////////////////////////////////////////////
@@ -209,6 +210,14 @@ PS_OUT	main(PSInput input)
 	float3	gcsUp = float3( dot( wsUp, _camera2World[0].xyz ), dot( wsUp, _camera2World[1].xyz ), dot( wsUp, _camera2World[2].xyz ) );
 
 	float2	csDirection = _csDirection;
+
+    float3 wsSurfaceNormal = _tex_splitNormal[uint3(pixelPosition,_renderPassIndex.z)].xyz;
+    float3 csNormal;
+	
+    csNormal.x = dot(wsSurfaceNormal, wsRight);
+    csNormal.y = dot(wsSurfaceNormal, wsUp);
+    csNormal.z = dot(wsSurfaceNormal, wsAt);
+			csNormal.z = max( 1e-3, csNormal.z );	// Make sure it's never 0!
 
 	// Here, you can see the same code as in the C# driver file
 	#if 0
@@ -370,10 +379,32 @@ PS_OUT	main(PSInput input)
 
 	/////////////////////////////////////////////////////////////////////
 	// Write
+
+
+    float eps=0.0005f;
+    if (abs(UV.x - 0.5f) < eps && abs(UV.y - 0.5f) < eps)
+    {
+        _debug_hbil[0].reconstructedWorldSpacePosition = float4(wsPos, 1);
+        _debug_hbil[0].normalAtW = float4(FetchNormal(pixelPosition, 0), 1);
+        _debug_hbil[0].recomputedNormal = float4(csNormal.x * wsRight + csNormal.y * wsUp + csNormal.z * wsAt, 0);
+        _debug_hbil[0].bentNormalAtW = float4(csAverageBentNormal.x * wsRight + csAverageBentNormal.y * wsUp + csAverageBentNormal.z * wsAt, 0);
+	
+        _debug_hbil[0].localCameraDirectionRight = float4(wsRight, 0);
+        _debug_hbil[0].localCameraDirectionAt = float4(wsAt, 0);
+        _debug_hbil[0].localCameraDirectionUp = float4(wsUp, 0);
+
+        _debug_hbil[0].globalCameraDirectionRight = float4(gcsRight, 0);
+        _debug_hbil[0].globalCameraDirectionAt = float4(0, 0, 0, 0);
+        _debug_hbil[0].globalCameraDirectionUp = float4(gcsUp, 0);
+    }
 	PS_OUT	Out;
-    Out.irradiance = csBentCone;
+    //Out.irradiance = csBentCone;
 	//Out.irradiance = float4( radiance, 0 );
 	//Out.bentCone = csBentCone;
+	//Out.irradiance = float4( radiance, 0 );
+
+    Out.irradiance = float4(csAverageBentNormal.x * wsRight + csAverageBentNormal.y * wsUp + csAverageBentNormal.z * wsAt,1);
+    Out.irradiance.xyz = Out.irradiance.xyz * 0.5f + 0.5f;
 
 	return Out;
 }

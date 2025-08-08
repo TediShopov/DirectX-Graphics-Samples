@@ -312,7 +312,6 @@ public:
 		ScopedTimer _prof(L"Render HBIL", gfx);
 
 		m_MainHBILCB._deltaTime = 0.1;
-		m_MainHBILCB._framesCount = 0;
 		m_MainHBILCB._resolution.x = m_GBuffer.g_Color->GetWidth();
 		m_MainHBILCB._resolution.y = m_GBuffer.g_Color->GetHeight();
 		m_MainHBILCB._coneAngleBias = 0.1f;
@@ -322,16 +321,24 @@ public:
 
 		UpdateCameraCBufferLH(camera, m_HBILCameraCB);
 
-		m_HBILInterleavedData._csDirection.x = 1;
-		m_HBILInterleavedData._csDirection.y = 0;
+
+		const int totalFrames = 16;   // 16 frames per full rotation
+		float angle = (2.0f * 3.14159265f * (framesCount % totalFrames)) / totalFrames;
+
+		// Calculate the normalized 2D direction vector on the unit circle
+		m_HBILInterleavedData._csDirection.x = cos(angle);
+		m_HBILInterleavedData._csDirection.y = sin(angle);
 
 
 		m_HBILInterleavedData._gatherSphereMaxRadius_m = 200;
 		m_HBILInterleavedData._gatherSphereMaxRadius_p = 400;
 
-		m_HBILExtraCB._bilateralValues = XMFLOAT4(1, 1, 1, 1);
-		m_HBILExtraCB._temporalAttenuationFactor = 0.5f;
+		m_HBILExtraCB._bilateralValues = XMFLOAT4(0, 0, 0, 0);
+		m_HBILExtraCB._temporalAttenuationFactor = 0;
 
+		m_HBILInterleavedData._temporalAttenuationFactor = 0.01f;
+		m_HBILInterleavedData._bilateralValues = XMFLOAT4(0, 0, 0, 0);
+		m_HBILInterleavedData._jitterOffset = framesCount % 67;
 
 
 		gfx.SetPipelineState(m_HBILRenderPass);

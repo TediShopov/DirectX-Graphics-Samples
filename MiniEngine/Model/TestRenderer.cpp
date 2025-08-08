@@ -307,8 +307,8 @@ UINT TestRenderer::frameIndex = 0;
 		//m_Transform.setScale(50,50,50);
 		m_Transform.setScale(10,10,10);
 
-		m_sunData.ambientLightIntensity = 0.3f;
-		//m_sunData.ambientLightIntensity = 0;
+		//m_sunData.ambientLightIntensity = 0.3f;
+		m_sunData.ambientLightIntensity = 0;
 		m_sunData.sunInclination = 1.0f;
 		m_sunData.sunLightIntensity = 1.0f;
 
@@ -1877,22 +1877,17 @@ UINT TestRenderer::frameIndex = 0;
 
 		m_GBufferDownsample->Dispatch(cfx, camera);
 		m_GBufferSlice->Dispatch(cfx, camera);
-		//m_HBIL->ComputeDownsampledTexture(cfx,camera);
+	//	m_HBIL->ComputeDownsampledTexture(cfx,camera);
 		{
 
 			ScopedTimer _prof(L"Render HBIL Tri", gfxContext);
 			if (m_hbil_updateDebug && m_hbil_render)
 			{
 				//Change to HBIL Interleaved
-				m_HBILInterleaved->RenderHBIL(gfxContext,camera);
-
-
-
-
-
-//				m_HBIL->RenderHBIL(gfxContext, camera);
-//				RenderFullScreenQuad(gfxContext);
-//				m_HBIL->ReadDebugHBIL(gfxContext, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, true);
+				//m_HBILInterleaved->RenderHBIL(gfxContext,camera);
+				m_HBIL->RenderHBIL(gfxContext, camera);
+				RenderFullScreenQuad(gfxContext);
+				m_HBIL->ReadDebugHBIL(gfxContext, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, true);
 				//m_hbil_cameraLastPos = camera.GetPosition();
 				last_camera_data = camera;
 			}
