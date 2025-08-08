@@ -8,7 +8,7 @@
 #define MAX_SAMPLES	8	// Maximum amount of samples per circle subdivision
 
 Texture2DArray< float >		_tex_splitDepth : register(t0);		// Depth or distance buffer (here we're given depth)
-Texture2DArray< float2 >	_tex_splitNormal : register(t1);	// Camera-space normal vectors
+Texture2DArray< float3 >	_tex_splitNormal : register(t1);	// Camera-space normal vectors
 Texture2DArray< float3 >	_tex_splitRadiance : register(t2);	// Last frame's reprojected radiance buffer
 Texture2D< float >			_tex_blueNoise : register(t3);
 
@@ -25,6 +25,24 @@ cbuffer CB_HBIL : register( b3 ) {
 	float	_temporalAttenuationFactor;		// Attenuation factor of radiance from previous frame
 	uint	_jitterOffset;					// A jitter value in [0,67] that changes per frame
 };
+
+struct DebugHBILData
+{
+	float4 reconstructedWorldSpacePosition;
+	float4 normalAtW;
+	float4 recomputedNormal;
+	float4 bentNormalAtW;
+
+	float4 localCameraDirectionUp;
+	float4 localCameraDirectionRight;
+	float4 localCameraDirectionAt;
+
+	float4 globalCameraDirectionUp;
+	float4 globalCameraDirectionRight;
+	float4 globalCameraDirectionAt;
+};
+
+RWStructuredBuffer<DebugHBILData> _debug_hbil : register(u0);
 
 //float4	VS( float4 __position : SV_POSITION ) : SV_POSITION { return __position; }
 
@@ -101,6 +119,11 @@ float2	BilateralFilter( float2 _ssCentralPosition, float _centralZ, float3 _lcsC
 	return float2( depthFilter, radianceFilter );
 }
 
+struct PSInput
+{
+    float4 position : SV_POSITION;
+    float4 color : COLOR;
+};
 
 ////////////////////////////////////////////////////////////////////////////////
 // Computes bent cone & irradiance gathering from surrounding pixels
@@ -109,10 +132,37 @@ struct PS_OUT {
 	float4	bentCone : SV_TARGET1;
 };
 
-PS_OUT	main( float4 __position : SV_POSITION ) {
-	float2	fullScreenPixelPosition = 4.0 * (__position.xy - 0.5) + _renderPassIndex.xy + 0.5;	// Account for sub-pixel accuracy
+PS_OUT	main(PSInput input)
+{
+	//Currently the PS INPUT would give the actual full screen pixel position
+	float2	fullScreenPixelPosition = input.position;	// Account for sub-pixel accuracy
+	//The quarter res pixel pos w
+	//float2	__position = input.position / 4;	// Account for sub-pixel accuracy
+	float2	__position = input.position;	//Scale down to match the resolution of the sliced
+    float2 tileSize = _resolution / 4.0f;
+    __position.x -= _renderPassIndex.x * tileSize.x;
+    __position.y -= _renderPassIndex.y * tileSize.y;
+    __position /= 4.0f;
+
 	float2	UV = fullScreenPixelPosition / _resolution;
 	uint2	pixelPosition = uint2( floor( __position.xy ) );
+	//--- EARLY OUT TO CHECK TILIING ---
+	PS_OUT	earlyOut;
+    //float3 rad = _tex_splitRadiance[uint3(pixelPosition, _renderPassIndex.z)].xyz;
+    float3 normal = _tex_splitNormal[uint3(pixelPosition, _renderPassIndex.z)].xyz;
+    //earlyOut.irradiance = float4(normal,1);
+    float3 rad = _tex_splitRadiance[uint3(pixelPosition, _renderPassIndex.z)].xyz;
+    earlyOut.irradiance = float4(rad,1);
+    return earlyOut;
+	//Out.irradiance = float4( radiance, 0 );
+	//Out.bentCone = csBentCone;
+
+	//float2	__position += input.;	//Scale down to match the resolution of the sliced
+
+    //float4 __position = input.position;
+	//float2	fullScreenPixelPosition = __position;	// Account for sub-pixel accuracy
+	
+	//float2	fullScreenPixelPosition = 4.0 * (__position.xy - 0.5) + _renderPassIndex.xy + 0.5;	// Account for sub-pixel accuracy
 
 	#if 0
 		// Funky blue noise
@@ -321,8 +371,9 @@ PS_OUT	main( float4 __position : SV_POSITION ) {
 	/////////////////////////////////////////////////////////////////////
 	// Write
 	PS_OUT	Out;
-	Out.irradiance = float4( radiance, 0 );
-	Out.bentCone = csBentCone;
+    Out.irradiance = csBentCone;
+	//Out.irradiance = float4( radiance, 0 );
+	//Out.bentCone = csBentCone;
 
 	return Out;
 }

@@ -2,6 +2,7 @@
 #include "HBIL.h"
 
 #include "CompiledShaders/GBufferSlice.h"
+#include "CompiledShaders/ComputeHBIL_Interleaved.h"
 
 __declspec(align(16)) struct HBILInterleavedBuffer {
 	UINT	_targetResolutionX;
@@ -165,79 +166,233 @@ class HBILInterleaved :
 {
 	HBILInterleavedBuffer m_HBILInterleavedData;
 
+	 struct ColorVertex { Vector4 position;  Vector4 color; };
+	 float m_aspectRatio = 16.0f / 9.0f;
+	 float m_depthValue = 0.1f;
+	  float _TRI_SCALE = 0.3f;
+	  float QUAD_SCALE = 1.0f;
+	  //float QUAD_SCALE = 1;
 
+	 ColorVertex fullScreenQuad[6] =
+	{
+		{ { -QUAD_SCALE, -QUAD_SCALE, m_depthValue,1}, { 1.0f, 0.0f, 0.0f, 1.0f } },
+		{ { QUAD_SCALE, QUAD_SCALE, m_depthValue,1}, { 1.0f, 0.0f, 0.0f, 1.0f } },
+		{ { -QUAD_SCALE, QUAD_SCALE, m_depthValue,1}, { 1.0f, 0.0f, 0.0f, 1.0f } },
+
+		{ { -QUAD_SCALE, -QUAD_SCALE, m_depthValue,1}, { 1.0f, 0.0f, 0.0f, 1.0f } },
+		{ { QUAD_SCALE, QUAD_SCALE, m_depthValue,1}, { 1.0f, 0.0f, 0.0f, 1.0f } },
+		{ { QUAD_SCALE, -QUAD_SCALE, m_depthValue,1}, { 1.0f, 0.0f, 0.0f, 1.0f } },
+	};
+
+	 uint32_t indices[6] = { 0, 1, 2,3,4,5 };
+
+	 ByteAddressBuffer m_QuadGB[16];
+	//D3D12_VERTEX_BUFFER_VIEW    m_QuadVB;
+	//D3D12_INDEX_BUFFER_VIEW    m_QuadIB;
+
+
+
+	void InitQuadModel()
+	{
+
+		for (int y = 0; y < 4; ++y)
+		{
+			for (int x = 0; x < 4; ++x)
+			{
+				int z = y * 4 + x;
+
+
+				size_t vertexStride = sizeof(ColorVertex);
+				size_t vertexDataSize = sizeof(fullScreenQuad);
+				size_t indexDataSize = sizeof(indices);
+
+				float tileSizeX = 2.0f / 4.0f;
+				float tileSizeY = 2.0f / 4.0f;
+
+				XMFLOAT2 tileStartNDC;
+				tileStartNDC.x = -1 + (float)x * tileSizeX;
+				tileStartNDC.y = 1 - (float)y * tileSizeX;
+				XMFLOAT2 tileEndNDC;
+				tileEndNDC.x = tileStartNDC.x + tileSizeX;
+				tileEndNDC.y = tileStartNDC.y - tileSizeY;
+
+				ColorVertex tileQuad[6] =
+				{
+					{ { tileStartNDC.x, tileStartNDC.y, m_depthValue,1}, { 1.0f, 0.0f, 0.0f, 1.0f } },
+					{ { tileEndNDC.x, tileEndNDC.y, m_depthValue,1}, { 1.0f, 0.0f, 0.0f, 1.0f } },
+					{ { tileStartNDC.x, tileEndNDC.y, m_depthValue,1}, { 1.0f, 0.0f, 0.0f, 1.0f } },
+
+					{ { tileStartNDC.x, tileStartNDC.y, m_depthValue,1}, { 1.0f, 0.0f, 0.0f, 1.0f } },
+					{ { tileEndNDC.x, tileEndNDC.y, m_depthValue,1}, { 1.0f, 0.0f, 0.0f, 1.0f } },
+					{ { tileEndNDC.x, tileStartNDC.y, m_depthValue,1}, { 1.0f, 0.0f, 0.0f, 1.0f } },
+				};
+
+				// 2. Allocate upload buffer (vertex + index)
+				size_t totalSize = vertexDataSize + indexDataSize;
+				void* uploadMem = _aligned_malloc(totalSize, 16);
+				assert(uploadMem);
+
+				void* vertexData = uploadMem;
+				void* indexData = static_cast<uint8_t*>(uploadMem) + vertexDataSize;
+
+				memcpy(vertexData, tileQuad, vertexDataSize);
+				memcpy(indexData, indices, indexDataSize);
+				//--- Upload buffer to GPU
+				m_QuadGB[z].Create(L"Full Screen Quad", totalSize, 1, uploadMem);
+
+			}
+
+		}
+
+
+
+
+
+
+
+	}
+
+
+
+	void RenderFullScreenQuad(GraphicsContext& gfxContext,UINT z)
+	{
+		const UINT vertexBufferSize = sizeof(fullScreenQuad);
+
+		uint32_t indices[6] = { 0, 1, 2,3,4,5 };
+		//---TEMPORARILY switch index and vertex buffers
+		gfxContext.SetIndexBuffer(m_QuadGB[z].IndexBufferView(sizeof(fullScreenQuad), sizeof(indices), true));
+		gfxContext.SetVertexBuffer(0, m_QuadGB[z].VertexBufferView(0, sizeof(fullScreenQuad), sizeof(ColorVertex)));
+
+		//--- Draw three indices of the triangle
+		gfxContext.DrawIndexed(6, 0, 0);
+	}
+
+public:
+
+	void CreateHBILPSO(GraphicsPSO quadRenderingPSO) override {
+		m_HBILRenderPass = quadRenderingPSO;
+
+		m_HBILRenderPass.SetRootSignature(m_HBILRenderRS);
+		//DXGI_FORMAT formats[2] = { DXGI_FORMAT_R11G11B10_FLOAT,DXGI_FORMAT_R11G11B10_FLOAT };
+		//m_HBILRenderPass.SetRenderTargetFormats(2, formats,DXGI_FORMAT_UNKNOWN);
+		m_HBILRenderPass.SetPixelShader(g_pComputeHBIL_Interleaved, sizeof(g_pComputeHBIL_Interleaved));
+
+		m_HBILRenderPass.Finalize();
+
+	}
 
     //TODO change the root signature to used the new cbuffer layout
-	void Setup(GBufferPtrs gbuffer, ColorBuffer* downsampledGBuffers, GraphicsPSO quadPSO) {
+	void Setup(GBufferPtrs gbuffer, ColorBuffer* slicedGBuffers, GraphicsPSO quadPSO) override {
 
+		HBIL::Setup(gbuffer, slicedGBuffers, quadPSO);
+
+		InitQuadModel();
+		m_inputBuffers = slicedGBuffers;
+
+
+//		m_HBILHeap.Create(L"HBIL INTERLEAVED HEAP", D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 5);
+//
+//		ExtendedUtility::CopyDescriptorsToHeap(m_HBILHeap, {
+//		m_inputBuffers[0].GetSRV(),
+//		m_inputBuffers[1].GetSRV(),
+//		//quarterResGBuffer[DIFFUSE].GetSRV(),
+//		m_inputBuffers[2].GetSRV(),
+//		m_BlueNoiseTexture.GetSRV(),
+//		m_DebugHBIL.GetUAV()
+//			}
+//		);
+
+
+		CreateHBILPSO(quadPSO);
 	 }
 
 
 	void RenderHBIL(GraphicsContext& gfx, const Camera& camera)
 	{
-//		ScopedTimer _prof(L"Render HBIL", gfx);
-//
-//		m_MainHBILCB._deltaTime = 0.1;
-//		m_MainHBILCB._framesCount = 0;
-//		m_MainHBILCB._resolution.x = m_GBuffer.g_Color->GetWidth();
-//		m_MainHBILCB._resolution.y = m_GBuffer.g_Color->GetHeight();
-//		m_MainHBILCB._coneAngleBias = 0.1f;
-//		m_MainHBILCB._framesCount = framesCount;
-//		m_MainHBILCB._flags = 0;
-//
-//
-//		UpdateCameraCBufferLH(camera, m_HBILCameraCB);
-//
-//		m_HBILInterleavedData._csDirection.x = 1;
-//		m_HBILInterleavedData._csDirection.y = 0;
-//
-//		m_HBILInterleavedData._renderPassIndexX = 0;
-//		m_HBILInterleavedData._csDirection.y = 0;
-//
-//		m_HBILInterleavedData._gatherSphereMaxRadius_m = 200;
-//		m_HBILInterleavedData._gatherSphereMaxRadius_p = 400;
-//
-//		m_HBILExtraCB._bilateralValues = XMFLOAT4(1, 1, 1, 1);
-//		m_HBILExtraCB._temporalAttenuationFactor = 0.5f;
-//
-//
-//
-//		gfx.SetPipelineState(m_HBILRenderPass);
-//		gfx.SetRootSignature(m_HBILRenderRS);
-//		gfx.SetDescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, m_HBILHeap.GetHeapPointer());
-//
-//		gfx.SetDynamicConstantBufferView(0, sizeof(HBIL_MAIN), &m_MainHBILCB);
-//		gfx.SetDynamicConstantBufferView(1, sizeof(CB_Camera), &m_HBILCameraCB);
-//		gfx.SetDynamicConstantBufferView(2, sizeof(CBSH), &m_CBSH);
-//		gfx.SetDynamicConstantBufferView(3, sizeof(CB_HBIL), &m_HBILExtraCB);
-//
-//		gfx.SetDescriptorTable(4, m_HBILHeap[0]);
-//		gfx.SetDescriptorTable(5, m_HBILHeap[4]);
-//
-//		for (int y = 0; y < 4; ++y)
-//		{
-//
-//			for (int x = 0; x < 4; ++x)
-//
-//			{
-//				int z = y * 4 + x;
-//
-//				CB_HBIL cb;
-//				cb._renderPassIndex = uint3(x, y, z);
-//				// ... set rest of constants
-//
-//				// Update cbuffer
-//				g_CommandList->SetDynamicConstantBufferView(3, sizeof(CB_HBIL), &cb);
-//
-//				// Dispatch or draw just for this tile
-//				g_CommandList->Dispatch(ceil(480 / 8), ceil(270 / 8), 1); // if compute shader
-//				// or draw quad if using pixel shader
-//			}
-//		}
-//
-//
-//		framesCount++;
-//
+		ScopedTimer _prof(L"Render HBIL", gfx);
+
+		m_MainHBILCB._deltaTime = 0.1;
+		m_MainHBILCB._framesCount = 0;
+		m_MainHBILCB._resolution.x = m_GBuffer.g_Color->GetWidth();
+		m_MainHBILCB._resolution.y = m_GBuffer.g_Color->GetHeight();
+		m_MainHBILCB._coneAngleBias = 0.1f;
+		m_MainHBILCB._framesCount = framesCount;
+		m_MainHBILCB._flags = 0;
+
+
+		UpdateCameraCBufferLH(camera, m_HBILCameraCB);
+
+		m_HBILInterleavedData._csDirection.x = 1;
+		m_HBILInterleavedData._csDirection.y = 0;
+
+
+		m_HBILInterleavedData._gatherSphereMaxRadius_m = 200;
+		m_HBILInterleavedData._gatherSphereMaxRadius_p = 400;
+
+		m_HBILExtraCB._bilateralValues = XMFLOAT4(1, 1, 1, 1);
+		m_HBILExtraCB._temporalAttenuationFactor = 0.5f;
+
+
+
+		gfx.SetPipelineState(m_HBILRenderPass);
+		gfx.SetRootSignature(m_HBILRenderRS);
+		gfx.SetDescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, m_HBILHeap.GetHeapPointer());
+
+
+		//Transition Resources
+		gfx.TransitionResource(m_inputBuffers[0], D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, true);
+		gfx.TransitionResource(m_inputBuffers[1], D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, true);
+		gfx.TransitionResource(m_inputBuffers[2], D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, true);
+
+
+
+		gfx.SetDynamicConstantBufferView(0, sizeof(HBIL_MAIN), &m_MainHBILCB);
+		gfx.SetDynamicConstantBufferView(1, sizeof(CB_Camera), &m_HBILCameraCB);
+		gfx.SetDynamicConstantBufferView(2, sizeof(CBSH), &m_CBSH);
+
+		gfx.SetDescriptorTable(4, m_HBILHeap[0]);
+		gfx.SetDescriptorTable(5, m_HBILHeap[4]);
+
+		//Just render the first tile for now
+
+		m_HBILInterleavedData._targetResolutionX = m_inputBuffers[0].GetWidth() * 4;
+		m_HBILInterleavedData._targetResolutionY = m_inputBuffers[0].GetHeight() * 4;
+
+
+		for (int y = 0; y < 4; ++y)
+		{
+
+			for (int x = 0; x < 4; ++x)
+
+			{
+				int z = y * 4 + x;
+
+				m_HBILInterleavedData._renderPassIndexX = x;
+				m_HBILInterleavedData._renderPassIndexY = y;
+				m_HBILInterleavedData._renderPassIndexZ = z;
+
+ 
+
+				//cb._jitterOffset= m_inputBuffers[0].GetHeight();
+				//cb._bilateralValues= m_inputBuffers[0].GetHeight();
+				//cb._temporalAttenuationFactor= m_inputBuffers[0].GetHeight();
+
+
+				// ... set rest of constants
+
+				// Update cbuffer
+				gfx.SetDynamicConstantBufferView(3, sizeof(HBILInterleavedBuffer), &m_HBILInterleavedData);
+
+				RenderFullScreenQuad(gfx,z);
+				// Dispatch or draw just for this tile
+				//gfx.Dispatch(ceil(481 / 8), ceil(270 / 8), 1); // if compute shader
+				// or draw quad if using pixel shader
+			}
+		}
+
+
+		framesCount++;
+
 	}
 
 };

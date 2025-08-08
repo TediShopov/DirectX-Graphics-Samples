@@ -131,6 +131,7 @@ UINT TestRenderer::frameIndex = 0;
 	 SurfelGIOnlyVisualization* TestRenderer::SurfelGIVisualization = nullptr;
 	 SurfelGIOnlyVisualization* TestRenderer::MaterialBindingDebug = nullptr;
 	 HBIL* TestRenderer::m_HBIL = nullptr;
+	 HBILInterleaved* TestRenderer::m_HBILInterleaved = nullptr;
 	 GBufferDownsample* TestRenderer::m_GBufferDownsample = nullptr;
 	 GBufferSlice* TestRenderer::m_GBufferSlice = nullptr;
 
@@ -306,8 +307,8 @@ UINT TestRenderer::frameIndex = 0;
 		//m_Transform.setScale(50,50,50);
 		m_Transform.setScale(10,10,10);
 
-		//m_sunData.ambientLightIntensity = 0.1f;
-		m_sunData.ambientLightIntensity = 0;
+		m_sunData.ambientLightIntensity = 0.3f;
+		//m_sunData.ambientLightIntensity = 0;
 		m_sunData.sunInclination = 1.0f;
 		m_sunData.sunLightIntensity = 1.0f;
 
@@ -599,6 +600,7 @@ UINT TestRenderer::frameIndex = 0;
 		bool t = ImGui_ImplDX12_Init(&info);
 
 		m_HBIL = new HBIL();
+		m_HBILInterleaved = new HBILInterleaved();
 		m_GBufferDownsample = new GBufferDownsample();
 		m_GBufferSlice = new GBufferSlice();
 		m_GBufferDownsample->Setup(gbuffer, GridVisualization->m_TestPSO);
@@ -607,6 +609,11 @@ UINT TestRenderer::frameIndex = 0;
 		m_HBIL->Setup(
 			gbuffer,
 			m_GBufferDownsample->GetDownsampledBufferPtr(),
+			GridVisualization->m_TestPSO
+		);
+		m_HBILInterleaved->Setup(
+			gbuffer,
+			m_GBufferSlice->GetOuptutBuffer(),
 			GridVisualization->m_TestPSO
 		);
 		
@@ -1876,18 +1883,19 @@ UINT TestRenderer::frameIndex = 0;
 			ScopedTimer _prof(L"Render HBIL Tri", gfxContext);
 			if (m_hbil_updateDebug && m_hbil_render)
 			{
-				m_HBIL->RenderHBIL(gfxContext, camera);
-				RenderFullScreenQuad(gfxContext);
-				m_HBIL->ReadDebugHBIL(gfxContext, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, true);
+				//Change to HBIL Interleaved
+				m_HBILInterleaved->RenderHBIL(gfxContext,camera);
+
+
+
+
+
+//				m_HBIL->RenderHBIL(gfxContext, camera);
+//				RenderFullScreenQuad(gfxContext);
+//				m_HBIL->ReadDebugHBIL(gfxContext, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, true);
 				//m_hbil_cameraLastPos = camera.GetPosition();
 				last_camera_data = camera;
 			}
-
-			
-
-
-
-
 		}
 
 

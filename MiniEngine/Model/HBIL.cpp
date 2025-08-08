@@ -61,8 +61,8 @@
 	ExtendedUtility::CopyDescriptorsToHeap(m_HBILHeap, {
 		quarterResGBuffer[DEPTH].GetSRV(),
 		quarterResGBuffer[NORMAL].GetSRV(),
-		//quarterResGBuffer[DIFFUSE].GetSRV(),
-		m_GBuffer.g_Diffuse->GetSRV(),
+		quarterResGBuffer[DIFFUSE].GetSRV(),
+		//m_GBuffer.g_Diffuse->GetSRV(),
 		m_BlueNoiseTexture.GetSRV(),
 		m_DebugHBIL.GetUAV()
 		}
@@ -91,7 +91,7 @@
  void HBIL::Setup(GBufferPtrs gbuffer, ColorBuffer* downsampledGBuffers, GraphicsPSO quadPSO)
 {
 	this->m_GBuffer = gbuffer;
-	m_downsampledGBuffers = downsampledGBuffers;
+	m_inputBuffers = downsampledGBuffers;
 
 	//LOAD BLUE NOISE TEXTURE
 	m_BlueNoiseTexture = TextureManager::LoadDDSFromFile(L"Textures/blueNoise_HDR_LA0.dds");

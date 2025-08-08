@@ -124,7 +124,7 @@ protected:
 
 	ByteAddressBuffer m_DebugHBIL;
 	ReadbackBuffer m_DebugHBILReadback;
-	ColorBuffer* m_downsampledGBuffers;
+	ColorBuffer* m_inputBuffers;
 
 	DescriptorHeap m_HBILHeap;
 	TextureRef m_BlueNoiseTexture;
@@ -138,9 +138,9 @@ public:
 #pragma region Initialization
 	virtual void Setup(GBufferPtrs gbuffer,ColorBuffer* downsampledGBuffers,GraphicsPSO quadPSO);
 
-	void CreateHBILPSO(GraphicsPSO quadRenderingPSO);
+	virtual void CreateHBILPSO(GraphicsPSO quadRenderingPSO);
 
-	virtual void CreateHBILRootSignatue();
+	virtual void CreateHBILRootSignatue(); 
 
 	virtual void CreateHBILHeap(ColorBuffer* quarterResGBuffer);
 #pragma endregion

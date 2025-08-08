@@ -22,6 +22,7 @@ class HashGridVisualization;
 class MSMEVisualization;
 class SurfelGIOnlyVisualization;
 class HBIL;
+class HBILInterleaved;
 class GBufferDownsample;
 class GBufferSlice;
 using namespace Math;
@@ -49,6 +50,7 @@ public:
 	static SurfelGIOnlyVisualization* SurfelGIVisualization;
 	static SurfelGIOnlyVisualization* MaterialBindingDebug;
 	static HBIL* m_HBIL;
+	static HBILInterleaved* m_HBILInterleaved;
 	static GBufferDownsample* m_GBufferDownsample;
 	static GBufferSlice* m_GBufferSlice;
 
