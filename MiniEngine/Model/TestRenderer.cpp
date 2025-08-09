@@ -1631,11 +1631,9 @@ XMVECTOR VectorProjection(XMVECTOR u, XMVECTOR v, float* scalarOut)
 					 float cosAngle = BentNormalAtW.GetW() / 2.0f;
 					 float sinAngle = sqrt(1.0 - cos(cosAngle));
 					 float tanAngle = sinAngle / cosAngle;
-					//Half-angle at apex
-					 float halfAngle = BentNormalAtW.GetW()/2.0f;
 						 
 					 //Calculate cone radius based on bent cone angle and height
-					 float radiusOfCone = abs(height) * tanf(halfAngle) * 2;
+					 float radiusOfCone = abs(height) * tanAngle * 2;
 
 
 					 radiusOfCone = min(40.0f, radiusOfCone);

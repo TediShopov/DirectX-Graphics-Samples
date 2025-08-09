@@ -47,7 +47,7 @@
 	m_HBILRenderPass = quadRenderingPSO;
 
 	m_HBILRenderPass.SetRootSignature(m_HBILRenderRS);
-	DXGI_FORMAT formats[2] = { DXGI_FORMAT_R11G11B10_FLOAT,DXGI_FORMAT_R11G11B10_FLOAT };
+	DXGI_FORMAT formats[2] = { DXGI_FORMAT_R11G11B10_FLOAT,DXGI_FORMAT_R16G16B16A16_FLOAT };
 	m_HBILRenderPass.SetRenderTargetFormats(2, formats,DXGI_FORMAT_UNKNOWN);
 	m_HBILRenderPass.SetPixelShader(g_pComputeHBIL_BruteForce, sizeof(g_pComputeHBIL_BruteForce));
 
@@ -108,7 +108,7 @@
 
 	//Create the render targets
 	m_OutputIrradiance.Create(L"HBIL Irradiance Render Target", gbuffer.g_Color->GetWidth(), gbuffer.g_Color->GetHeight(),0,DXGI_FORMAT_R11G11B10_FLOAT);
-	m_OutputBentCone.Create(L"HBIL Bent Cones Render Target", gbuffer.g_Color->GetWidth(), gbuffer.g_Color->GetHeight(),0,DXGI_FORMAT_R11G11B10_FLOAT);
+	m_OutputBentCone.Create(L"HBIL Bent Cones Render Target", gbuffer.g_Color->GetWidth(), gbuffer.g_Color->GetHeight(),0,DXGI_FORMAT_R16G16B16A16_FLOAT);
 }
 
 

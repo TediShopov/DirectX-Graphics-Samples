@@ -3,6 +3,7 @@
 #include "CommonSurfelRegisters.hlsli"
 //#include "SurfelUniformGridAccelerationStructure.hlsli"
 
+#define STATIC_BENT_CONE_OFFSET 15.0f
 groupshared uint groupShareMinCoverage;
 groupshared uint groupShareMaxContribution;
 
@@ -96,6 +97,34 @@ void ProbabilistcSpawn(float coverage, uint3 minCoverageThreadID,float3 worldPos
 {
 }
 
+float ContributionFromBentCone(float3 worldPos, float2 uv,out float3 bentNormal,out float  radius)
+
+{
+    float4 sampleBentConeTexture = bentCones.SampleLevel(defaultSampler, uv, 0);
+     bentNormal = sampleBentConeTexture.xyz;
+    float cosHalfAngle = sampleBentConeTexture.w / 2.0f;
+
+     //float4 originToAvg = XMVectorSubtract( XMLoadFloat3(&avg),LocalSpaceAt);
+					 //RenderSphereAt(yellow, 5, Vector4(avg), gfxContext, camera.GetViewProjMatrix(), camera.GetPosition(), TestRenderer::kOpaque);
+
+					 //Calculate Height
+
+    //Static for now
+    float height = STATIC_BENT_CONE_OFFSET;
+    //float4 projection = VectorProjection(originToAvg, BentNormalAtW,  & height);
+					 //float4 projection = VectorProjection( BentNormalAtW,originToAvg, &height);
+    //float4 worldPosition = XMVectorAdd(LocalSpaceAt, projection);
+    
+						 
+    float sinHalfAngle = sqrt(1.0 - cos(cosHalfAngle));
+    float tanHalfAngle = sinHalfAngle / cosHalfAngle;
+     radius = abs(height) * tanHalfAngle * 2;
+
+    radius = min(maxRadius, radius);
+    
+    return  (cosHalfAngle * 2);
+
+}
 
 [numthreads(16, 16, 1)]
 void main(
@@ -143,6 +172,9 @@ void main(
     uint2 surfelFromTo = ComputeRelevantSurfelRange(worldPos);
     uint surfelCount = surfelFromTo.y - surfelFromTo.x;
 
+    float3 bentNormal = float3(0, 0, 0);
+    float radius = 0;
+    
     //
 
      // Evaluate min coverage value and pixel position.
@@ -177,7 +209,10 @@ void main(
             float contribution = 1.f;
 
             contribution *= saturate(dotN);
+
             contribution *= saturate(1 - dist / surfel.radius);
+
+            //contribution *= saturate();
             contribution = smoothstep(0, 1, contribution);
 
             coverage += contribution;
@@ -221,31 +256,37 @@ void main(
     if (surfelCount < kPerCellSurfelLimit)
     {
 
+
         if (groupThreadID.x == minCoverageThreadID.x && groupThreadID.y == minCoverageThreadID.y)
         {
             // If seat for surfel in current cell avaliable and coverage is under threshold,
             // genearte new surfel probabilistically.
             if (coverage <= gPlacementThreshold)
             {
-                float chanceSpawn = pow(depthRaw, gChancePower) * gChanceMultiply;
+
+                float chanceSpawn = ContributionFromBentCone(worldPos, uv, bentNormal, radius);
+
+                //float chanceSpawn = pow(depthRaw, gChancePower) * gChanceMultiply;
                 float changeAgainst = RandomFloat01(threadRandomnessSeed);
 
-                if (changeAgainst < chanceSpawn)
+                if (changeAgainst > chanceSpawn)
                 {
                     SurfelData newSurfel;
                     float v = linearDepth;
                     float calcProjArea = calcProjectArea(10, 250, fovY, gResolution.xy);
                     float varRadius = clamp(calcSurfelRadius(v, fovY, gResolution.xy, calcProjArea, 100000), minRadius, maxRadius);
 
-                    newSurfel.position = float4(worldPos, 1) + sampledNormal * 1.0f;
+                    newSurfel.position = float4(worldPos, 1) + float4(bentNormal, 0) * STATIC_BENT_CONE_OFFSET;
                     newSurfel.randomValues = float4(changeAgainst, chanceSpawn, changeAgainst, 1);
                     newSurfel.color = float4(0, 0, 0, 1);
                     newSurfel.contribution = uint4(0, FrameIndex, 0, 0);
                     newSurfel.mean = float4(0, 0, 0, 0);
                     newSurfel.raySamples = float4(10, 0, 0, 0);
                     newSurfel.padding = float3(FrameIndex, FrameIndex, FrameIndex);
-                    newSurfel.normal = sampledNormal;
-                    newSurfel.radius = varRadius;
+                    //newSurfel.normal = sampledNormal;
+                    newSurfel.normal = float4(bentNormal, 0);
+                    //newSurfel.radius = varRadius;
+                    newSurfel.radius = radius;
                     newSurfel.tilePos = tilePos;
                     newSurfel.pixelPos = pixelPos;
 

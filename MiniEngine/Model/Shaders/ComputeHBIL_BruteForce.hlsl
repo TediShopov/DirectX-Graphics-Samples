@@ -463,12 +463,10 @@ phiNoise = 0.0;
         _debug_hbil[0].reconstructedWorldSpacePosition = float4(wsPos, 1);
         _debug_hbil[0].normalAtW = float4(FetchNormal(pixelPosition, 0), 1);
         _debug_hbil[0].recomputedNormal = ConvertDirectionToWSfromLCS(csNormal, wslocalCameraSpace);
-        _debug_hbil[0].bentNormalAtW = ConvertDirectionToWSfromLCS(csAverageBentNormal, wslocalCameraSpace);
 
-		float	cosAverageConeAngle = 1.0 - sumAO;		// Use AO as cone angle
+        _debug_hbil[0].bentNormalAtW = ConvertDirectionToWSfromLCS(csAverageBentNormal, wslocalCameraSpace);
         _debug_hbil[0].bentNormalAtW.w = cosAverageConeAngle;
 
-	
         _debug_hbil[0].localCameraDirectionRight = float4(wslocalCameraSpace[VIEW_RIGHT], 0);
         _debug_hbil[0].localCameraDirectionAt = float4(wslocalCameraSpace[VIEW_AT], 0);
         _debug_hbil[0].localCameraDirectionUp = float4(wslocalCameraSpace[VIEW_UP], 0);
@@ -482,7 +480,10 @@ phiNoise = 0.0;
     PS_OUT Out;
 	//Out.irradiance = float4( sumIrradiance, 0 );
     Out.irradiance = float4(averageAO, averageAO, averageAO, 1);
-    Out.bentCone = float4(max(0.01, sqrt(cosAverageConeAngle)) * csAverageBentNormal, stdDeviation);
+    //Out.bentCone = float4(max(0.01, sqrt(cosAverageConeAngle)) * csAverageBentNormal, stdDeviation);
+
+    Out.bentCone = ConvertDirectionToWSfromLCS(csAverageBentNormal, wslocalCameraSpace);
+    Out.bentCone.w = cosAverageConeAngle;
 
     return Out;
 }
