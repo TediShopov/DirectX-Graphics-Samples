@@ -47,8 +47,8 @@
 	m_HBILRenderPass = quadRenderingPSO;
 
 	m_HBILRenderPass.SetRootSignature(m_HBILRenderRS);
-	//DXGI_FORMAT formats[2] = { DXGI_FORMAT_R11G11B10_FLOAT,DXGI_FORMAT_R11G11B10_FLOAT };
-	//m_HBILRenderPass.SetRenderTargetFormats(2, formats,DXGI_FORMAT_UNKNOWN);
+	DXGI_FORMAT formats[2] = { DXGI_FORMAT_R11G11B10_FLOAT,DXGI_FORMAT_R11G11B10_FLOAT };
+	m_HBILRenderPass.SetRenderTargetFormats(2, formats,DXGI_FORMAT_UNKNOWN);
 	m_HBILRenderPass.SetPixelShader(g_pComputeHBIL_BruteForce, sizeof(g_pComputeHBIL_BruteForce));
 
 	m_HBILRenderPass.Finalize();
@@ -107,8 +107,8 @@
 	CreateHBILPSO(quadPSO);
 
 	//Create the render targets
-	//m_IrradianceRenderTarget.Create(L"HBIL Irradiance Render Target", gbuffer.g_Color->GetWidth(), gbuffer.g_Color->GetHeight(),0,DXGI_FORMAT_R11G11B10_FLOAT);
-	//m_BentConesRenderTarget.Create(L"HBIL Bent Cones Render Target", gbuffer.g_Color->GetWidth(), gbuffer.g_Color->GetHeight(),0,DXGI_FORMAT_R11G11B10_FLOAT);
+	m_OutputIrradiance.Create(L"HBIL Irradiance Render Target", gbuffer.g_Color->GetWidth(), gbuffer.g_Color->GetHeight(),0,DXGI_FORMAT_R11G11B10_FLOAT);
+	m_OutputBentCone.Create(L"HBIL Bent Cones Render Target", gbuffer.g_Color->GetWidth(), gbuffer.g_Color->GetHeight(),0,DXGI_FORMAT_R11G11B10_FLOAT);
 }
 
 
@@ -186,6 +186,13 @@
 	gfx.SetDynamicConstantBufferView(3, sizeof(CB_HBIL), &m_HBILExtraCB);
 	gfx.SetDescriptorTable(4, m_HBILHeap[0]);
 	gfx.SetDescriptorTable(5, m_HBILHeap[4]);
+
+	D3D12_CPU_DESCRIPTOR_HANDLE rtvs[2] = {
+		m_OutputIrradiance.GetRTV(),
+		m_OutputBentCone.GetRTV(),
+	};
+
+	gfx.SetRenderTargets(2, rtvs);
 
 	framesCount++;
 

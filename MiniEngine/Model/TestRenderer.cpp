@@ -840,7 +840,7 @@ UINT TestRenderer::frameIndex = 0;
 
 			Transform t;
 			t.setPosition(position);
-			float scale = 1;
+			float scale = 2.5;
 			t.setScale(scale,scale,scale);
 
 			VSConstants vsConstants = SetupObjectVSConstants(gfxContext, ViewProjMat, viewerPos, Filter);
@@ -1256,10 +1256,11 @@ UINT TestRenderer::frameIndex = 0;
 		bool pressedToggleSSR = GameInput::IsFirstPressed(GameInput::kKey_m);
 		bool pressedToggleCameraUpdated = GameInput::IsFirstPressed(GameInput::kKey_space);
 		bool pressedToggleDebugHBIL = GameInput::IsFirstPressed(GameInput::kKey_p);
+
 		if (pressedToggleDebugHBIL)
 		{
 			m_hbil_render = !m_hbil_render;
-			m_hbil_updateDebug = !m_hbil_updateDebug;
+			//m_hbil_updateDebug = !m_hbil_updateDebug;
 
 		}
 
@@ -1556,9 +1557,9 @@ UINT TestRenderer::frameIndex = 0;
 					 Vector3 LocalCameraRight = Vector3(XMLoadFloat4(&d.localCameraDirectionRight));
 					 Vector3 LocalCameraAt = Vector3(XMLoadFloat4(&d.localCameraDirectionAt));
 
-					 RenderSpheresAlongRay(blue,LocalSpaceAt, LocalCameraUp, samples,offset,gfxContext,camera.GetViewProjMatrix(),camera.GetPosition(),TestRenderer::kOpaque);
-					 RenderSpheresAlongRay(blue,LocalSpaceAt, LocalCameraRight, samples,offset,gfxContext,camera.GetViewProjMatrix(),camera.GetPosition(),TestRenderer::kOpaque);
-					 RenderSpheresAlongRay(blue,LocalSpaceAt, LocalCameraAt, samples,offset,gfxContext,camera.GetViewProjMatrix(),camera.GetPosition(),TestRenderer::kOpaque);
+					 //RenderSpheresAlongRay(blue,LocalSpaceAt, LocalCameraUp, samples,offset,gfxContext,camera.GetViewProjMatrix(),camera.GetPosition(),TestRenderer::kOpaque);
+					 //RenderSpheresAlongRay(blue,LocalSpaceAt, LocalCameraRight, samples,offset,gfxContext,camera.GetViewProjMatrix(),camera.GetPosition(),TestRenderer::kOpaque);
+					 //RenderSpheresAlongRay(blue,LocalSpaceAt, LocalCameraAt, samples,offset,gfxContext,camera.GetViewProjMatrix(),camera.GetPosition(),TestRenderer::kOpaque);
 
 					 Vector3 NormalSampledAtW = Vector3(XMVector3Normalize( XMLoadFloat4(&d.normalAtW)));
 					 //NormalSampledAtW.SetZ(-NormalSampledAtW.GetZ());
@@ -1567,9 +1568,9 @@ UINT TestRenderer::frameIndex = 0;
 					 Vector3 BentNormalAtW = Vector3(XMVector3Normalize(XMLoadFloat4(&d.bentNormalAtW)));
 					 //BentNormalAtW.SetZ(-BentNormalAtW.GetZ());
 
-					 RenderSpheresAlongRay(green,LocalSpaceAt, NormalSampledAtW, samples+50,offset+150,gfxContext,camera.GetViewProjMatrix(),camera.GetPosition(),TestRenderer::kOpaque);
+					 //RenderSpheresAlongRay(green,LocalSpaceAt, NormalSampledAtW, samples+50,offset+150,gfxContext,camera.GetViewProjMatrix(),camera.GetPosition(),TestRenderer::kOpaque);
 
-					 RenderSpheresAlongRay(yellow,LocalSpaceAt, RecomputedNormal, samples+50,offset+150,gfxContext,camera.GetViewProjMatrix(),camera.GetPosition(),TestRenderer::kOpaque);
+					 //RenderSpheresAlongRay(yellow,LocalSpaceAt, RecomputedNormal, samples+50,offset+150,gfxContext,camera.GetViewProjMatrix(),camera.GetPosition(),TestRenderer::kOpaque);
 
 					 RenderSpheresAlongRay(magenta,LocalSpaceAt, BentNormalAtW, samples,offset,gfxContext,camera.GetViewProjMatrix(),camera.GetPosition(),TestRenderer::kOpaque);
 
@@ -1579,8 +1580,8 @@ UINT TestRenderer::frameIndex = 0;
 						 auto currentAngleDebugData = m_HBIL->m_DebugHBILActual[i];
 						 Vector4 wsFront = Vector4(XMLoadFloat4(&currentAngleDebugData.wsSampleFront));
 						Vector4 wsBack = Vector4(XMLoadFloat4(&currentAngleDebugData.wsSampleBack));
-						RenderSphereAt(white, wsFront, gfxContext,camera.GetViewProjMatrix(),camera.GetPosition(),TestRenderer::kOpaque);
-						RenderSphereAt(white, wsBack, gfxContext, camera.GetViewProjMatrix(),camera.GetPosition(),TestRenderer::kOpaque);
+						RenderSphereAt(red, wsFront, gfxContext,camera.GetViewProjMatrix(),camera.GetPosition(),TestRenderer::kOpaque);
+						RenderSphereAt(green, wsBack, gfxContext, camera.GetViewProjMatrix(),camera.GetPosition(),TestRenderer::kOpaque);
 
 					 }
 
@@ -1910,15 +1911,20 @@ UINT TestRenderer::frameIndex = 0;
 		{
 
 			ScopedTimer _prof(L"Render HBIL Tri", gfxContext);
-			if (m_hbil_updateDebug && m_hbil_render)
+			if (m_hbil_render)
 			{
 				//Change to HBIL Interleaved
 				//m_HBILInterleaved->RenderHBIL(gfxContext,camera);
 				m_HBIL->RenderHBIL(gfxContext, camera);
 				RenderFullScreenQuad(gfxContext);
-				m_HBIL->ReadDebugHBIL(gfxContext, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, true);
+
 				//m_hbil_cameraLastPos = camera.GetPosition();
 				last_camera_data = camera;
+			}
+			if (m_hbil_updateDebug)
+			{
+				m_HBIL->ReadDebugHBIL(gfxContext, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, true);
+
 			}
 		}
 

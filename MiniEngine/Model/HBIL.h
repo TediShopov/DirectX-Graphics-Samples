@@ -129,6 +129,13 @@ protected:
 	ColorBuffer m_SplitNormal;
 	DepthBuffer m_SplitDepth;
 
+	//Ouput irradiance buffer
+	ColorBuffer m_OutputIrradiance;
+	ColorBuffer m_OutputBentCone;
+
+ 
+
+
 	int m_debugAngles = 16;
 	ByteAddressBuffer m_DebugHBIL;
 	ReadbackBuffer m_DebugHBILReadback;
