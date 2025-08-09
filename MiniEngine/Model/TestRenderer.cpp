@@ -835,6 +835,23 @@ UINT TestRenderer::frameIndex = 0;
 		}
 
 	}
+
+	void TestRenderer::RenderSphereAt(Vector4 color, Vector4 position, RENDER_OBJECT_INSTANCE_PARAMS) {
+
+			Transform t;
+			t.setPosition(position);
+			float scale = 1;
+			t.setScale(scale,scale,scale);
+
+			VSConstants vsConstants = SetupObjectVSConstants(gfxContext, ViewProjMat, viewerPos, Filter);
+			vsConstants.modelToWorld =Matrix4(t.getTransformMatrix());
+			gfxContext.SetDynamicConstantBufferView(Renderer::kMeshConstants, sizeof(vsConstants), &vsConstants);
+
+			gfxContext.SetDynamicConstantBufferView(Renderer::kCommonCBV, sizeof(Vector4), &color);
+
+			RenderSphereObject(gfxContext, ViewProjMat, viewerPos, Filter);
+	}
+
 	void TestRenderer::RenderSphereObject(RENDER_OBJECT_INSTANCE_PARAMS)
 	{
 		
@@ -1510,10 +1527,10 @@ UINT TestRenderer::frameIndex = 0;
 				 else
 					 RenderSurfels(gfxContext, camera.GetViewProjMatrix(), camera.GetPosition(), TestRenderer::kOpaque);
 
-				 if(m_hbil_drawDebug)
+				 if(m_hbil_drawDebug && m_HBIL->m_DebugHBILActual.size()>0)
 				 {
 					 //DEBUG RENDERING OF RAYS OF HBIL SAMPLED WITH SPHERES
-					 auto d = m_HBIL->m_DebugHBILActual;
+					 auto d = m_HBIL->m_DebugHBILActual[0];
 
 					 float samples = 10;
 					 float offset = 50;
@@ -1522,6 +1539,7 @@ UINT TestRenderer::frameIndex = 0;
 					 Vector4 green = Vector4(0, 1, 0, 1);
 					 Vector4 magenta = Vector4(1, 0, 1, 1);
 					 Vector4 yellow = Vector4(1, 1, 0, 1);
+					 Vector4 white = Vector4(1, 1, 1, 1);
 
 
 					 float HALF_FOV = tan(camera.GetFOV()/2);
@@ -1554,6 +1572,17 @@ UINT TestRenderer::frameIndex = 0;
 					 RenderSpheresAlongRay(yellow,LocalSpaceAt, RecomputedNormal, samples+50,offset+150,gfxContext,camera.GetViewProjMatrix(),camera.GetPosition(),TestRenderer::kOpaque);
 
 					 RenderSpheresAlongRay(magenta,LocalSpaceAt, BentNormalAtW, samples,offset,gfxContext,camera.GetViewProjMatrix(),camera.GetPosition(),TestRenderer::kOpaque);
+
+					 //Render WS sample obtained for the max horion angle 
+					 for (size_t i = 0; i < 16; i++)
+					 {
+						 auto currentAngleDebugData = m_HBIL->m_DebugHBILActual[i];
+						 Vector4 wsFront = Vector4(XMLoadFloat4(&currentAngleDebugData.wsSampleFront));
+						Vector4 wsBack = Vector4(XMLoadFloat4(&currentAngleDebugData.wsSampleBack));
+						RenderSphereAt(white, wsFront, gfxContext,camera.GetViewProjMatrix(),camera.GetPosition(),TestRenderer::kOpaque);
+						RenderSphereAt(white, wsBack, gfxContext, camera.GetViewProjMatrix(),camera.GetPosition(),TestRenderer::kOpaque);
+
+					 }
 
 
 

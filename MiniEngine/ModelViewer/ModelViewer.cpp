@@ -161,11 +161,11 @@ void LoadIBLTextures()
 void ModelViewer::Startup( void )
 {
     MotionBlur::Enable = false;
-    TemporalEffects::EnableTAA = false;
+    TemporalEffects::EnableTAA = true;
     FXAA::Enable = false;
     PostEffects::EnableHDR = false;
     PostEffects::EnableAdaptation = false;
-    SSAO::Enable = false;
+    SSAO::Enable = true;
     
 
     Renderer::Initialize();

@@ -38,8 +38,8 @@ public:
 			0.0f,   0.0f,    -nearZ * farZ / zRange,   0.0f
 		};
 
-		//return Matrix4(lhPerspectiveData);
-		return Matrix4();
+		return Matrix4(lhPerspectiveData);
+		//return Matrix4();
 	}
 	static Matrix4 ExtendedUtility::GetLHViewMatrix(const Camera& camera)
 	{

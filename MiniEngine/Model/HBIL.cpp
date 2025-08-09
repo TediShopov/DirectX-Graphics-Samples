@@ -78,7 +78,7 @@
 		gfx.TransitionResource(m_DebugHBIL, D3D12_RESOURCE_STATE_COPY_DEST, flushImmediate);
 		gfx.CopyBuffer(m_DebugHBILReadback, m_DebugHBIL);
 		void* mappedData = m_DebugHBILReadback.Map();
-		memcpy(&m_DebugHBILActual, mappedData, sizeof(m_DebugHBILActual));
+		memcpy(m_DebugHBILActual.data(), mappedData, sizeof(DebugHBILData) * m_debugAngles);
 		m_DebugHBILReadback.Unmap();
 		gfx.TransitionResource(m_DebugHBIL, endState, flushImmediate);
 
@@ -95,8 +95,10 @@
 
 	//LOAD BLUE NOISE TEXTURE
 	m_BlueNoiseTexture = TextureManager::LoadDDSFromFile(L"Textures/blueNoise_HDR_LA0.dds");
-	m_DebugHBIL.Create(L"Debug HBIL Buffer", 1, sizeof(DebugHBILData));
-	m_DebugHBILReadback.Create(L"Debug HBIL Buffer", 1, sizeof(DebugHBILData));
+	//m_DebugHBILActual.reserve(m_debugAngles);
+	m_DebugHBILActual = std::vector<DebugHBILData>(m_debugAngles);
+	m_DebugHBIL.Create(L"Debug HBIL Buffer", m_debugAngles, sizeof(DebugHBILData));
+	m_DebugHBILReadback.Create(L"Debug HBIL Buffer", m_debugAngles, sizeof(DebugHBILData));
 
 	CreateHBILHeap(downsampledGBuffers);
 

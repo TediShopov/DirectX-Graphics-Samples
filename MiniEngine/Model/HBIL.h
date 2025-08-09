@@ -88,6 +88,13 @@ __declspec(align(16)) struct CB_HBIL {
 		XMFLOAT4 globalCameraDirectionUp;
 		XMFLOAT4 globalCameraDirectionRight;
 		XMFLOAT4 globalCameraDirectionAt;
+
+		XMFLOAT4 maxAnglesInDirection;
+		XMFLOAT4 ssSamplesOfMaxAngles;
+		XMFLOAT4 wsSampleFront;
+		XMFLOAT4 wsSampleBack;
+
+
 	};
 
 
@@ -122,6 +129,7 @@ protected:
 	ColorBuffer m_SplitNormal;
 	DepthBuffer m_SplitDepth;
 
+	int m_debugAngles = 16;
 	ByteAddressBuffer m_DebugHBIL;
 	ReadbackBuffer m_DebugHBILReadback;
 	ColorBuffer* m_inputBuffers;
@@ -130,7 +138,7 @@ protected:
 	TextureRef m_BlueNoiseTexture;
 
 public:
-	DebugHBILData m_DebugHBILActual;
+	std::vector<DebugHBILData> m_DebugHBILActual;
 
 	CB_HBIL m_HBILExtraCB;
 	HBIL();

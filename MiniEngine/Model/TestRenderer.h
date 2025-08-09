@@ -118,6 +118,7 @@ protected:
 	static void RenderScreenSpaceTriangle(GraphicsContext& Context);
 	static void RenderSphereObject(RENDER_OBJECT_INSTANCE_PARAMS);
 	static void RenderSpheresAlongRay(Vector4 color,Vector3 rayOrigin, Vector3 rayDirection, int samples ,float offset,RENDER_OBJECT_INSTANCE_PARAMS);
+	static void RenderSphereAt(Vector4 color,Vector4 position,RENDER_OBJECT_INSTANCE_PARAMS);
 	static void RenderOBJObject(RENDER_OBJECT_INSTANCE_PARAMS);
 	static void RenderOBJObjectCorrectPipeline(RENDER_OBJECT_INSTANCE_PARAMS);
 

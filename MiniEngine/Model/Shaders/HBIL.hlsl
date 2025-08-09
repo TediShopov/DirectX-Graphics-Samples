@@ -197,7 +197,7 @@ cosAlpha = 1.0;	// No influence after all!!
 //	_integralFactors, some pre-computed factors to feed the radiance integral
 //	_maxCosTheta, the floating maximum cos(theta) that indicates the angle of the perceived horizon
 //
-float4	SampleIrradiance( float2 _ssCentralPosition, float2 _ssPosition, float2 _ssStep, float _radius_meters, float2 _sinCosGamma, float _centralZ, float3 _csCentralNormal, float _mipLevelDepth, float2 _integralFactors, inout float _radianceSamplingWeight, inout float3 _previousRadiance, inout float _maxCosTheta ) {
+float4	SampleIrradiance( float2 _ssCentralPosition, float2 _ssPosition, float2 _ssStep, float _radius_meters, float2 _sinCosGamma, float _centralZ, float3 _csCentralNormal, float _mipLevelDepth, float2 _integralFactors, inout float _radianceSamplingWeight, inout float3 _previousRadiance, inout float _maxCosTheta, inout float2 _maxThetaSSPosition) {
 
 	// Read new Z and compute new horizon angle candidate
 	float	Z = FetchDepth( _ssPosition, _mipLevelDepth );
@@ -243,15 +243,23 @@ float4	SampleIrradiance( float2 _ssCentralPosition, float2 _ssPosition, float2 _
 	float	radianceIntegral = IntegrateSolidAngle( _integralFactors, cosTheta, _maxCosTheta );
 	float4	incomingRadiance = float4( radianceIntegral * _previousRadiance, radianceIntegral );
 
-// #TODO: Integrate with linear interpolation of irradiance as well??
-// #TODO: Integrate with Fresnel F0!
 
 	_maxCosTheta = cosTheta;	// Register a new positive horizon
-//	_previousDeltaZ = Z;		// Accept new depth difference
+	_maxThetaSSPosition = _ssPosition;	// Register a new max screen-space position
 
 	return incomingRadiance;
 }
 
+
+////Collects additional data associated with the max cos theta 
+//struct MaxAngleSample
+//{
+//    float maxCosTheta; // The maximum horizon angle in the specificed direction
+//    float ; // The irradiance 
+//
+//	
+//};
+//
 ////////////////////////////////////////////////////////////////////////////////
 // Gathers the irradiance around the central position
 //	_ssPosition, the central screen-space position (in pixel) where to gather from
@@ -270,8 +278,24 @@ float4	SampleIrradiance( float2 _ssCentralPosition, float2 _ssPosition, float2 _
 //	[OUT] _AO, the collected ambient occlusion for the slice (in [0,2] since we collected for the front and back direction!)
 //	Returns the irradiance gathered along the sampling
 //
-float3	GatherIrradiance( float2 _ssPosition, float2 _ssStep, float2 _ssMaxPosition, float2 _csDirection, float3 _csNormal, float2 _sinCosGamma, float _stepSize_meters, uint _maxStepsCount, float _centralZ, float3 _centralRadiance, float _noise,
-						  out float3 _csBentNormal, out float _AO ) {
+float3	GatherIrradiance( 
+float2 _ssPosition,
+float2 _ssStep,
+float2 _ssMaxPosition,
+float2 _csDirection,
+float3 _csNormal,
+float2 _sinCosGamma,
+float _stepSize_meters,
+uint _maxStepsCount,
+float _centralZ,
+float3 _centralRadiance,
+float _noise,
+out float maxCosTheta_Front,
+out float maxCosTheta_Back,
+out float2 maxCosTheta_ssSample_Front,
+out float2 maxCosTheta_ssSample_Back,
+out float3 _csBentNormal,
+out float _AO ) {
 
 	// Pre-compute factors for the integrals
 	float2	integralFactors_Front = ComputeIntegralFactors( _csDirection, _csNormal );
@@ -320,15 +344,21 @@ float3	GatherIrradiance( float2 _ssPosition, float2 _ssStep, float2 _ssMaxPositi
 
 		float	radius_meters_front = 0.0;
 		float2	ssPosition_Front = _ssPosition - _noise * stepSizeFactor.x * _ssStep;
-		float	maxCosTheta_Front = planeCosTheta_Front;
+			maxCosTheta_Front = planeCosTheta_Front;
 		float3	previousRadiance_Front = _centralRadiance;
 		float	radianceSamplingWeight_Front = 1.0;
+	//The screen-space position sampled to achieve the max horizontal angle;
+		 maxCosTheta_ssSample_Front = ssPosition_Front;
 
 		[loop]
 		for ( uint stepIndex=0; stepIndex < stepsCount_Front; stepIndex++ ) {
 			radius_meters_front += stepSizeFactor.x * _stepSize_meters;
 			ssPosition_Front += stepSizeFactor.x * _ssStep;
-			float4	irradiance = SampleIrradiance( _ssPosition, ssPosition_Front, stepSizeFactor.x * _ssStep, radius_meters_front, _sinCosGamma, _centralZ, _csNormal, mipLevel, integralFactors_Front, radianceSamplingWeight_Front, previousRadiance_Front, maxCosTheta_Front );
+
+			float4	irradiance = SampleIrradiance( 
+		_ssPosition, ssPosition_Front, stepSizeFactor.x * _ssStep, 
+		radius_meters_front, _sinCosGamma, _centralZ, _csNormal, mipLevel, integralFactors_Front, 
+		radianceSamplingWeight_Front, previousRadiance_Front, maxCosTheta_Front ,maxCosTheta_ssSample_Front);
 			sumRadiance += irradiance.xyz;
 			stepSizeFactor.xyz = stepSizeFactor.yzw;	// Shift step sizes
 		}
@@ -338,16 +368,17 @@ float3	GatherIrradiance( float2 _ssPosition, float2 _ssStep, float2 _ssMaxPositi
 
 		float	radius_meters_back = 0.0;
 		float2	ssPosition_Back = _ssPosition + _noise * stepSizeFactor.x * _ssStep;
-		float	maxCosTheta_Back = planeCosTheta_Back;
+			maxCosTheta_Back = planeCosTheta_Back;
 		float2	sinCosGamma_Back = float2( -_sinCosGamma.x, _sinCosGamma.y );
 		float3	previousRadianceBack = _centralRadiance;
 		float	radianceSamplingWeight_Back = 1.0;
+		 maxCosTheta_ssSample_Back = ssPosition_Back;
 
 		[loop]
 		for ( uint stepIndex2=0; stepIndex2 < stepsCount_Back; stepIndex2++ ) {
 			radius_meters_back += stepSizeFactor.x * _stepSize_meters;
 			ssPosition_Back -= stepSizeFactor.x * _ssStep;
-			float4	irradiance = SampleIrradiance( _ssPosition, ssPosition_Back, -stepSizeFactor.x * _ssStep, radius_meters_back, sinCosGamma_Back, _centralZ, _csNormal, mipLevel, integralFactors_Back, radianceSamplingWeight_Back, previousRadianceBack, maxCosTheta_Back );
+			float4	irradiance = SampleIrradiance( _ssPosition, ssPosition_Back, -stepSizeFactor.x * _ssStep, radius_meters_back, sinCosGamma_Back, _centralZ, _csNormal, mipLevel, integralFactors_Back, radianceSamplingWeight_Back, previousRadianceBack, maxCosTheta_Back ,maxCosTheta_ssSample_Back);
 			sumRadiance += irradiance.xyz;
 			stepSizeFactor.xyz = stepSizeFactor.yzw;	// Shift step sizes
 		}

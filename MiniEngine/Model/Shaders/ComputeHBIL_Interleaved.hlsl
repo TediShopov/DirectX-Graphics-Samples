@@ -294,7 +294,13 @@ PS_OUT	main(PSInput input)
 	// Gather irradiance and average cone direction for that slice
 	float3	csBentNormal;
 	float	AO;
-	sumIrradiance += GatherIrradiance( __position.xy, ssDirection, _targetResolution, csDirection, csNormal, sinCosGamma, radiusStepSize_meters, samplesCount, Z, centralRadiance, noise, csBentNormal, AO );
+
+    float front;
+    float back;
+    float2 ssFront;
+    float2 ssBack;
+	sumIrradiance += GatherIrradiance( 
+	__position.xy, ssDirection, _targetResolution, csDirection, csNormal, sinCosGamma, radiusStepSize_meters, samplesCount, Z, centralRadiance, noise, front,back,ssFront,ssBack,csBentNormal, AO );
 	csAverageBentNormal += csBentNormal;
 	sumAO += AO;
 
@@ -316,7 +322,7 @@ PS_OUT	main(PSInput input)
 		sinCosGamma *= 0.99;	// Needed otherwise sometimes the cos(theta) is outside the [-1,1] range and acos gives a NaN!
 
 		// Gather irradiance and average cone direction for that slice
-		sumIrradiance += GatherIrradiance( __position.xy, ssDirection, _targetResolution, csDirection, csNormal, sinCosGamma, radiusStepSize_meters, samplesCount, Z, centralRadiance, noise, csBentNormal, AO );
+		sumIrradiance += GatherIrradiance( __position.xy, ssDirection, _targetResolution, csDirection, csNormal, sinCosGamma, radiusStepSize_meters, samplesCount, Z, centralRadiance, noise, front,back,ssFront,ssBack,csBentNormal, AO );
 		csAverageBentNormal += csBentNormal;
 		sumAO += AO;
 	#endif
