@@ -3,8 +3,8 @@
 
  HBIL::HBIL()
 {
-	m_HBILExtraCB._gatherSphereMaxRadius_m = 1000;
-	m_HBILExtraCB._gatherSphereMaxRadius_p = 1500;
+	m_HBILExtraCB._gatherSphereMaxRadius_m = 100;
+	m_HBILExtraCB._gatherSphereMaxRadius_p = 150;
 
 }
 

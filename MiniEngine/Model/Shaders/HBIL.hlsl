@@ -31,8 +31,8 @@
 // This is important for AO gathering where many details (i.e. fast horizon jumps) are often very close from the central position
 // Unfortunately, enabling this seems to break the large-range indirect lighting gathering that suffers greatly.
 // It seems to be a delicate balance between very nice AO or very nice IL. Ideally, obviously, we would like just "more steps", but it'd too expensive... :'(
-#define	STEP_SIZE_FACTORS	1									// Constant steps give great IL but poorly detailed AO :/
-//#define	STEP_SIZE_FACTORS	float4( 0.125, 0.25, 0.5, 1 );	// This gives greatly detailed AO but poor IL :/
+//#define	STEP_SIZE_FACTORS	1									// Constant steps give great IL but poorly detailed AO :/
+#define	STEP_SIZE_FACTORS	float4( 0.125, 0.25, 0.5, 1 );	// This gives greatly detailed AO but poor IL :/
 // !!VERY NICE IDEA TO EXPLORE FURTHER
 
 
@@ -213,7 +213,7 @@ float4	SampleIrradiance( float2 _ssCentralPosition, float2 _ssPosition, float2 _
 
 
 	// Update any rising horizon
-	if ( cosTheta <= _maxCosTheta )
+	if ( cosTheta <=  _maxCosTheta )
 		return 0.0;	// Below the horizon... No visible contribution.
 
 	// Filter outlier horizon values

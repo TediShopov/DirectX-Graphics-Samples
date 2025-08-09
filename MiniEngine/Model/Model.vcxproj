@@ -229,6 +229,10 @@
     <FxCompile Include="Shaders\SurfelIrradianceSSRMCS.hlsli">
       <FileType>Document</FileType>
     </FxCompile>
+    <FxCompile Include="Shaders\SurfelGenerationInformedCS.hlsli">
+      <FileType>Document</FileType>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">6.3</ShaderModel>
+    </FxCompile>
     <None Include="Shaders\SurfelLightTransferUtility.hlsl">
       <FileType>Document</FileType>
     </None>

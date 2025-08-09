@@ -307,8 +307,8 @@ UINT TestRenderer::frameIndex = 0;
 		//m_Transform.setScale(50,50,50);
 		m_Transform.setScale(10,10,10);
 
-		//m_sunData.ambientLightIntensity = 0.3f;
-		m_sunData.ambientLightIntensity = 0;
+		m_sunData.ambientLightIntensity = 0.3f;
+		//m_sunData.ambientLightIntensity = 0;
 		m_sunData.sunInclination = 1.0f;
 		m_sunData.sunLightIntensity = 1.0f;
 
@@ -489,6 +489,7 @@ UINT TestRenderer::frameIndex = 0;
 
 		};
 
+		
 		SurfelIllumination->Setup(
 			gbuffer
 		);
@@ -836,11 +837,10 @@ UINT TestRenderer::frameIndex = 0;
 
 	}
 
-	void TestRenderer::RenderSphereAt(Vector4 color, Vector4 position, RENDER_OBJECT_INSTANCE_PARAMS) {
+	void TestRenderer::RenderSphereAt(Vector4 color,float scale, Vector4 position, RENDER_OBJECT_INSTANCE_PARAMS) {
 
 			Transform t;
 			t.setPosition(position);
-			float scale = 2.5;
 			t.setScale(scale,scale,scale);
 
 			VSConstants vsConstants = SetupObjectVSConstants(gfxContext, ViewProjMat, viewerPos, Filter);
@@ -1485,6 +1485,22 @@ UINT TestRenderer::frameIndex = 0;
 	}
 
 
+XMVECTOR VectorProjection(XMVECTOR u, XMVECTOR v, float* scalarOut)
+{
+    XMVECTOR dotProduct = XMVector3Dot(u, v);
+    XMVECTOR vSquaredLength = XMVector3LengthSq(v);
+
+    // Prevent divide by zero
+    XMVECTOR zeroMask = XMVectorEqual(vSquaredLength, XMVectorZero());
+    XMVECTOR safeLength = XMVectorSelect(vSquaredLength, XMVectorReplicate(1.0f), zeroMask);
+
+    XMVECTOR scalar = XMVectorDivide(dotProduct, safeLength);
+
+    if (scalarOut)
+        *scalarOut = XMVectorGetX(scalar);
+
+    return XMVectorMultiply(scalar, v);
+}
 	 void TestRenderer::RenderColor(RENDER_SCENE_PARAMS)
 	 {
 		 lastUsedCamera = camera;
@@ -1565,25 +1581,65 @@ UINT TestRenderer::frameIndex = 0;
 					 //NormalSampledAtW.SetZ(-NormalSampledAtW.GetZ());
 					 Vector3 RecomputedNormal = Vector3(XMVector3Normalize(XMLoadFloat4(&d.recomputedNormal)));
 					 //RecomputedNormal.SetZ(-RecomputedNormal.GetZ());
-					 Vector3 BentNormalAtW = Vector3(XMVector3Normalize(XMLoadFloat4(&d.bentNormalAtW)));
+					 Vector4 BentNormalAtW = Vector4(XMLoadFloat4(&d.bentNormalAtW));
 					 //BentNormalAtW.SetZ(-BentNormalAtW.GetZ());
 
 					 //RenderSpheresAlongRay(green,LocalSpaceAt, NormalSampledAtW, samples+50,offset+150,gfxContext,camera.GetViewProjMatrix(),camera.GetPosition(),TestRenderer::kOpaque);
 
 					 //RenderSpheresAlongRay(yellow,LocalSpaceAt, RecomputedNormal, samples+50,offset+150,gfxContext,camera.GetViewProjMatrix(),camera.GetPosition(),TestRenderer::kOpaque);
 
-					 RenderSpheresAlongRay(magenta,LocalSpaceAt, BentNormalAtW, samples,offset,gfxContext,camera.GetViewProjMatrix(),camera.GetPosition(),TestRenderer::kOpaque);
+					 RenderSpheresAlongRay(magenta,LocalSpaceAt, Vector3(BentNormalAtW), samples,offset,gfxContext,camera.GetViewProjMatrix(),camera.GetPosition(),TestRenderer::kOpaque);
 
 					 //Render WS sample obtained for the max horion angle 
+					 XMFLOAT3 avg (0, 0, 0);
 					 for (size_t i = 0; i < 16; i++)
 					 {
 						 auto currentAngleDebugData = m_HBIL->m_DebugHBILActual[i];
 						 Vector4 wsFront = Vector4(XMLoadFloat4(&currentAngleDebugData.wsSampleFront));
 						Vector4 wsBack = Vector4(XMLoadFloat4(&currentAngleDebugData.wsSampleBack));
-						RenderSphereAt(red, wsFront, gfxContext,camera.GetViewProjMatrix(),camera.GetPosition(),TestRenderer::kOpaque);
-						RenderSphereAt(green, wsBack, gfxContext, camera.GetViewProjMatrix(),camera.GetPosition(),TestRenderer::kOpaque);
+						RenderSphereAt(red,1, wsFront, gfxContext,camera.GetViewProjMatrix(),camera.GetPosition(),TestRenderer::kOpaque);
+						RenderSphereAt(green,1, wsBack, gfxContext, camera.GetViewProjMatrix(),camera.GetPosition(),TestRenderer::kOpaque);
+
+
+						avg.x += wsFront.GetX();
+						avg.y += wsFront.GetY();
+						avg.z += wsFront.GetZ();
+
+
+						avg.x += wsBack.GetX();
+						avg.y += wsBack.GetY();
+						avg.z += wsBack.GetZ();
 
 					 }
+					 avg.x /= 32.0f;
+					 avg.y /= 32.0f;
+					 avg.z /= 32.0f;
+					 
+
+
+					 XMVECTOR originToAvg = XMVectorSubtract( XMLoadFloat3(&avg),LocalSpaceAt);
+					 //RenderSphereAt(yellow, 5, Vector4(avg), gfxContext, camera.GetViewProjMatrix(), camera.GetPosition(), TestRenderer::kOpaque);
+
+					 //Calculate Height
+					 float height = 0;
+					 XMVECTOR projection = VectorProjection(originToAvg, BentNormalAtW, &height);
+					 //XMVECTOR projection = VectorProjection( BentNormalAtW,originToAvg, &height);
+					 XMVECTOR worldPosition = XMVectorAdd(LocalSpaceAt,projection);
+						 
+					//Half-angle at apex
+					 float halfAngle = BentNormalAtW.GetW()/2.0f;
+						 
+					 //Calculate cone radius based on bent cone angle and height
+					 float radiusOfCone = abs(height) * tanf(halfAngle) * 2;
+
+
+					 radiusOfCone = min(40.0f, radiusOfCone);
+
+
+					 //RenderSphereAt(yellow, 5, Vector4(worldPosition), gfxContext, camera.GetViewProjMatrix(), camera.GetPosition(), TestRenderer::kOpaque);
+					 //RenderSphereAt(yellow, radiusOfCone*2, Vector4(worldPosition), gfxContext, camera.GetViewProjMatrix(), camera.GetPosition(), TestRenderer::kOpaque);
+					 RenderSphereAt(yellow, radiusOfCone, Vector4(avg), gfxContext, camera.GetViewProjMatrix(), camera.GetPosition(), TestRenderer::kOpaque);
+
 
 
 

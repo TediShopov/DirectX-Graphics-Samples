@@ -447,5 +447,8 @@
     <FxCompile Include="Shaders\GBufferSlice.hlsli">
       <Filter>Shaders</Filter>
     </FxCompile>
+    <FxCompile Include="Shaders\SurfelGenerationInformedCS.hlsli">
+      <Filter>Shaders</Filter>
+    </FxCompile>
   </ItemGroup>
 </Project>

@@ -213,6 +213,8 @@ public:
 
 	//--- DESCRIPTOR HEAPS ---
 	DescriptorHeap descriptorHeap;
+	DescriptorHeap m_informedSpawningDescriptorHear;
+
 	DescriptorHeap reduceThenScanPSHeap;
 	DescriptorHeap nonShaderVisibleHeap;
 	DescriptorHeap uavHeap;
@@ -278,7 +280,14 @@ public:
 
 	void Setup(GBufferPtrs gBuff);
 
+	ColorBuffer* m_bentCones;
+	void SetupInformed(ColorBuffer* );
+
 	void SpawnSurfels(ComputeContext& gfxContext,const Camera& camera);
+
+	//Additionally uses the Ambient Occlusion data and Horizon-Angles from it
+	//to inform the generation algorithm
+	void SpawnSurfelsInformed(ComputeContext& gfxContext,const Camera& camera);
 
 	//void SendParameters(ComputeContext& gfxContext,const Camera& camera);
 	//void SendParametersGraphics(GraphicsContext& gfxContext, const Camera& camera);

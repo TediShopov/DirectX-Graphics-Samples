@@ -290,6 +290,7 @@ PS_OUT	main(PSInput input) {
     float noise = (wang_hash(input.position.y * _resolution.x + input.position.x)
 						^ wang_hash(uint(_jitterPosition)))
 						* 2.3283064365386963e-10;
+    noise = 1;
 
 	// Setup camera ray
     float3 csView = BuildCameraRay(UV);
@@ -352,7 +353,7 @@ PS_OUT	main(PSInput input) {
     float varianceAO = 0.0;
 //	float	phiNoise = Bayer1D_16( _framesCount ) / 16.0f;
     float phiNoise = 2.6457513110645905905016157536393 * _framesCount;
-//phiNoise = 0.0;
+phiNoise = 0.0;
 //phiNoise = noise;
 //noise = 0.0;
 
@@ -461,6 +462,10 @@ PS_OUT	main(PSInput input) {
         _debug_hbil[0].normalAtW = float4(FetchNormal(pixelPosition, 0), 1);
         _debug_hbil[0].recomputedNormal = ConvertDirectionToWSfromLCS(csNormal, wslocalCameraSpace);
         _debug_hbil[0].bentNormalAtW = ConvertDirectionToWSfromLCS(csAverageBentNormal, wslocalCameraSpace);
+
+		float	cosAverageConeAngle = 1.0 - sumAO;		// Use AO as cone angle
+        _debug_hbil[0].bentNormalAtW.w = cosAverageConeAngle;
+
 	
         _debug_hbil[0].localCameraDirectionRight = float4(wslocalCameraSpace[VIEW_RIGHT], 0);
         _debug_hbil[0].localCameraDirectionAt = float4(wslocalCameraSpace[VIEW_AT], 0);

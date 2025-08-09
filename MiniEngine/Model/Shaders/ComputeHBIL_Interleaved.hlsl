@@ -380,7 +380,10 @@ PS_OUT	main(PSInput input)
 //		const float	MIN_ENCODABLE_VALUE = 1.0 / 128.0;	// If about to store to a RGBA8_SNORM target then use this value
 		const float	MIN_ENCODABLE_VALUE = 0.001;		// If using directly then just use this value
 		csAverageBentNormal *= sqrt( max( MIN_ENCODABLE_VALUE, cosAverageConeAngle ) ) / length( csAverageBentNormal );
-		float4	csBentCone = float4( csAverageBentNormal, stdDeviation );
+		//float4	csBentCone = float4( csAverageBentNormal, stdDeviation );
+	//For now use just the normal of the cone and the average cone angle
+		float4	csBentCone = float4( csAverageBentNormal, cosAverageConeAngle );
+	
 	#endif
 
 	/////////////////////////////////////////////////////////////////////
@@ -393,7 +396,7 @@ PS_OUT	main(PSInput input)
         _debug_hbil[0].reconstructedWorldSpacePosition = float4(wsPos, 1);
         _debug_hbil[0].normalAtW = float4(FetchNormal(pixelPosition, 0), 1);
         _debug_hbil[0].recomputedNormal = float4(csNormal.x * wsRight + csNormal.y * wsUp + csNormal.z * wsAt, 0);
-        _debug_hbil[0].bentNormalAtW = float4(csAverageBentNormal.x * wsRight + csAverageBentNormal.y * wsUp + csAverageBentNormal.z * wsAt, 0);
+        _debug_hbil[0].bentNormalAtW = float4(csAverageBentNormal.x * wsRight + csAverageBentNormal.y * wsUp + csAverageBentNormal.z * wsAt, cosAverageConeAngle);
 	
         _debug_hbil[0].localCameraDirectionRight = float4(wsRight, 0);
         _debug_hbil[0].localCameraDirectionAt = float4(wsAt, 0);

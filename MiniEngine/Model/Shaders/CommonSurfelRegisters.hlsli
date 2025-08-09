@@ -41,8 +41,8 @@ struct SurfelDebugData
 };
 
 // G-buffer input textures
-Texture2D<float4> gDepth : register(t0); // RGB = world pos
-Texture2D<float4> gNormal   : register(t1); // RGB = world normal
+Texture2D gDepth : register(t0); // RGB = world pos
+Texture2D gNormal   : register(t1); // RGB = world normal
 
 RWStructuredBuffer<SurfelData> surfelsUAV : register(u0); // world position
 RWStructuredBuffer<uint> surlfeListUAV : register(u1); // Stored pointers (indices) to the appropriate surfel data

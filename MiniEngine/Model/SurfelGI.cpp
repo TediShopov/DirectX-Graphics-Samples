@@ -107,6 +107,24 @@
 	  );
 
 
+//	  m_informedSpawningDescriptorHear.Create(L"INFORMED SURFEL SPAWNING SRV HEAP", D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 10);
+//
+//	  ExtendedUtility::CopyDescriptorsToHeap(descriptorHeap, {
+//
+//		  m_GBuffer.g_Depth->GetDepthSRV(),
+//		  m_GBuffer.g_Normal->GetSRV(),
+//		  m_GBuffer.g_Normal->GetSRV(),
+//		  m_GBuffer.g_Normal->GetSRV(),
+//		  m_SurfelData.m_GPUBuffer.GetUAV(),
+//		  m_SurfelList.m_GPUBuffer.GetUAV(),
+//		  m_SurfelGrid.m_GPUBuffer.GetUAV(),
+//		  m_SurfelStack.m_GPUBuffer.GetUAV(),
+//	      m_OutputTexture.GetUAV(),
+//	      m_SurfelDebug.GetUAV()
+//		  }
+//	  );
+
+
 	  reduceThenScanPSHeap.Create(L"Reduce Then Scan  HEAP", D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 3);
 
 	  ExtendedUtility::CopyDescriptorsToHeap(reduceThenScanPSHeap, {
@@ -388,6 +406,39 @@ void SurfelGI::FillCPUContainers()
 void SurfelGI::CreateOutputTexture(ColorBuffer* outputBuffer)
 {
 	m_OutputTexture.Create(L"RayTracingOutput", outputBuffer->GetWidth(), outputBuffer->GetHeight(), 1, DXGI_FORMAT_R8G8B8A8_UNORM);
+}
+
+
+void SurfelGI::SpawnSurfelsInformed(ComputeContext& gfxContext, const Camera& camera)
+{
+
+	ScopedTimer _prof(L"Spawn Surfels Informed Compute Shader", gfxContext);
+
+	//Transition resources from render target to CS 
+	//NON-PIXEL SHADER RESOURCE should cover the ComputeShader stage
+	gfxContext.TransitionResource(*m_GBuffer.g_Depth, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, true);
+	gfxContext.TransitionResource(*m_GBuffer.g_Normal, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, true);
+
+	gfxContext.InsertUAVBarrier(this->m_SurfelGrid.m_GPUBuffer);
+	gfxContext.InsertUAVBarrier(this->m_SurfelList.m_GPUBuffer);
+	gfxContext.InsertUAVBarrier(this->m_SurfelData.m_GPUBuffer);
+	gfxContext.InsertUAVBarrier(this->m_SurfelData.m_GPUBuffer);
+
+	//Switch to the appropriate PSO
+	gfxContext.SetPipelineState(m_GenerationPassPSO);
+	gfxContext.SetRootSignature(m_SurfelGenerationRT);
+	UpdateProjection( camera);
+	SendParameters(gfxContext);
+
+	//Dispatch grid number
+	const UINT TEX_SIZE_X = m_GBuffer.g_Normal->GetWidth();
+	const UINT TEX_SIZE_Y = m_GBuffer.g_Normal->GetHeight();
+
+	const UINT THREAD_GROUP_X = 16;
+	const UINT THREAD_GROUP_Y = 16;
+	//Mini Engine Internally uses ceilign division to supply enoug threads
+	gfxContext.Dispatch2D(TEX_SIZE_X,TEX_SIZE_Y,THREAD_GROUP_X,THREAD_GROUP_Y);
+
 }
 
   void SurfelGI::SpawnSurfels(ComputeContext& gfxContext,  const Camera& camera)
@@ -769,7 +820,7 @@ void SurfelGI::CreateOutputTexture(ColorBuffer* outputBuffer)
 
 
 	ID3D12DescriptorHeap* heaps[] = {
-		descriptorHeap.GetHeapPointer(),  // This is your SURFEL SRV HEAP
+		descriptorHeap.GetHeapPointer(),  
 	};
 
 	gfxContext.GetCommandList()->SetDescriptorHeaps(1, heaps);
