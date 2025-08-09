@@ -617,6 +617,8 @@ UINT TestRenderer::frameIndex = 0;
 			m_GBufferSlice->GetOuptutBuffer(),
 			GridVisualization->m_TestPSO
 		);
+
+		SurfelIllumination->SetupInformed(&m_HBIL->m_OutputBentCone);
 		
 
 
@@ -1626,6 +1628,9 @@ XMVECTOR VectorProjection(XMVECTOR u, XMVECTOR v, float* scalarOut)
 					 //XMVECTOR projection = VectorProjection( BentNormalAtW,originToAvg, &height);
 					 XMVECTOR worldPosition = XMVectorAdd(LocalSpaceAt,projection);
 						 
+					 float cosAngle = BentNormalAtW.GetW() / 2.0f;
+					 float sinAngle = sqrt(1.0 - cos(cosAngle));
+					 float tanAngle = sinAngle / cosAngle;
 					//Half-angle at apex
 					 float halfAngle = BentNormalAtW.GetW()/2.0f;
 						 
@@ -1991,7 +1996,11 @@ XMVECTOR VectorProjection(XMVECTOR u, XMVECTOR v, float* scalarOut)
 		SurfelIllumination->m_SurfelGen.FrameIndex = frameIndex;
 
 		if (m_stopSurfelUpdate == false)
-			SurfelIllumination->SpawnSurfels(cfx, camera);
+		{
+			//SurfelIllumination->SpawnSurfels(cfx, camera);
+			SurfelIllumination->SpawnSurfelsInformed(cfx, camera);
+
+		}
 
 		if (m_drawPhysicalSurfelInstances)
 		{

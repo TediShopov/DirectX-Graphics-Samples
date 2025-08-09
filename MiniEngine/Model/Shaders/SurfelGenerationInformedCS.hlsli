@@ -5,6 +5,9 @@
 
 groupshared uint groupShareMinCoverage;
 groupshared uint groupShareMaxContribution;
+
+Texture2D bentCones : register(t2);
+
 float calcProjectArea(float radius, float distance, float fovy, uint2 resolution)
 {
     float projRadius = atan(radius / distance) * max(resolution.x, resolution.y) / fovy;
@@ -103,6 +106,7 @@ void main(
 )
 {
 
+
     // Initialize group shared values.
     if (groupIndex == 0)
     {
@@ -168,6 +172,8 @@ void main(
 //                continue;
 
             float dist = length(bias);
+            //dist *= (1 - bentCones.SampleLevel(defaultSampler, uv, 0));
+            dist *= (1 - bentCones.SampleLevel(defaultSampler, uv, 0));
             float contribution = 1.f;
 
             contribution *= saturate(dotN);

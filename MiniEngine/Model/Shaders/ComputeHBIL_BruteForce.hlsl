@@ -19,6 +19,7 @@ struct DebugHBILData
 	float4 normalAtW;
 	float4 recomputedNormal;
 	float4 bentNormalAtW;
+	float4 perSliceAnge;
 
 	float4 localCameraDirectionUp;
 	float4 localCameraDirectionRight;
@@ -419,6 +420,7 @@ phiNoise = 0.0;
 
             _debug_hbil[angleIndex].wsFrontSampleOfMaxAngle = float4(ReconstructWorldPosition(uvFront, depthFront), 1);
             _debug_hbil[angleIndex].wsBackSampleOfMaxAngle = float4(ReconstructWorldPosition(uvBack, depthBack), 1);
+            _debug_hbil[angleIndex].perSliceAnge = float4(maxCostTheta_Back,maxCostTheta_Front,maxCostTheta_Back + maxCostTheta_Front,1);
         }
 
         csAverageBentNormal += csBentNormal;

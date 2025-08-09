@@ -11,6 +11,7 @@
 
 #include "CompiledShaders/SurfelAccelerationStructuresCS.h"
 #include "CompiledShaders/SurfelGenerationCS.h"
+#include "CompiledShaders/SurfelGenerationInformedCS.h"
 #include "CompiledShaders/SurfelApplicationCS.h"
 #include "CompiledShaders/SurfelRecyclingCS.h"
 //Reduce step of of Reduce-Scan prefix sum
@@ -61,6 +62,53 @@
 	InitializePSOs();
 }
 
+  void  SurfelGI::SetupInformed(ColorBuffer* m_bentCondesInput) 
+  {
+	  this->m_bentCones = m_bentCondesInput;
+	  m_informedSpawningDescriptorHear.Create(L"INFORMED SURFEL SPAWNING SRV HEAP", D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 9);
+	  ExtendedUtility::CopyDescriptorsToHeap(m_informedSpawningDescriptorHear, {
+		  m_GBuffer.g_Depth->GetDepthSRV(),
+		  m_GBuffer.g_Normal->GetSRV(),
+		  m_bentCones->GetSRV(),
+		  m_SurfelData.m_GPUBuffer.GetUAV(),
+		  m_SurfelList.m_GPUBuffer.GetUAV(),
+		  m_SurfelGrid.m_GPUBuffer.GetUAV(),
+		  m_SurfelStack.m_GPUBuffer.GetUAV(),
+	      m_OutputTexture.GetUAV(),
+	      m_SurfelDebug.GetUAV()
+		  }
+	  );
+
+	  SamplerDesc DefaultSamplerDesc;
+	  DefaultSamplerDesc.MaxAnisotropy = 1;
+	  DefaultSamplerDesc.Filter = D3D12_FILTER_MAXIMUM_MIN_MAG_MIP_POINT;
+	  SamplerDesc CubeMapSamplerDesc = DefaultSamplerDesc;
+
+	  m_SurfelInformedGenerationRT.Reset(5, 3);
+
+
+	  m_SurfelInformedGenerationRT.InitStaticSampler(10, DefaultSamplerDesc);
+	  m_SurfelInformedGenerationRT.InitStaticSampler(11, Graphics::SamplerShadowDesc);
+	  m_SurfelInformedGenerationRT.InitStaticSampler(12, CubeMapSamplerDesc);
+
+	  m_SurfelInformedGenerationRT[0].InitAsConstantBuffer(0);
+	  m_SurfelInformedGenerationRT[1].InitAsConstantBuffer(1);
+	  //SRVs: Position and Normal
+	  m_SurfelInformedGenerationRT[2].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 3);
+	  //UAVs: 
+	  m_SurfelInformedGenerationRT[3].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 0, 5);
+	  //Bind Debug UAVS at space 1
+	  m_SurfelInformedGenerationRT[4].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 0, 1,D3D12_SHADER_VISIBILITY_ALL,1);
+
+	  m_SurfelInformedGenerationRT.Finalize(L"CS Surfel Root Signature");
+
+	  m_InformedGenerationPassPSO.SetRootSignature(m_SurfelInformedGenerationRT);
+	  m_InformedGenerationPassPSO.SetComputeShader(g_pSurfelGenerationInformedCS, sizeof(g_pSurfelGenerationInformedCS));
+	  m_InformedGenerationPassPSO.Finalize();
+
+
+  }
+
   void SurfelGI::CopyCPUContainersToRespectiveGPUBuffers()
   {
 	  GraphicsContext& context = GraphicsContext::Begin();
@@ -107,22 +155,6 @@
 	  );
 
 
-//	  m_informedSpawningDescriptorHear.Create(L"INFORMED SURFEL SPAWNING SRV HEAP", D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 10);
-//
-//	  ExtendedUtility::CopyDescriptorsToHeap(descriptorHeap, {
-//
-//		  m_GBuffer.g_Depth->GetDepthSRV(),
-//		  m_GBuffer.g_Normal->GetSRV(),
-//		  m_GBuffer.g_Normal->GetSRV(),
-//		  m_GBuffer.g_Normal->GetSRV(),
-//		  m_SurfelData.m_GPUBuffer.GetUAV(),
-//		  m_SurfelList.m_GPUBuffer.GetUAV(),
-//		  m_SurfelGrid.m_GPUBuffer.GetUAV(),
-//		  m_SurfelStack.m_GPUBuffer.GetUAV(),
-//	      m_OutputTexture.GetUAV(),
-//	      m_SurfelDebug.GetUAV()
-//		  }
-//	  );
 
 
 	  reduceThenScanPSHeap.Create(L"Reduce Then Scan  HEAP", D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 3);
@@ -143,6 +175,10 @@
 	  m_GenerationPassPSO.SetRootSignature(m_SurfelGenerationRT);
 	  m_GenerationPassPSO.SetComputeShader(g_pSurfelGenerationCS, sizeof(g_pSurfelGenerationCS));
 	  m_GenerationPassPSO.Finalize();
+
+	  m_InformedGenerationPassPSO.SetRootSignature(m_SurfelGenerationRT);
+	  m_InformedGenerationPassPSO.SetComputeShader(g_pSurfelGenerationCS, sizeof(g_pSurfelGenerationCS));
+	  m_InformedGenerationPassPSO.Finalize();
 
 	  //Uses the same root signature but a different shader
 	  m_ApplicationPassPSO.SetRootSignature(m_SurfelGenerationRT);
@@ -334,6 +370,21 @@
 
   }
 
+ void SurfelGI::SendParametersInformed(ComputeContext& gfxContext)
+ {
+	ID3D12DescriptorHeap* heaps[] = {
+		m_informedSpawningDescriptorHear.GetHeapPointer()
+	};
+
+
+	gfxContext.GetCommandList()->SetDescriptorHeaps(1, heaps);
+	gfxContext.SetDynamicConstantBufferView(0, sizeof(SurfelGenCB),&m_SurfelGen);
+	gfxContext.SetDynamicConstantBufferView(1, sizeof(ProjectionResources),&m_ProjectionData);
+	gfxContext.SetDescriptorTable(2, m_informedSpawningDescriptorHear[0]);
+	gfxContext.SetDescriptorTable(3, m_informedSpawningDescriptorHear[3]);
+	gfxContext.SetDescriptorTable(4, m_informedSpawningDescriptorHear[8]);
+ }
+
 void SurfelGI::FillCPUContainers()
 {
 //	m_SurfelData.m_Actual.clear();
@@ -425,10 +476,10 @@ void SurfelGI::SpawnSurfelsInformed(ComputeContext& gfxContext, const Camera& ca
 	gfxContext.InsertUAVBarrier(this->m_SurfelData.m_GPUBuffer);
 
 	//Switch to the appropriate PSO
-	gfxContext.SetPipelineState(m_GenerationPassPSO);
-	gfxContext.SetRootSignature(m_SurfelGenerationRT);
+	gfxContext.SetPipelineState(m_InformedGenerationPassPSO);
+	gfxContext.SetRootSignature(m_SurfelInformedGenerationRT);
 	UpdateProjection( camera);
-	SendParameters(gfxContext);
+	SendParametersInformed(gfxContext);
 
 	//Dispatch grid number
 	const UINT TEX_SIZE_X = m_GBuffer.g_Normal->GetWidth();

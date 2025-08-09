@@ -80,6 +80,7 @@ __declspec(align(16)) struct CB_HBIL {
 		XMFLOAT4 normalAtW;
 		XMFLOAT4 recomputedNormal;
 		XMFLOAT4 bentNormalAtW;
+		XMFLOAT4 perSliceAngle;
 
 		XMFLOAT4 localCameraDirectionUp;
 		XMFLOAT4 localCameraDirectionRight;
@@ -129,9 +130,6 @@ protected:
 	ColorBuffer m_SplitNormal;
 	DepthBuffer m_SplitDepth;
 
-	//Ouput irradiance buffer
-	ColorBuffer m_OutputIrradiance;
-	ColorBuffer m_OutputBentCone;
 
  
 
@@ -145,6 +143,9 @@ protected:
 	TextureRef m_BlueNoiseTexture;
 
 public:
+	//Ouput irradiance buffer
+	ColorBuffer m_OutputIrradiance;
+	ColorBuffer m_OutputBentCone;
 	std::vector<DebugHBILData> m_DebugHBILActual;
 
 	CB_HBIL m_HBILExtraCB;

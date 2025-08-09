@@ -193,6 +193,7 @@ public:
 	//--- PIPELINE STATE OBJECTS --
 
 	ComputePSO m_GenerationPassPSO = { (L"Surfel Generation Compute Shader Stage") };
+	ComputePSO m_InformedGenerationPassPSO = { (L"Surfel Informed Generation Compute Shader Stage") };
 	ComputePSO m_ApplicationPassPSO = { (L"Surfel Application Compute Shader Stage") };
 
 	ComputePSO m_AccelerationPassPSO = { (L"Surfel Fill Acceleration Structure Pass Compute Shader Stage") };
@@ -208,12 +209,12 @@ public:
 
 	//--- ROOT SIGNATURES
 	RootSignature m_SurfelGenerationRT;
+	RootSignature m_SurfelInformedGenerationRT;
 	RootSignature m_ReduceThenScanRT;
 	//RootSignature m_SurfelApplicationRT;
 
 	//--- DESCRIPTOR HEAPS ---
 	DescriptorHeap descriptorHeap;
-	DescriptorHeap m_informedSpawningDescriptorHear;
 
 	DescriptorHeap reduceThenScanPSHeap;
 	DescriptorHeap nonShaderVisibleHeap;
@@ -275,13 +276,16 @@ public:
 	//std::vector<UINT> m_SurfelStackActual;
 
 	GBufferPtrs m_GBuffer;
+	ColorBuffer* m_bentCones;
+	DescriptorHeap m_informedSpawningDescriptorHear;
 
 	void UpdateProjection(const Camera& camera);
 
 	void Setup(GBufferPtrs gBuff);
+	void SetupInformed(ColorBuffer* m_bentCondesInput);
+	void SendParametersInformed(ComputeContext& gfxContext);
 
-	ColorBuffer* m_bentCones;
-	void SetupInformed(ColorBuffer* );
+
 
 	void SpawnSurfels(ComputeContext& gfxContext,const Camera& camera);
 
