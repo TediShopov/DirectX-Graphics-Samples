@@ -21,6 +21,7 @@ class SurfelGI;
 class HashGridVisualization;
 class MSMEVisualization;
 class SurfelGIOnlyVisualization;
+class SurfelSpawnChanceVisualization;
 class HBIL;
 class HBILInterleaved;
 class GBufferDownsample;
@@ -47,6 +48,7 @@ public:
 	static SurfelGI* SurfelIllumination;
 	static HashGridVisualization* GridVisualization;
 	static MSMEVisualization* GridMSMEVisualization;
+	static SurfelSpawnChanceVisualization* SurfelSpawnVisualization;
 	static SurfelGIOnlyVisualization* SurfelGIVisualization;
 	static SurfelGIOnlyVisualization* MaterialBindingDebug;
 	static HBIL* m_HBIL;

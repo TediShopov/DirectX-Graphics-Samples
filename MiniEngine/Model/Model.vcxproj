@@ -102,6 +102,7 @@
     <ClInclude Include="Renderer.h" />
     <ClInclude Include="SurfelGIOnlyVisualization.h" />
     <ClInclude Include="SurfelIrradianceAccumulation.h" />
+    <ClInclude Include="SurfelSpawnChanceVisualization.h" />
     <ClInclude Include="SurfelSSRMIrradianceAccumulation.h" />
     <ClInclude Include="UniformGrid.h" />
     <FxCompile Include="Shaders\DownsampleCS.hlsli">
@@ -187,6 +188,7 @@
     <ClCompile Include="SurfelGI.cpp" />
     <ClCompile Include="SurfelGIOnlyVisualization.cpp" />
     <ClCompile Include="SurfelIrradianceAccumulation.cpp" />
+    <ClCompile Include="SurfelSpawnChanceVisualization.cpp" />
     <ClCompile Include="SurfelSSRMIrradianceAccumulation.cpp" />
     <ClCompile Include="TestRaytracing.cpp" />
     <ClCompile Include="TestRenderer.cpp" />
@@ -351,6 +353,10 @@
     </FxCompile>
     <FxCompile Include="Shaders\SurfelIrradianceRayTracing.hlsl">
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Library</ShaderType>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">6.3</ShaderModel>
+    </FxCompile>
+    <FxCompile Include="Shaders\SurfelSpawningVisualizationPS.hlsl">
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Pixel</ShaderType>
       <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">6.3</ShaderModel>
     </FxCompile>
     <FxCompile Include="Shaders\TestRendererPS.hlsl">

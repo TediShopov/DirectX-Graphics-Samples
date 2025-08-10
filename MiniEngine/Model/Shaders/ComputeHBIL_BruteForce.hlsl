@@ -533,7 +533,13 @@ phiNoise = 0.0;
     //Out.bentCone = float4(max(0.01, sqrt(cosAverageConeAngle)) * csAverageBentNormal, stdDeviation);
 
     Out.bentCone = ConvertDirectionToWSfromLCS(csAverageBentNormal, wslocalCameraSpace);
-    Out.bentCone.w = cosAverageConeAngle;
+
+    float3 localSampleAverage = wsSampleAverage.xyz - wsPos;
+    float3 normalizedBentNormal = normalize(Out.bentCone);
+    float distanceAlongNormal = 0;
+        //Store the distance along the normal as a W component of the bent normal
+    float3 projected = VectorProjection(localSampleAverage, normalizedBentNormal, distanceAlongNormal);
+    Out.bentCone.w = distanceAlongNormal;
 
     return Out;
 }

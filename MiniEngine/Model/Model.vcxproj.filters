@@ -115,6 +115,7 @@
     <ClCompile Include="SurfelSSRMIrradianceAccumulation.cpp" />
     <ClCompile Include="HBIL.cpp" />
     <ClCompile Include="HBILInterleaved.cpp" />
+    <ClCompile Include="SurfelSpawnChanceVisualization.cpp" />
   </ItemGroup>
   <ItemGroup>
     <Filter Include="Source Files">
@@ -238,6 +239,7 @@
     <ClInclude Include="HBIL.h" />
     <ClInclude Include="GBufferDownsample.h" />
     <ClInclude Include="HBILInterleaved.h" />
+    <ClInclude Include="SurfelSpawnChanceVisualization.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="Shaders\Common.hlsli">
@@ -448,6 +450,9 @@
       <Filter>Shaders</Filter>
     </FxCompile>
     <FxCompile Include="Shaders\SurfelGenerationInformedCS.hlsli">
+      <Filter>Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\SurfelSpawningVisualizationPS.hlsl">
       <Filter>Shaders</Filter>
     </FxCompile>
   </ItemGroup>

@@ -21,6 +21,7 @@
 #include "SurfelGI.h"
 #include "HashGridVisualization.h"
 #include "MSMEVisualization.h"
+#include "SurfelSpawnChanceVisualization.h"
 #include "SurfelGIOnlyVisualization.h"
 #include "SurfelSSRMIrradianceAccumulation.h"
 #include <sstream>
@@ -128,6 +129,7 @@ UINT TestRenderer::frameIndex = 0;
 	 SurfelGI* TestRenderer::SurfelIllumination = nullptr;
  HashGridVisualization* TestRenderer::GridVisualization = nullptr;
 	 MSMEVisualization* TestRenderer::GridMSMEVisualization = nullptr;
+	 SurfelSpawnChanceVisualization* TestRenderer::SurfelSpawnVisualization = nullptr;
 	 SurfelGIOnlyVisualization* TestRenderer::SurfelGIVisualization = nullptr;
 	 SurfelGIOnlyVisualization* TestRenderer::MaterialBindingDebug = nullptr;
 	 HBIL* TestRenderer::m_HBIL = nullptr;
@@ -290,6 +292,7 @@ UINT TestRenderer::frameIndex = 0;
 		SurfelIllumination = new SurfelGI();  // Definition (allocates storage)
 		GridVisualization = new HashGridVisualization();
 		GridMSMEVisualization = new MSMEVisualization();
+		SurfelSpawnVisualization = new SurfelSpawnChanceVisualization();
 		SurfelGIVisualization = new SurfelGIOnlyVisualization();
 		MaterialBindingDebug = new SurfelGIOnlyVisualization();
 		frameIndex = 0;
@@ -532,6 +535,10 @@ UINT TestRenderer::frameIndex = 0;
 
 		);
 		GridMSMEVisualization->Setup(
+			gbuffer,
+			&TestRaytracing::GetOutputBuffer()
+		);
+		SurfelSpawnVisualization->Setup(
 			gbuffer,
 			&TestRaytracing::GetOutputBuffer()
 		);
@@ -1315,7 +1322,7 @@ UINT TestRenderer::frameIndex = 0;
 		if (pressedDebugMode)
 		{
 			m_debugOverlayMode++;
-			if (m_debugOverlayMode > 3)
+			if (m_debugOverlayMode > 4)
 				m_debugOverlayMode = 0;
 			
 			//m_debugOverlayMode = !((bool)m_debugOverlayMode);
@@ -1762,6 +1769,20 @@ XMVECTOR VectorProjection(XMVECTOR u, XMVECTOR v, float* scalarOut)
 				 TestRaytracing::GetOutputBuffer(),
 				 camera);
 			 MaterialBindingDebug->SetRootParameters(gfxContext, TestRaytracing::GetOutputBuffer());
+			 RenderFullScreenQuad(gfxContext);
+		 }
+		 else if (m_debugOverlayMode == 4)
+		 {
+			 ScopedTimer _prof3(L"Surfel Spawn Chance Debug Overlay", gfxContext);
+			 SurfelSpawnVisualization->SetupRenderStage(gfxContext, viewport, scissor,
+				 TestRaytracing::GetOutputBuffer(),
+				 camera);
+
+			 gfxContext.InsertUAVBarrier(TestRaytracing::GetOutputBuffer());
+
+			 SurfelIllumination->UpdateProjection(camera);
+			 SurfelIllumination->SendParametersGraphics(gfxContext);
+
 			 RenderFullScreenQuad(gfxContext);
 		 }
 

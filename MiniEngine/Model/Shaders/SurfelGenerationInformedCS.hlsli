@@ -3,7 +3,7 @@
 #include "CommonSurfelRegisters.hlsli"
 //#include "SurfelUniformGridAccelerationStructure.hlsli"
 
-#define STATIC_BENT_CONE_OFFSET 15.0f
+//#define STATIC_BENT_CONE_OFFSET 15.0f
 groupshared uint groupShareMinCoverage;
 groupshared uint groupShareMaxContribution;
 
@@ -114,7 +114,7 @@ float ContributionFromBentCone(float3 worldPos, float2 uv,out float3 bentNormal,
 					 //Calculate Height
 
     //Static for now
-    float height = STATIC_BENT_CONE_OFFSET;
+    float height = sampleBentConeTexture.w;
     //float4 projection = VectorProjection(originToAvg, BentNormalAtW,  & height);
 					 //float4 projection = VectorProjection( BentNormalAtW,originToAvg, &height);
     //float4 worldPosition = XMVectorAdd(LocalSpaceAt, projection);
@@ -267,8 +267,7 @@ void main(
             chanceFromAO = ambientOcclusion.SampleLevel(defaultSampler, uv, 0);
             // If seat for surfel in current cell avaliable and coverage is under threshold,
             // genearte new surfel probabilistically.
-            if (coverage <= gPlacementThreshold && chanceFromAO < 0.7f)
-            {
+            if (coverage <= gPlacementThreshold && chanceFromAO < 0.7f) {
 
                 //float chanceSpawn = ContributionFromBentCone(worldPos, uv, bentNormal, radius);
 
@@ -282,7 +281,7 @@ void main(
                     float calcProjArea = calcProjectArea(10, 250, fovY, gResolution.xy);
                     float varRadius = clamp(calcSurfelRadius(v, fovY, gResolution.xy, calcProjArea, 100000), minRadius, maxRadius);
 
-                    newSurfel.position = float4(worldPos, 1) + float4(bentNormal, 0) * STATIC_BENT_CONE_OFFSET;
+                    newSurfel.position = float4(worldPos, 1) + float4(bentNormal, 0) * bentCones.SampleLevel(defaultSampler,uv,0).w;
                     newSurfel.randomValues = float4(changeAgainst, chanceSpawn, changeAgainst, 1);
                     newSurfel.color = float4(0, 0, 0, 1);
                     newSurfel.contribution = uint4(0, FrameIndex, 0, 0);
