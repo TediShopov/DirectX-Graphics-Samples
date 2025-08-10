@@ -267,7 +267,7 @@ void main(
             chanceFromAO = ambientOcclusion.SampleLevel(defaultSampler, uv, 0);
             // If seat for surfel in current cell avaliable and coverage is under threshold,
             // genearte new surfel probabilistically.
-            if (coverage <= gPlacementThreshold && chanceFromAO < 0.4f)
+            if (coverage <= gPlacementThreshold && chanceFromAO < 0.7f)
             {
 
                 //float chanceSpawn = ContributionFromBentCone(worldPos, uv, bentNormal, radius);

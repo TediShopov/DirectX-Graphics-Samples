@@ -1599,7 +1599,7 @@ XMVECTOR VectorProjection(XMVECTOR u, XMVECTOR v, float* scalarOut)
 
 					 //RenderSpheresAlongRay(yellow,LocalSpaceAt, RecomputedNormal, samples+50,offset+150,gfxContext,camera.GetViewProjMatrix(),camera.GetPosition(),TestRenderer::kOpaque);
 
-					 RenderSpheresAlongRay(magenta,LocalSpaceAt, Vector3(BentNormalAtW), samples,offset,gfxContext,camera.GetViewProjMatrix(),camera.GetPosition(),TestRenderer::kOpaque);
+					 //RenderSpheresAlongRay(magenta,LocalSpaceAt, Vector3(BentNormalAtW), samples,offset,gfxContext,camera.GetViewProjMatrix(),camera.GetPosition(),TestRenderer::kOpaque);
 
 					 //Render WS sample obtained for the max horion angle 
 					 XMFLOAT3 avg (0, 0, 0);
@@ -1628,12 +1628,19 @@ XMVECTOR VectorProjection(XMVECTOR u, XMVECTOR v, float* scalarOut)
 					 
 
 
-					 XMVECTOR originToAvg = XMVectorSubtract( XMLoadFloat3(&avg),LocalSpaceAt);
+					 XMVECTOR originToAvg =  XMVectorSubtract( XMLoadFloat3(&avg),LocalSpaceAt);
 					 //RenderSphereAt(yellow, 5, Vector4(avg), gfxContext, camera.GetViewProjMatrix(), camera.GetPosition(), TestRenderer::kOpaque);
 
 					 //Calculate Height
 					 float height = 0;
-					 XMVECTOR projection = VectorProjection(originToAvg, BentNormalAtW, &height);
+					 XMVECTOR normalizedNormal = XMVector3Normalize(BentNormalAtW);
+					 //Debug vector  projection by setting upa normal at 45 deg
+					 //XMVECTOR normalizedNormal = XMVector3Normalize(XMVectorSet(0,1,1,0));
+					 RenderSpheresAlongRay(magenta,LocalSpaceAt, Vector3(normalizedNormal), samples,offset,gfxContext,camera.GetViewProjMatrix(),camera.GetPosition(),TestRenderer::kOpaque);
+
+					 //RenderSpheresAlongRay(red,LocalSpaceAt, Vector3(originToAvg), samples,offset,gfxContext,camera.GetViewProjMatrix(),camera.GetPosition(),TestRenderer::kOpaque);
+
+					 XMVECTOR projection = VectorProjection(originToAvg, normalizedNormal, &height);
 					 //XMVECTOR projection = VectorProjection( BentNormalAtW,originToAvg, &height);
 					 XMVECTOR worldPosition = XMVectorAdd(LocalSpaceAt,projection);
 						 
@@ -1650,7 +1657,8 @@ XMVECTOR VectorProjection(XMVECTOR u, XMVECTOR v, float* scalarOut)
 
 					 //RenderSphereAt(yellow, 5, Vector4(worldPosition), gfxContext, camera.GetViewProjMatrix(), camera.GetPosition(), TestRenderer::kOpaque);
 					 //RenderSphereAt(yellow, radiusOfCone*2, Vector4(worldPosition), gfxContext, camera.GetViewProjMatrix(), camera.GetPosition(), TestRenderer::kOpaque);
-					 RenderSphereAt(yellow, radiusOfCone, Vector4(avg), gfxContext, camera.GetViewProjMatrix(), camera.GetPosition(), TestRenderer::kOpaque);
+					 //RenderSphereAt(green, 3, Vector4(avg), gfxContext, camera.GetViewProjMatrix(), camera.GetPosition(), TestRenderer::kOpaque);
+					 RenderSphereAt(yellow, radiusOfCone, Vector4(worldPosition), gfxContext, camera.GetViewProjMatrix(), camera.GetPosition(), TestRenderer::kOpaque);
 
 
 
