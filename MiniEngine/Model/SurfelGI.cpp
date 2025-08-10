@@ -65,11 +65,12 @@
   void  SurfelGI::SetupInformed(ColorBuffer* m_bentCondesInput) 
   {
 	  this->m_bentCones = m_bentCondesInput;
-	  m_informedSpawningDescriptorHear.Create(L"INFORMED SURFEL SPAWNING SRV HEAP", D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 9);
+	  m_informedSpawningDescriptorHear.Create(L"INFORMED SURFEL SPAWNING SRV HEAP", D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 10);
 	  ExtendedUtility::CopyDescriptorsToHeap(m_informedSpawningDescriptorHear, {
 		  m_GBuffer.g_Depth->GetDepthSRV(),
 		  m_GBuffer.g_Normal->GetSRV(),
 		  m_bentCones->GetSRV(),
+		  Graphics::g_SSAOFullScreen.GetSRV(),
 		  m_SurfelData.m_GPUBuffer.GetUAV(),
 		  m_SurfelList.m_GPUBuffer.GetUAV(),
 		  m_SurfelGrid.m_GPUBuffer.GetUAV(),
@@ -94,7 +95,7 @@
 	  m_SurfelInformedGenerationRT[0].InitAsConstantBuffer(0);
 	  m_SurfelInformedGenerationRT[1].InitAsConstantBuffer(1);
 	  //SRVs: Position and Normal
-	  m_SurfelInformedGenerationRT[2].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 3);
+	  m_SurfelInformedGenerationRT[2].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 4);
 	  //UAVs: 
 	  m_SurfelInformedGenerationRT[3].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 0, 5);
 	  //Bind Debug UAVS at space 1
@@ -381,8 +382,8 @@
 	gfxContext.SetDynamicConstantBufferView(0, sizeof(SurfelGenCB),&m_SurfelGen);
 	gfxContext.SetDynamicConstantBufferView(1, sizeof(ProjectionResources),&m_ProjectionData);
 	gfxContext.SetDescriptorTable(2, m_informedSpawningDescriptorHear[0]);
-	gfxContext.SetDescriptorTable(3, m_informedSpawningDescriptorHear[3]);
-	gfxContext.SetDescriptorTable(4, m_informedSpawningDescriptorHear[8]);
+	gfxContext.SetDescriptorTable(3, m_informedSpawningDescriptorHear[4]);
+	gfxContext.SetDescriptorTable(4, m_informedSpawningDescriptorHear[9]);
  }
 
 void SurfelGI::FillCPUContainers()

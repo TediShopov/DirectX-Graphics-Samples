@@ -8,6 +8,7 @@ groupshared uint groupShareMinCoverage;
 groupshared uint groupShareMaxContribution;
 
 Texture2D bentCones : register(t2);
+Texture2D ambientOcclusion : register(t3);
 
 float calcProjectArea(float radius, float distance, float fovy, uint2 resolution)
 {
@@ -102,7 +103,10 @@ float ContributionFromBentCone(float3 worldPos, float2 uv,out float3 bentNormal,
 {
     float4 sampleBentConeTexture = bentCones.SampleLevel(defaultSampler, uv, 0);
      bentNormal = sampleBentConeTexture.xyz;
-    float cosHalfAngle = sampleBentConeTexture.w / 2.0f;
+    //float cosHalfAngle = sampleBentConeTexture.w / 2.0f;
+    //Compute  from the given AO occlusion as in the original brute force method
+    float AO = ambientOcclusion.SampleLevel(defaultSampler, uv, 0);
+    float cosHalfAngle = (1 - AO)/2.0f;
 
      //float4 originToAvg = XMVectorSubtract( XMLoadFloat3(&avg),LocalSpaceAt);
 					 //RenderSphereAt(yellow, 5, Vector4(avg), gfxContext, camera.GetViewProjMatrix(), camera.GetPosition(), TestRenderer::kOpaque);
@@ -260,9 +264,10 @@ void main(
         if (groupThreadID.x == minCoverageThreadID.x && groupThreadID.y == minCoverageThreadID.y)
         {
             float chanceFromAO = ContributionFromBentCone(worldPos, uv, bentNormal, radius);
+            chanceFromAO = ambientOcclusion.SampleLevel(defaultSampler, uv, 0);
             // If seat for surfel in current cell avaliable and coverage is under threshold,
             // genearte new surfel probabilistically.
-            if (coverage <= gPlacementThreshold && chanceFromAO < 0.1f)
+            if (coverage <= gPlacementThreshold && chanceFromAO < 0.4f)
             {
 
                 //float chanceSpawn = ContributionFromBentCone(worldPos, uv, bentNormal, radius);
