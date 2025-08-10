@@ -56,7 +56,7 @@ float4 main(PSInput input) : SV_TARGET
     uint surfelIdTo = surfelGridUAV[flattenedIndex + 1];
     uint surfelCount = surfelIdTo - surfelIdFrom;
 
-    float redValue = saturate(RemapFloat(surfelCount, 0, 20, 0, 1));
+    float redValue = saturate(RemapFloat(surfelCount, 0, kPerCellSurfelLimit, 0, 1));
     float4 colorBasedOnSurfelCount = float4(redValue, 1-redValue, 0, 1);
     return colorBasedOnSurfelCount;
     

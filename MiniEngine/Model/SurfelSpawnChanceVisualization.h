@@ -6,12 +6,48 @@
 class SurfelSpawnChanceVisualization :
     public HashGridVisualization
 {
+	__declspec(align(16)) struct DebugModeCB {
+		UINT  indexX;
+		UINT  indexY;
+		UINT  indexZ;
+		UINT  indexW;
+	} m_DebugMode;
+//	RootSignature m_Test;
+//	void CreateExtraRootSignature()
+//	{
+//		SamplerDesc DefaultSamplerDesc;
+//		DefaultSamplerDesc.MaxAnisotropy = 8;
+//		SamplerDesc CubeMapSamplerDesc = DefaultSamplerDesc;
+//
+//		m_Test.Reset(6, 3);
+//
+//		m_Test.InitStaticSampler(10, DefaultSamplerDesc);
+//		m_Test.InitStaticSampler(11, Graphics::SamplerShadowDesc);
+//		m_Test.InitStaticSampler(12, CubeMapSamplerDesc);
+//
+//		m_Test[0].InitAsConstantBuffer(0);
+//		m_Test[1].InitAsConstantBuffer(1);
+//		//SRVs: Position and Normal
+//		m_Test[2].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 2);
+//		//UAVs: 
+//		m_Test[3].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 0, 4);
+//		//For Debug
+//		m_Test[4].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 0, 1, D3D12_SHADER_VISIBILITY_ALL, 1);
+//		m_Test[5].InitAsConstantBuffer(2,D3D12_SHADER_VISIBILITY_PIXEL);
+//
+//		m_Test.Finalize(L"EXTRA RT", D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
+//
+//
+//
+//
+//	}
+
 
 	virtual void InitializePSO( DXGI_FORMAT formats[2], DXGI_FORMAT depthFormat) override
 	{
 		HashGridVisualization::InitializePSO(formats, depthFormat);
 
-		m_TestPSO.SetPixelShader(g_pSimpleColorPS, sizeof(g_pSimpleColorPS));
+		//CreateExtraRootSignature();
 
 
 		//m_GBuffer.g_DepthPSO.SetVertexShader(g_pDepthViewerVS, sizeof(g_pDepthViewerVS));
@@ -50,6 +86,16 @@ class SurfelSpawnChanceVisualization :
 
 	}
 
+public:
+	void SetDebugMode(GraphicsContext& gfx,UINT debugModeIndex) 
+	{
+		m_DebugMode.indexX = debugModeIndex;
+		
+
+		//gfx.SetDynamicConstantBufferView(5, sizeof(DebugModeCB), &m_DebugMode);
+		gfx.SetDynamicConstantBufferView(5, sizeof(DebugModeCB), &m_DebugMode);
+		
+	}
 
 };
 

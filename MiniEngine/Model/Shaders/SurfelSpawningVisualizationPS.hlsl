@@ -9,6 +9,7 @@ struct PSInput
 };
 
 
+
 static const float4 ColorArray[16] = {
     float4(0.0, 0.0, 0.0, 1.0),     // Black
     float4(1.0, 0.0, 0.0, 1.0),     // Red
@@ -106,13 +107,8 @@ float EstimateSurfelCoverage(float3 worldPos)
     return 1;
 }
 
-
-
-
-float4 main(PSInput input) : SV_TARGET
+float4 debugOutputSpawnChance(PSInput input)
 {
-
-
     float3 gResolution;
     gDepth.GetDimensions(0, gResolution.x, gResolution.y, gResolution.z);
     uint2 pixelPos = input.position;
@@ -199,4 +195,22 @@ float4 main(PSInput input) : SV_TARGET
 
     
 
+}
+
+
+
+float4 main(PSInput input) : SV_TARGET
+{
+    if(debugModeIndex.x == 0)
+    {
+        return debugOutputSpawnChance(input);
+    }
+    else if(debugModeIndex.x == 1)
+    {
+        return 1-debugOutputSpawnChance(input);
+    }
+    else
+    {
+        return float4(1, 0, 1, 1);
+    }
 }

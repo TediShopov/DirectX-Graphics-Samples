@@ -35,6 +35,11 @@ cbuffer ProjectionData : register(b1)
     float depthFar;
     float fovY;
 }
+cbuffer DebugMode : register(b2)
+{
+    uint4 debugModeIndex;
+}
+
 struct SurfelDebugData
 {
     uint4 pointedCell;

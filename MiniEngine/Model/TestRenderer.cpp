@@ -1322,7 +1322,7 @@ UINT TestRenderer::frameIndex = 0;
 		if (pressedDebugMode)
 		{
 			m_debugOverlayMode++;
-			if (m_debugOverlayMode > 4)
+			if (m_debugOverlayMode > 7)
 				m_debugOverlayMode = 0;
 			
 			//m_debugOverlayMode = !((bool)m_debugOverlayMode);
@@ -1771,17 +1771,21 @@ XMVECTOR VectorProjection(XMVECTOR u, XMVECTOR v, float* scalarOut)
 			 MaterialBindingDebug->SetRootParameters(gfxContext, TestRaytracing::GetOutputBuffer());
 			 RenderFullScreenQuad(gfxContext);
 		 }
-		 else if (m_debugOverlayMode == 4)
+		 else if (m_debugOverlayMode >= 4)
 		 {
 			 ScopedTimer _prof3(L"Surfel Spawn Chance Debug Overlay", gfxContext);
 			 SurfelSpawnVisualization->SetupRenderStage(gfxContext, viewport, scissor,
 				 TestRaytracing::GetOutputBuffer(),
 				 camera);
 
+			 UINT localDebugMode = m_debugOverlayMode - 4;
+
+
 			 gfxContext.InsertUAVBarrier(TestRaytracing::GetOutputBuffer());
 
 			 SurfelIllumination->UpdateProjection(camera);
 			 SurfelIllumination->SendParametersGraphics(gfxContext);
+			 SurfelSpawnVisualization->SetDebugMode(gfxContext,localDebugMode);
 
 			 RenderFullScreenQuad(gfxContext);
 		 }

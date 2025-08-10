@@ -127,8 +127,7 @@ public:
 
     static void DestroyAll(void);
 
-    void Reset( UINT NumRootParams, UINT NumStaticSamplers = 0 )
-    {
+    void Reset( UINT NumRootParams, UINT NumStaticSamplers = 0 ) {
         if (NumRootParams > 0)
             m_ParamArray.reset(new RootParameter[NumRootParams]);
         else

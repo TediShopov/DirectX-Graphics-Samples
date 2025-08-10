@@ -64,7 +64,7 @@ void HashGridVisualization::InitializePSO(DXGI_FORMAT formatsA[2], DXGI_FORMAT d
 	 DefaultSamplerDesc.MaxAnisotropy = 8;
 	 SamplerDesc CubeMapSamplerDesc = DefaultSamplerDesc;
 
-	 m_UHGRootSignature.Reset(5, 3);
+	 m_UHGRootSignature.Reset(6, 3);
 
 
 	 m_UHGRootSignature.InitStaticSampler(10, DefaultSamplerDesc);
@@ -79,6 +79,7 @@ void HashGridVisualization::InitializePSO(DXGI_FORMAT formatsA[2], DXGI_FORMAT d
 	 m_UHGRootSignature[3].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 0, 4);
 	 //For Debug
 	 m_UHGRootSignature[4].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 0, 1,D3D12_SHADER_VISIBILITY_ALL,1);
+	 m_UHGRootSignature[5].InitAsConstantBuffer(2);
 
 	 m_UHGRootSignature.Finalize(L"Hash Grid Visualiztion RT",D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
 
