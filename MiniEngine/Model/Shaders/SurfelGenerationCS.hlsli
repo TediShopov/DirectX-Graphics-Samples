@@ -219,9 +219,12 @@ void main(
         {
             // If seat for surfel in current cell avaliable and coverage is under threshold,
             // genearte new surfel probabilistically.
-            if (coverage <= gPlacementThreshold)
+            if (coverage < gPlacementThreshold)
             {
-                float chanceSpawn = pow(depthRaw, gChancePower) * gChanceMultiply;
+                float chanceSpawn ;
+                chanceSpawn = pow(depthRaw, gChancePower) * gChanceMultiply;
+                chanceSpawn *= (1 - coverage);
+
                 float changeAgainst = RandomFloat01(threadRandomnessSeed);
 
                 if (changeAgainst < chanceSpawn)

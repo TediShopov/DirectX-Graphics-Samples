@@ -101,6 +101,14 @@ bool IsInSurfelGeneralDirection(float3 relativePosition, SurfelData surfel, out 
 
 }
 
+float EstimateSurfelCoverage(float3 worldPos)
+{
+    return 1;
+}
+
+
+
+
 float4 main(PSInput input) : SV_TARGET
 {
 
@@ -122,10 +130,9 @@ float4 main(PSInput input) : SV_TARGET
     float4 depthRaw = gDepth.SampleLevel(defaultSampler, uv, 0);
     float depthRange = 0.005;
     float3 worldPos = ReconstructWorldPosition(uv, depthRaw.x, invViewProjectionMatrix);
+
     uint2 surfelFromTo = ComputeRelevantSurfelRange(worldPos);
     uint surfelCount = surfelFromTo.y - surfelFromTo.x;
-
-    
     float coverage = 0;
 
 
@@ -149,24 +156,39 @@ float4 main(PSInput input) : SV_TARGET
 
             //Bias is relative position from surfel world to the current reconstructed world 
             float3 bias = worldPos - (float3) surfel.position;
-            if (IsInSurfelInfluence(bias, surfel) == false)
-                continue;
+//            if (IsInSurfelInfluence(bias, surfel) == false)
+//                continue;
 
             float dist = length(bias);
             float contribution = 1.f;
 
-            contribution *= saturate(dotN);
-            contribution *= saturate(1 - dist / surfel.radius);
+            //contribution *= saturate(dotN);
+            //contribution *= saturate(1 - dist / surfel.radius);
+            //Max Radius would be half the length of the uniform grid cell
+            
+            contribution *= saturate(1-dist / surfel.radius);
             contribution = smoothstep(0, 1, contribution);
 
             coverage += contribution;
-        }
+    }
+    //Normalize the coverage 
+//    if(surfelCount != 0)
+//        coverage /= surfelCount;
     //}
 
-    if (coverage <= gPlacementThreshold)
+    if (coverage < gPlacementThreshold)
+    //if (coverage < gPlacementThreshold)
     {
-        float chanceSpawn = pow(depthRaw, gChancePower) * gChanceMultiply;
-        return float4(1-chanceSpawn, 1-chanceSpawn, 1-chanceSpawn, 1);
+        float chanceSpawn = 1;
+         chanceSpawn = pow(depthRaw, gChancePower) * gChanceMultiply;
+        //float chanceSpawn = 1-RemapFloat(LinearizeDepth(depthRaw, depthFar, depthNear),depthNear,depthFar,0,1);
+        //float chanceSpawn = 1-RemapFloat(LinearizeDepth(depthRaw, depthFar, depthNear),depthNear,depthFar,0,1);
+        //chanceSpawn = pow(chanceSpawn, gChancePower) * gChanceMultiply;
+        //float chanceSpawn = depthRaw;
+        //float chanceSpawn = 1;
+        chanceSpawn *= (1 - coverage);
+
+        return float4(chanceSpawn, chanceSpawn, chanceSpawn, 1);
     }
     else
     {

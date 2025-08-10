@@ -355,6 +355,10 @@
 	  m_SurfelGen.minRadius = 15;
 	  m_SurfelGen.maxRadius = 90;
 
+	  m_SurfelGen.gPlacementThreshold = 1;
+	  m_SurfelGen.gChancePower = 0.5f;
+	  m_SurfelGen.gChanceMultiply = 10.0f;
+
 	  m_SurfelGen.UniformGrid.cellSize = Vector4(100, 100, 100, 100);
 	  m_SurfelGen.UniformGrid.gridOrigin = Vector4(-2000, -2000, -2000, -2000);
 	  m_SurfelGen.UniformGrid.dimensions = Vector4(4000,4000,4000,4000);

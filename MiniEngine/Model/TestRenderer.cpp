@@ -1374,8 +1374,8 @@ UINT TestRenderer::frameIndex = 0;
 		if(ImGui::CollapsingHeader("Spawn Chances", &spawnChancesCollapsingHeader))
 		{
 			//Used for altering the 0-1 range chance
-			ImGui::DragFloat("Chance Power", &SurfelIllumination->m_SurfelGen.gChancePower);
-			ImGui::DragFloat("Chance Mulitply", &SurfelIllumination->m_SurfelGen.gChanceMultiply);
+			ImGui::DragFloat("Chance Power", &SurfelIllumination->m_SurfelGen.gChancePower,0.01f,0.01f,1.2f);
+			ImGui::DragFloat("Chance Mulitply", &SurfelIllumination->m_SurfelGen.gChanceMultiply,1,1,150);
 
 
 
@@ -2021,8 +2021,8 @@ XMVECTOR VectorProjection(XMVECTOR u, XMVECTOR v, float* scalarOut)
 
 		if (m_stopSurfelUpdate == false)
 		{
-			//SurfelIllumination->SpawnSurfels(cfx, camera);
-			SurfelIllumination->SpawnSurfelsInformed(cfx, camera);
+			SurfelIllumination->SpawnSurfels(cfx, camera);
+			//SurfelIllumination->SpawnSurfelsInformed(cfx, camera);
 
 		}
 
