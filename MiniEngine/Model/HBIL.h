@@ -143,6 +143,7 @@ protected:
 	TextureRef m_BlueNoiseTexture;
 
 public:
+	bool m_renderAtColorBuffer = false;
 	//Ouput irradiance buffer
 	ColorBuffer m_OutputIrradiance;
 	ColorBuffer m_OutputBentCone;

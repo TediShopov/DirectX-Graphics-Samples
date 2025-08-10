@@ -6,7 +6,7 @@
 //
 
 // !!SLIGHTLY LESS ACCURATE!!
-#define USE_FAST_ACOS 1			// Define this to use the "fast acos" function instead of true acos()
+#define USE_FAST_ACOS 0			// Define this to use the "fast acos" function instead of true acos()
 // !!SLIGHTLY LESS ACCURATE!!
 
 // !!MORE ACCURATE BUT ALSO MORE EXPENSIVE!!
@@ -24,7 +24,7 @@
 // This is an interesting line as it will prevent radiance from being sampled again once too many invalid samples are encountered
 //	(i.e. the bilateral filtering keeps on accumulating, making new samples less and less susceptible to be accepted once they started to get rejected)
 //	but it also dims the lighting quite quickly so not sure if we need to use it or not... IMHO it should be enabled otherwise we get some visual artefacts...
-#define	RUNNING_WEIGHT_DIM	1
+#define	RUNNING_WEIGHT_DIM	0
 
 // !!VERY NICE IDEA TO EXPLORE FURTHER
 // This idea consists in changing the step size to start slow then go faster, instead of using a constant step size
@@ -36,7 +36,7 @@
 // !!VERY NICE IDEA TO EXPLORE FURTHER
 
 
-#define USE_NORMAL_INFLUENCE_FOR_AO	1	// Define this to compute AO as a ratio of visibility only + cos(angle with the normal), which is what we expect in our calculations since AO is supposed to be used for far-field computation and should be the complement of the near field lighting given by HBIL
+#define USE_NORMAL_INFLUENCE_FOR_AO	0	// Define this to compute AO as a ratio of visibility only + cos(angle with the normal), which is what we expect in our calculations since AO is supposed to be used for far-field computation and should be the complement of the near field lighting given by HBIL
 
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////

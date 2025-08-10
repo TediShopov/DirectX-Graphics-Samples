@@ -1258,6 +1258,15 @@ UINT TestRenderer::frameIndex = 0;
 		bool pressedToggleSSR = GameInput::IsFirstPressed(GameInput::kKey_m);
 		bool pressedToggleCameraUpdated = GameInput::IsFirstPressed(GameInput::kKey_space);
 		bool pressedToggleDebugHBIL = GameInput::IsFirstPressed(GameInput::kKey_p);
+		bool pressedToggleRenderAOOnScreen = GameInput::IsFirstPressed(GameInput::kKey_z);
+
+
+		if (pressedToggleRenderAOOnScreen)
+		{
+			m_HBIL->m_renderAtColorBuffer = !m_HBIL->m_renderAtColorBuffer;
+
+		}
+
 
 		if (pressedToggleDebugHBIL)
 		{
@@ -1974,6 +1983,8 @@ XMVECTOR VectorProjection(XMVECTOR u, XMVECTOR v, float* scalarOut)
 			{
 				//Change to HBIL Interleaved
 				//m_HBILInterleaved->RenderHBIL(gfxContext,camera);
+
+				//m_HBIL->m_renderAtColorBuffer = true;
 				m_HBIL->RenderHBIL(gfxContext, camera);
 				RenderFullScreenQuad(gfxContext);
 

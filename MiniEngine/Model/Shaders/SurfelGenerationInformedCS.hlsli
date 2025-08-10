@@ -122,7 +122,7 @@ float ContributionFromBentCone(float3 worldPos, float2 uv,out float3 bentNormal,
 
     radius = min(maxRadius, radius);
     
-    return  (cosHalfAngle * 2);
+    return  cosHalfAngle;
 
 }
 
@@ -259,14 +259,15 @@ void main(
 
         if (groupThreadID.x == minCoverageThreadID.x && groupThreadID.y == minCoverageThreadID.y)
         {
+            float chanceFromAO = ContributionFromBentCone(worldPos, uv, bentNormal, radius);
             // If seat for surfel in current cell avaliable and coverage is under threshold,
             // genearte new surfel probabilistically.
-            if (coverage <= gPlacementThreshold)
+            if (coverage <= gPlacementThreshold && chanceFromAO < 0.1f)
             {
 
-                float chanceSpawn = ContributionFromBentCone(worldPos, uv, bentNormal, radius);
+                //float chanceSpawn = ContributionFromBentCone(worldPos, uv, bentNormal, radius);
 
-                //float chanceSpawn = pow(depthRaw, gChancePower) * gChanceMultiply;
+                float chanceSpawn = pow(depthRaw, gChancePower) * gChanceMultiply;
                 float changeAgainst = RandomFloat01(threadRandomnessSeed);
 
                 if (changeAgainst > chanceSpawn)

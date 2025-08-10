@@ -187,10 +187,18 @@
 	gfx.SetDescriptorTable(4, m_HBILHeap[0]);
 	gfx.SetDescriptorTable(5, m_HBILHeap[4]);
 
+
 	D3D12_CPU_DESCRIPTOR_HANDLE rtvs[2] = {
 		m_OutputIrradiance.GetRTV(),
-		m_OutputBentCone.GetRTV(),
+		m_OutputBentCone.GetRTV()
 	};
+
+	if (m_renderAtColorBuffer)
+	{
+		rtvs[0] =
+			Graphics::g_SceneColorBuffer.GetRTV();
+
+	}
 
 	gfx.SetRenderTargets(2, rtvs);
 

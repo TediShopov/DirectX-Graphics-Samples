@@ -6,7 +6,7 @@
 #include "HBIL.hlsl"
 
 #define MAX_ANGLES	16									// Amount of circle subdivisions per pixel
-#define MAX_SAMPLES	32									// Maximum amount of samples per circle subdivision
+#define MAX_SAMPLES	16									// Maximum amount of samples per circle subdivision
 
 Texture2D< float >	_tex_depth : register(t0);			// Depth or distance buffer (here we're given depth)
 Texture2D 	_tex_normal : register(t1);			// Camera-space normal vectors
@@ -479,7 +479,8 @@ phiNoise = 0.0;
 	// Write result
     PS_OUT Out;
 	//Out.irradiance = float4( sumIrradiance, 0 );
-    Out.irradiance = float4(averageAO, averageAO, averageAO, 1);
+    Out.irradiance = float4(sumAO, sumAO, sumAO, 1);
+    //Out.irradiance = float4(1-cosAverageConeAngle, 1-cosAverageConeAngle, 1-cosAverageConeAngle, 1);
     //Out.bentCone = float4(max(0.01, sqrt(cosAverageConeAngle)) * csAverageBentNormal, stdDeviation);
 
     Out.bentCone = ConvertDirectionToWSfromLCS(csAverageBentNormal, wslocalCameraSpace);
