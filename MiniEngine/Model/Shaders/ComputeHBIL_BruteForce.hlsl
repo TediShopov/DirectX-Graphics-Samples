@@ -218,6 +218,19 @@ float3 ReconstructWorldPosition(float2 uv, float depth)
 //    float4 worldPosition = mul(viewPosition, _camera2World);
 //    return worldPosition.xyz / worldPosition.w;
 }
+float3 VectorProjection(float3 u, float3 v, out float scalarOut)
+{
+    float dotProduct = dot(u, v);
+    float vSquaredLength = dot(v, v); // length squared
+
+    // Prevent divide by zero
+    float safeLength = (vSquaredLength == 0.0f) ? 1.0f : vSquaredLength;
+
+    float scalar = dotProduct / safeLength;
+    scalarOut = scalar;
+
+    return scalar * v;
+}
 
 
 float2	BilateralFilter( float2 _ssCentralPosition, float _centralZ, float3 _lcsCentralNormal, float2 _ssCurrentPosition, float _currentZ, float3 _lcsCurrentNormal, float _radius_meters, float _horizonCosTheta, float _newCosTheta ) {
@@ -490,8 +503,16 @@ phiNoise = 0.0;
         _debug_hbil[0].normalAtW = float4(FetchNormal(pixelPosition, 0), 1);
         _debug_hbil[0].recomputedNormal = ConvertDirectionToWSfromLCS(csNormal, wslocalCameraSpace);
 
+
         _debug_hbil[0].bentNormalAtW = ConvertDirectionToWSfromLCS(csAverageBentNormal, wslocalCameraSpace);
-        _debug_hbil[0].bentNormalAtW.w = cosAverageConeAngle;
+
+        //Project the average world-position of the sample to the normalized bent normal
+        float3 localSampleAverage = wsSampleAverage.xyz - wsPos;
+        float3 normalizedBentNormal = normalize(_debug_hbil[0].bentNormalAtW.xyz);
+        float distanceAlongNormal = 0;
+        //Store the distance along the normal as a W component of the bent normal
+        float3 projected = VectorProjection(localSampleAverage, normalizedBentNormal, distanceAlongNormal);
+        _debug_hbil[0].bentNormalAtW.w = distanceAlongNormal;
 
         _debug_hbil[0].localCameraDirectionRight = float4(wslocalCameraSpace[VIEW_RIGHT], 0);
         _debug_hbil[0].localCameraDirectionAt = float4(wslocalCameraSpace[VIEW_AT], 0);

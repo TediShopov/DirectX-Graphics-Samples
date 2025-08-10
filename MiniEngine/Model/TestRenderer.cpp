@@ -1612,11 +1612,11 @@ XMVECTOR VectorProjection(XMVECTOR u, XMVECTOR v, float* scalarOut)
 					 
 
 
-					 XMVECTOR originToAvg =  XMVectorSubtract( XMLoadFloat4(&d.wsSampleAverage),LocalSpaceAt);
-					 //RenderSphereAt(yellow, 5, Vector4(avg), gfxContext, camera.GetViewProjMatrix(), camera.GetPosition(), TestRenderer::kOpaque);
-
-					 //Calculate Height
-					 float height = 0;
+//					 XMVECTOR originToAvg =  XMVectorSubtract( XMLoadFloat4(&d.wsSampleAverage),LocalSpaceAt);
+//					 //RenderSphereAt(yellow, 5, Vector4(avg), gfxContext, camera.GetViewProjMatrix(), camera.GetPosition(), TestRenderer::kOpaque);
+//
+//					 //Calculate Height
+//					 float height = 0;
 					 XMVECTOR normalizedNormal = XMVector3Normalize(BentNormalAtW);
 					 //Debug vector  projection by setting upa normal at 45 deg
 					 //XMVECTOR normalizedNormal = XMVector3Normalize(XMVectorSet(0,1,1,0));
@@ -1624,11 +1624,13 @@ XMVECTOR VectorProjection(XMVECTOR u, XMVECTOR v, float* scalarOut)
 
 					 //RenderSpheresAlongRay(red,LocalSpaceAt, Vector3(originToAvg), samples,offset,gfxContext,camera.GetViewProjMatrix(),camera.GetPosition(),TestRenderer::kOpaque);
 
-					 XMVECTOR projection = VectorProjection(originToAvg, normalizedNormal, &height);
+					 //XMVECTOR projection = VectorProjection(originToAvg, normalizedNormal, &height);
 					 //XMVECTOR projection = VectorProjection( BentNormalAtW,originToAvg, &height);
-					 XMVECTOR worldPosition = XMVectorAdd(LocalSpaceAt,projection);
+					 float height = BentNormalAtW.GetW();
+					 XMVECTOR worldPosition = XMVectorAdd(LocalSpaceAt,XMVectorScale(normalizedNormal,height));
 						 
-					 float cosAngle = BentNormalAtW.GetW() / 2.0f;
+					 //float cosAngle = BentNormalAtW.GetW() / 2.0f;
+					 float cosAngle = cosf(25.0f);
 					 float sinAngle = sqrt(1.0 - cos(cosAngle));
 					 float tanAngle = sinAngle / cosAngle;
 						 
