@@ -32,6 +32,7 @@ struct DebugHBILData
 	float4 ssSampleOfMaxAngle;
 	float4 wsFrontSampleOfMaxAngle;
 	float4 wsBackSampleOfMaxAngle;
+	float4 wsSampleAverage;
 };
 
 RWStructuredBuffer<DebugHBILData> _debug_hbil : register(u0);
@@ -354,6 +355,12 @@ PS_OUT	main(PSInput input) {
     float varianceAO = 0.0;
 //	float	phiNoise = Bayer1D_16( _framesCount ) / 16.0f;
     float phiNoise = 2.6457513110645905905016157536393 * _framesCount;
+
+    float4 wsSampleAverage = float4(0, 0, 0, 0);
+    float wsAcceptedSamples = 0;
+	
+	
+	
 phiNoise = 0.0;
 //phiNoise = noise;
 //noise = 0.0;
@@ -401,9 +408,34 @@ phiNoise = 0.0;
 		csBentNormal, AO);
 
 		
+		//World-space positions of the screen-space samples used to generate the horizon angle for this slice
+
+        float2 uvFront = ssSample_Front / _resolution;
+        float depthFront = _tex_depth.SampleLevel(LinearClamp, uvFront, 0);
+
+        float2 uvBack = ssSample_Back / _resolution;
+        float depthBack = _tex_depth.SampleLevel(LinearClamp, uvBack, 0);
+
+        float4 wsSample_Front = float4(ReconstructWorldPosition(uvFront, depthFront), 1);
+        float4 wsSample_Back = float4(ReconstructWorldPosition(uvBack, depthBack), 1);
+
+        if(distance(wsPos, wsSample_Front.xyz) <= sphereRadius_pixels)
+        {
+            wsSampleAverage.xyz += wsSample_Front.xyz;
+            wsAcceptedSamples++;
+        }
+        if(distance(wsPos, wsSample_Back.xyz) <= sphereRadius_pixels)
+        {
+            wsSampleAverage.xyz += wsSample_Back.xyz;
+            wsAcceptedSamples++;
+        }
+
+
+
 		
         if (abs(UV.x - 0.5f) < eps && abs(UV.y - 0.5f) < eps)
         {
+
             _debug_hbil[angleIndex].maxAngleInDirection.x = maxCostTheta_Front;
             _debug_hbil[angleIndex].maxAngleInDirection.y = maxCostTheta_Back;
 
@@ -411,15 +443,8 @@ phiNoise = 0.0;
             _debug_hbil[angleIndex].ssSampleOfMaxAngle.zw = ssSample_Back;
 
 			//Convert to uv
-
-            float2 uvFront = ssSample_Front / _resolution;
-            float depthFront = _tex_depth.SampleLevel(LinearClamp, uvFront, 0);
-
-            float2 uvBack = ssSample_Back / _resolution;
-            float depthBack = _tex_depth.SampleLevel(LinearClamp, uvBack, 0);
-
-            _debug_hbil[angleIndex].wsFrontSampleOfMaxAngle = float4(ReconstructWorldPosition(uvFront, depthFront), 1);
-            _debug_hbil[angleIndex].wsBackSampleOfMaxAngle = float4(ReconstructWorldPosition(uvBack, depthBack), 1);
+            _debug_hbil[angleIndex].wsFrontSampleOfMaxAngle = wsSample_Front;
+            _debug_hbil[angleIndex].wsBackSampleOfMaxAngle = wsSample_Back;
             _debug_hbil[angleIndex].perSliceAnge = float4(maxCostTheta_Back,maxCostTheta_Front,maxCostTheta_Back + maxCostTheta_Front,1);
         }
 
@@ -453,7 +478,8 @@ phiNoise = 0.0;
 #endif
     float stdDeviation = 0.5 * sqrt(varianceAO); // Now AO standard deviation in [0,1]
 
-
+    //wsSampleAverage.xyz /= 2 * (float) MAX_ANGLES;
+    wsSampleAverage.xyz /= wsAcceptedSamples;
 	// Finalize irradiance
     sumIrradiance *= PI / MAX_ANGLES;
     sumIrradiance = max(0.0, sumIrradiance);
@@ -470,6 +496,8 @@ phiNoise = 0.0;
         _debug_hbil[0].localCameraDirectionRight = float4(wslocalCameraSpace[VIEW_RIGHT], 0);
         _debug_hbil[0].localCameraDirectionAt = float4(wslocalCameraSpace[VIEW_AT], 0);
         _debug_hbil[0].localCameraDirectionUp = float4(wslocalCameraSpace[VIEW_UP], 0);
+
+        _debug_hbil[0].wsSampleAverage = float4(wsSampleAverage.xyz, 1);
 
         _debug_hbil[0].globalCameraDirectionRight = float4(gcsRight, 0);
         _debug_hbil[0].globalCameraDirectionAt = float4(0, 0, 0, 0);

@@ -1601,8 +1601,6 @@ XMVECTOR VectorProjection(XMVECTOR u, XMVECTOR v, float* scalarOut)
 
 					 //RenderSpheresAlongRay(magenta,LocalSpaceAt, Vector3(BentNormalAtW), samples,offset,gfxContext,camera.GetViewProjMatrix(),camera.GetPosition(),TestRenderer::kOpaque);
 
-					 //Render WS sample obtained for the max horion angle 
-					 XMFLOAT3 avg (0, 0, 0);
 					 for (size_t i = 0; i < 16; i++)
 					 {
 						 auto currentAngleDebugData = m_HBIL->m_DebugHBILActual[i];
@@ -1610,25 +1608,11 @@ XMVECTOR VectorProjection(XMVECTOR u, XMVECTOR v, float* scalarOut)
 						Vector4 wsBack = Vector4(XMLoadFloat4(&currentAngleDebugData.wsSampleBack));
 						RenderSphereAt(red,1, wsFront, gfxContext,camera.GetViewProjMatrix(),camera.GetPosition(),TestRenderer::kOpaque);
 						RenderSphereAt(green,1, wsBack, gfxContext, camera.GetViewProjMatrix(),camera.GetPosition(),TestRenderer::kOpaque);
-
-
-						avg.x += wsFront.GetX();
-						avg.y += wsFront.GetY();
-						avg.z += wsFront.GetZ();
-
-
-						avg.x += wsBack.GetX();
-						avg.y += wsBack.GetY();
-						avg.z += wsBack.GetZ();
-
 					 }
-					 avg.x /= 32.0f;
-					 avg.y /= 32.0f;
-					 avg.z /= 32.0f;
 					 
 
 
-					 XMVECTOR originToAvg =  XMVectorSubtract( XMLoadFloat3(&avg),LocalSpaceAt);
+					 XMVECTOR originToAvg =  XMVectorSubtract( XMLoadFloat4(&d.wsSampleAverage),LocalSpaceAt);
 					 //RenderSphereAt(yellow, 5, Vector4(avg), gfxContext, camera.GetViewProjMatrix(), camera.GetPosition(), TestRenderer::kOpaque);
 
 					 //Calculate Height
@@ -1657,7 +1641,7 @@ XMVECTOR VectorProjection(XMVECTOR u, XMVECTOR v, float* scalarOut)
 
 					 //RenderSphereAt(yellow, 5, Vector4(worldPosition), gfxContext, camera.GetViewProjMatrix(), camera.GetPosition(), TestRenderer::kOpaque);
 					 //RenderSphereAt(yellow, radiusOfCone*2, Vector4(worldPosition), gfxContext, camera.GetViewProjMatrix(), camera.GetPosition(), TestRenderer::kOpaque);
-					 //RenderSphereAt(green, 3, Vector4(avg), gfxContext, camera.GetViewProjMatrix(), camera.GetPosition(), TestRenderer::kOpaque);
+					 RenderSphereAt(green, 3, Vector4(d.wsSampleAverage), gfxContext, camera.GetViewProjMatrix(), camera.GetPosition(), TestRenderer::kOpaque);
 					 RenderSphereAt(yellow, radiusOfCone, Vector4(worldPosition), gfxContext, camera.GetViewProjMatrix(), camera.GetPosition(), TestRenderer::kOpaque);
 
 

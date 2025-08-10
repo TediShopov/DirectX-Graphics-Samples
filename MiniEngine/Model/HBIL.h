@@ -94,6 +94,7 @@ __declspec(align(16)) struct CB_HBIL {
 		XMFLOAT4 ssSamplesOfMaxAngles;
 		XMFLOAT4 wsSampleFront;
 		XMFLOAT4 wsSampleBack;
+		XMFLOAT4 wsSampleAverage;
 
 
 	};
