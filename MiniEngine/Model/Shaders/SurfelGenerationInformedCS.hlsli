@@ -300,6 +300,13 @@ void main(
                     newSurfel.msme.variance = float3(1e-4, 1e-4, 1e-4);
                     newSurfel.msme.inconsistency = 1;
                     newSurfel.msme.vbbr = 1;
+
+                    
+                    //Not a surfel cap by default
+                    newSurfel.isSurfelCap =  0;
+                    newSurfel.height = 0;
+                    newSurfel.angle = 0;
+                    newSurfel.padSurfelCap = 0;
                     AttemptSpawnSurfel(newSurfel);
                 }
             }

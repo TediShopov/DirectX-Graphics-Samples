@@ -63,7 +63,14 @@ __declspec(align(16)) struct SurfelData
 	Vector4 mean;
 	Vector4 shortMeanAndVBBR;
 	Vector4 varianceAndInconsistency;
+
+
 	//16
+	UINT isSurfelCap; //255 if it is 0 if not
+	float height;
+	float angle;
+	float padSurfelCap;
+
 
 };
 	__declspec(align(16)) struct SurfelGenCB

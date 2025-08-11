@@ -18,6 +18,11 @@ struct SurfelData
     uint4 contribution;
 
     MultiscaleMeanEstimatorData msme;
+
+	uint isSurfelCap; //255 if it is 0 if not
+	float height;
+	float angle;
+	float padSurfelCap;
 };
 struct UniformGrid
 {
