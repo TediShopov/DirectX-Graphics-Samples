@@ -9,25 +9,9 @@ struct PSInput
 };
 
 
+Texture2D bentCones : register(t2);
+Texture2D ambientOcclusion : register(t3);
 
-static const float4 ColorArray[16] = {
-    float4(0.0, 0.0, 0.0, 1.0),     // Black
-    float4(1.0, 0.0, 0.0, 1.0),     // Red
-    float4(0.0, 1.0, 0.0, 1.0),     // Green
-    float4(0.0, 0.0, 1.0, 1.0),     // Blue
-    float4(1.0, 1.0, 0.0, 1.0),     // Yellow
-    float4(1.0, 0.0, 1.0, 1.0),     // Magenta
-    float4(0.0, 1.0, 1.0, 1.0),     // Cyan
-    float4(1.0, 0.5, 0.0, 1.0),     // Orange
-    float4(0.5, 0.0, 0.5, 1.0),     // Purple
-    float4(0.5, 0.5, 0.5, 1.0),     // Gray
-    float4(1.0, 1.0, 1.0, 1.0),     // White
-    float4(0.5, 0.25, 0.0, 1.0),    // Brown
-    float4(0.0, 0.5, 0.0, 1.0),     // Dark Green
-    float4(0.0, 0.0, 0.5, 1.0),     // Dark Blue
-    float4(0.5, 0.0, 0.0, 1.0),     // Dark Red
-    float4(0.5, 0.5, 1.0, 1.0)      // Light Blue
-};
 
 
 float3 computeRadianceForWorldPos(float3 worldPos, float3 worldNormal)
@@ -209,8 +193,18 @@ float4 main(PSInput input) : SV_TARGET
     {
         return 1-debugOutputSpawnChance(input);
     }
+    else if(debugModeIndex.x == 2)
+    {
+        float3 gResolution;
+        gDepth.GetDimensions(0, gResolution.x, gResolution.y, gResolution.z);
+        uint2 pixelPos = input.position;
+        float2 uv = input.position.xy / float2(gResolution.x, gResolution.y);
+        return ambientOcclusion.Sample(defaultSampler, uv);
+
+    }
     else
     {
         return float4(1, 0, 1, 1);
+        
     }
 }

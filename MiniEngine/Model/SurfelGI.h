@@ -188,7 +188,8 @@ public:
 
 	UINT _CELL_COUNT_;
 	static const int _SURFEL_MAX_COUNT_ = 100000;
-	static const int _SURFEL_PER_CELL = 150;
+	//static const int _SURFEL_PER_CELL = 150;
+	static const int _SURFEL_PER_CELL = 500;
 
 	//--- PIPELINE STATE OBJECTS --
 
@@ -283,7 +284,9 @@ public:
 
 	void Setup(GBufferPtrs gBuff);
 	void SetupInformed(ColorBuffer* m_bentCondesInput);
+
 	void SendParametersInformed(ComputeContext& gfxContext);
+	void SendParametersInformedGraphics(GraphicsContext& gfxContext);
 
 
 

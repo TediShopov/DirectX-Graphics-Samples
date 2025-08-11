@@ -390,6 +390,21 @@
 	gfxContext.SetDescriptorTable(4, m_informedSpawningDescriptorHear[9]);
  }
 
+ void SurfelGI::SendParametersInformedGraphics(GraphicsContext& gfxContext)
+ {
+	ID3D12DescriptorHeap* heaps[] = {
+		m_informedSpawningDescriptorHear.GetHeapPointer()
+	};
+
+	gfxContext.GetCommandList()->SetDescriptorHeaps(1, heaps);
+	gfxContext.SetDynamicConstantBufferView(0, sizeof(SurfelGenCB),&m_SurfelGen);
+	gfxContext.SetDynamicConstantBufferView(1, sizeof(ProjectionResources),&m_ProjectionData);
+	gfxContext.SetDescriptorTable(2, m_informedSpawningDescriptorHear[0]);
+	gfxContext.SetDescriptorTable(3, m_informedSpawningDescriptorHear[4]);
+	gfxContext.SetDescriptorTable(4, m_informedSpawningDescriptorHear[9]);
+
+ }
+
 void SurfelGI::FillCPUContainers()
 {
 //	m_SurfelData.m_Actual.clear();

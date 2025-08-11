@@ -1784,7 +1784,9 @@ XMVECTOR VectorProjection(XMVECTOR u, XMVECTOR v, float* scalarOut)
 			 gfxContext.InsertUAVBarrier(TestRaytracing::GetOutputBuffer());
 
 			 SurfelIllumination->UpdateProjection(camera);
-			 SurfelIllumination->SendParametersGraphics(gfxContext);
+			 
+			 //SurfelIllumination->SendParametersGraphics(gfxContext);
+			 SurfelIllumination->SendParametersInformedGraphics(gfxContext);
 			 SurfelSpawnVisualization->SetDebugMode(gfxContext,localDebugMode);
 
 			 RenderFullScreenQuad(gfxContext);
