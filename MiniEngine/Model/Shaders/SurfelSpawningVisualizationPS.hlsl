@@ -86,9 +86,51 @@ bool IsInSurfelGeneralDirection(float3 relativePosition, SurfelData surfel, out 
 
 }
 
-float EstimateSurfelCoverage(float3 worldPos)
+float EstimateSurfelCoverage( float2 uv,float depthRaw)
 {
-    return 1;
+
+    float3 worldPos = ReconstructWorldPosition(uv, depthRaw.x, invViewProjectionMatrix);
+
+    uint2 surfelFromTo = ComputeRelevantSurfelRange(worldPos);
+    uint surfelCount = surfelFromTo.y - surfelFromTo.x;
+    float coverage = 0;
+    float maxContribution = 0.0f;
+
+    //For each surfel into the current Surfle Acceleration Structure Cell
+    //In this case is the uniform grid
+    for (uint i = surfelFromTo.x; i < surfelFromTo.y; ++i)
+    {
+        uint surfelIndex = surlfeListUAV[i];
+        SurfelData surfel = surfelsUAV[surfelIndex];
+        float dotN = 1;
+
+        //Bias is relative position from surfel world to the current reconstructed world 
+        float3 bias = worldPos - (float3) surfel.position;
+
+        float dist = length(bias);
+        float contribution = 1.f;
+
+        contribution *= saturate(1 - dist / surfel.radius);
+        contribution = smoothstep(0, 1, contribution);
+
+        coverage += contribution;
+    }
+    return coverage;
+}
+float EstimateSpawnChance(float coverage,float depthRaw)
+{
+    if (coverage < gPlacementThreshold)
+    {
+        float chanceSpawn = 1;
+         chanceSpawn = pow(depthRaw, gChancePower) * gChanceMultiply;
+        chanceSpawn *= (1 - coverage);
+        return float4(chanceSpawn, chanceSpawn, chanceSpawn, 1);
+    }
+    else
+    {
+        return 0;
+    }
+
 }
 
 float4 debugOutputSpawnChance(PSInput input)
@@ -97,88 +139,14 @@ float4 debugOutputSpawnChance(PSInput input)
     gDepth.GetDimensions(0, gResolution.x, gResolution.y, gResolution.z);
     uint2 pixelPos = input.position;
 
-    //uint threadRandomnessSeed = GetThreadTemporalSeed(dispatchThreadId,FrameIndex);
-
-    //int index = pixelPos.x * gResolution.x + pixelPos.y;
-    //float2 uv = float2(dispatchThreadId.xy) / float2(gResolution.x - 1, gResolution.y - 1);
-    //float2 uv = float2(dispatchThreadId.xy) / float2(gResolution.x , gResolution.y );
     float2 uv = input.position.xy / float2(gResolution.x , gResolution.y );
     float4 sampledNormal = gNormal.SampleLevel(defaultSampler, uv, 0);
 
-    //Create a random "state" 
-    //Reconstruct world-position
     float4 depthRaw = gDepth.SampleLevel(defaultSampler, uv, 0);
-    float depthRange = 0.005;
-    float3 worldPos = ReconstructWorldPosition(uv, depthRaw.x, invViewProjectionMatrix);
-
-    uint2 surfelFromTo = ComputeRelevantSurfelRange(worldPos);
-    uint surfelCount = surfelFromTo.y - surfelFromTo.x;
-    float coverage = 0;
-
-
-     // Evaluate min coverage value and pixel position.
-    // Also evaluate max contribution and surfel index (for handling over-coverage).
-    // Also evalute weighted color output (indrect lighting).
-    //if (surfelCount < kPerCellSurfelLimit-2)
-    //{
-        float maxContribution = 0.0f;
-
-        //uint maxContributionSurfelIndex = RandomUintInRange(threadRandomnessSeed, 0, surfelCount);
-
-        //For each surfel into the current Surfle Acceleration Structure Cell
-        //In this case is the uniform grid
-        for (uint i = surfelFromTo.x; i < surfelFromTo.y; ++i)
-        {
-            //uint surfelIndex = surlfeListUAV[index];
-            uint surfelIndex = surlfeListUAV[i];
-            SurfelData surfel = surfelsUAV[surfelIndex];
-            float dotN = 1;
-
-            //Bias is relative position from surfel world to the current reconstructed world 
-            float3 bias = worldPos - (float3) surfel.position;
-//            if (IsInSurfelInfluence(bias, surfel) == false)
-//                continue;
-
-            float dist = length(bias);
-            float contribution = 1.f;
-
-            //contribution *= saturate(dotN);
-            //contribution *= saturate(1 - dist / surfel.radius);
-            //Max Radius would be half the length of the uniform grid cell
-            
-            contribution *= saturate(1-dist / surfel.radius);
-            contribution = smoothstep(0, 1, contribution);
-
-            coverage += contribution;
-    }
-    //Normalize the coverage 
-//    if(surfelCount != 0)
-//        coverage /= surfelCount;
-    //}
-
-    if (coverage < gPlacementThreshold)
-    //if (coverage < gPlacementThreshold)
-    {
-        float chanceSpawn = 1;
-         chanceSpawn = pow(depthRaw, gChancePower) * gChanceMultiply;
-        //float chanceSpawn = 1-RemapFloat(LinearizeDepth(depthRaw, depthFar, depthNear),depthNear,depthFar,0,1);
-        //float chanceSpawn = 1-RemapFloat(LinearizeDepth(depthRaw, depthFar, depthNear),depthNear,depthFar,0,1);
-        //chanceSpawn = pow(chanceSpawn, gChancePower) * gChanceMultiply;
-        //float chanceSpawn = depthRaw;
-        //float chanceSpawn = 1;
-        chanceSpawn *= (1 - coverage);
-
-        return float4(chanceSpawn, chanceSpawn, chanceSpawn, 1);
-    }
-    else
-    {
-        return float4(1, 0, 0, 1);
-        
-    }
-
-
+    float coverage = EstimateSurfelCoverage(uv,depthRaw.x);
+    float spawnChance = EstimateSpawnChance(coverage, depthRaw.x);
     
-
+    return float4(spawnChance, spawnChance, spawnChance, 1);
 }
 
 
@@ -191,8 +159,39 @@ float4 main(PSInput input) : SV_TARGET
     }
     else if(debugModeIndex.x == 1)
     {
-        return 1-debugOutputSpawnChance(input);
+        //Unified debugging overlay ( Informed Spawn Chance In Green / Defaul spawn chance in red)
+        float3 gResolution;
+        gDepth.GetDimensions(0, gResolution.x, gResolution.y, gResolution.z);
+        uint2 pixelPos = input.position;
+        float2 uv = input.position.xy / float2(gResolution.x, gResolution.y);
+        float AO =  ambientOcclusion.Sample(defaultSampler, uv);
+
+        //Possibly modify this by the augmented depth value to 
+        //make it easier to react in AO in the distance
+        float AOThreshold = 0.4f;
+        float4 depthRaw = gDepth.SampleLevel(defaultSampler, uv, 0);
+
+        if(AO < AOThreshold)
+        {
+            //Ambient Occlussion is larger --> Resort to Surfel Cap spawning
+            return float4(0, 1, 0, 1);
+            
+        }
+        else
+        {
+            float coverage = EstimateSurfelCoverage(uv, depthRaw.x);
+            float spawnChance = EstimateSpawnChance(coverage, depthRaw.x);
+            return float4(spawnChance, 0, 0, 1);
+            
+        }
+
+
+
+
+
+
     }
+
     else if(debugModeIndex.x == 2)
     {
         float3 gResolution;
@@ -202,9 +201,5 @@ float4 main(PSInput input) : SV_TARGET
         return ambientOcclusion.Sample(defaultSampler, uv);
 
     }
-    else
-    {
-        return float4(1, 0, 1, 1);
-        
-    }
+    return float4(1, 0, 1, 1);
 }
