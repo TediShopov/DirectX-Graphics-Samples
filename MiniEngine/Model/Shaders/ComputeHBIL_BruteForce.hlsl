@@ -218,6 +218,22 @@ float3 ReconstructWorldPosition(float2 uv, float depth)
 //    float4 worldPosition = mul(viewPosition, _camera2World);
 //    return worldPosition.xyz / worldPosition.w;
 }
+
+float3 ReconstructWorldPositionAlternative(float2 pixelPosition)
+{
+    float UV = pixelPosition.xy / _resolution;
+    float3 csView = BuildCameraRay(UV);
+    float Z2Distance = length(csView);
+    csView /= Z2Distance;
+    float3 wsView = mul(float4(csView, 0.0), _camera2World).xyz;
+
+	// Read back depth, normal & central radiance value from last frame
+    //float Z = Z_FAR * _tex_depth[pixelPosition];
+    float Z = FetchDepth(pixelPosition, 0);
+    float3 wsPos = _camera2World[3].xyz + Z * Z2Distance * wsView;
+    return wsPos;
+
+}
 float3 VectorProjection(float3 u, float3 v, out float scalarOut)
 {
     float dotProduct = dot(u, v);
@@ -298,6 +314,8 @@ PS_OUT	main(PSInput input) {
     PS_OUT debugEarlyOut;
 //PS_OUT	PS( float4 __Position : SV_POSITION ) {
     float2 UV = __Position.xy / _resolution;
+    float2 debugUv = _mousePos.xy / _resolution;
+
     uint2 pixelPosition = uint2(floor(__Position.xy));
     float _jitterPosition = _framesCount * 5.0f;
 	//float	noise = frac( _tex_blueNoise[pixelPosition & 0x3F] + SQRT2 * _framesCount );	// ACTUAL GOOD VALUE!
@@ -305,7 +323,7 @@ PS_OUT	main(PSInput input) {
     float noise = (wang_hash(input.position.y * _resolution.x + input.position.x)
 						^ wang_hash(uint(_jitterPosition)))
 						* 2.3283064365386963e-10;
-    noise = 1;
+    //noise = 1;
 
 	// Setup camera ray
     float3 csView = BuildCameraRay(UV);
@@ -316,6 +334,7 @@ PS_OUT	main(PSInput input) {
 	// Read back depth, normal & central radiance value from last frame
     //float Z = Z_FAR * _tex_depth[pixelPosition];
     float Z = FetchDepth(pixelPosition, 0);
+    float3 wsPos = _camera2World[3].xyz + Z * Z2Distance * wsView;
 
     Z -= 1e-2; // !IMPORTANT! Prevent acnea by offseting the central depth a tiny bit closer
 
@@ -329,7 +348,6 @@ PS_OUT	main(PSInput input) {
     wslocalCameraSpace[VIEW_UP] = cross(wslocalCameraSpace[VIEW_RIGHT], wsView);
     wslocalCameraSpace[VIEW_AT] = -wsView;
 
-    float3 wsPos = _camera2World[3].xyz + Z * Z2Distance * wsView;
 //	float3	wsRight = normalize( cross( wsView, _camera2World[1].xyz ) );
 //	float3	wsUp = cross( wsRight, wsView );
 //	float3	wsAt = -wsView;
@@ -344,10 +362,11 @@ PS_OUT	main(PSInput input) {
 	
     float2 sinCosGamma;
     float3 wsSurfaceNormal = FetchNormal(pixelPosition, 0);
+    wsSurfaceNormal.z *= -1;
     float3 csNormal;
     csNormal = ConvertDirectionToLCSfromWS(wsSurfaceNormal, wslocalCameraSpace);
     //csNormal = mul(float4(wsSurfaceNormal, 0), _world2Camera);
-    csNormal.z = max(1e-3, csNormal.z); // Make sure it's never 0!
+    //csNormal.z = max(1e-3, csNormal.z); // Make sure it's never 0!
 
 	// Compute screen radius of gather sphere
     float screenSize_m = 2.0 * Z * TAN_HALF_FOV; // Vertical size of the screen in meters when extended to distance Z
@@ -374,7 +393,7 @@ PS_OUT	main(PSInput input) {
 	
 	
 	
-phiNoise = 0.0;
+        phiNoise = 0.0;
 //phiNoise = noise;
 //noise = 0.0;
 
@@ -432,6 +451,8 @@ phiNoise = 0.0;
         float4 wsSample_Front = float4(ReconstructWorldPosition(uvFront, depthFront), 1);
         float4 wsSample_Back = float4(ReconstructWorldPosition(uvBack, depthBack), 1);
 
+//        float4 wsSample_Front = float4(ReconstructWorldPositionAlternative(ssSample_Front), 1);
+//        float4 wsSample_Back = float4(ReconstructWorldPositionAlternative(ssSample_Back), 1);
         if(distance(wsPos, wsSample_Front.xyz) <= sphereRadius_pixels)
         {
             wsSampleAverage.xyz += wsSample_Front.xyz;
@@ -446,7 +467,7 @@ phiNoise = 0.0;
 
 
 		
-        if (abs(UV.x - 0.5f) < eps && abs(UV.y - 0.5f) < eps)
+        if (abs(UV.x - debugUv.x) < eps && abs(UV.y - debugUv.y) < eps)
         {
 
             _debug_hbil[angleIndex].maxAngleInDirection.x = maxCostTheta_Front;
@@ -497,9 +518,10 @@ phiNoise = 0.0;
     sumIrradiance *= PI / MAX_ANGLES;
     sumIrradiance = max(0.0, sumIrradiance);
 
-    if (abs(UV.x - 0.5f) < eps && abs(UV.y - 0.5f) < eps)
+    if (abs(UV.x - debugUv.x) < eps && abs(UV.y - debugUv.y) < eps)
     {
-        _debug_hbil[0].reconstructedWorldSpacePosition = float4(wsPos, 1);
+        //_debug_hbil[0].reconstructedWorldSpacePosition = float4(wsPos, 1);
+        _debug_hbil[0].reconstructedWorldSpacePosition = float4(ReconstructWorldPosition(UV, _tex_depth.SampleLevel(LinearClamp, UV, 0)),1);
         _debug_hbil[0].normalAtW = float4(FetchNormal(pixelPosition, 0), 1);
         _debug_hbil[0].recomputedNormal = ConvertDirectionToWSfromLCS(csNormal, wslocalCameraSpace);
 
@@ -528,7 +550,7 @@ phiNoise = 0.0;
 	// Write result
     PS_OUT Out;
 	//Out.irradiance = float4( sumIrradiance, 0 );
-    Out.irradiance = float4(sumAO, sumAO, sumAO, 1);
+    Out.irradiance = float4(averageAO, averageAO, averageAO, 1);
     //Out.irradiance = float4(1-cosAverageConeAngle, 1-cosAverageConeAngle, 1-cosAverageConeAngle, 1);
     //Out.bentCone = float4(max(0.01, sqrt(cosAverageConeAngle)) * csAverageBentNormal, stdDeviation);
 

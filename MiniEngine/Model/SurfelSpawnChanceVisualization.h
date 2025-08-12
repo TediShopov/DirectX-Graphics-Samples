@@ -69,8 +69,7 @@ class SurfelSpawnChanceVisualization :
 		//m_TestPSO.SetRenderTargetFormats(2, formats, DepthFormat);
 		//m_TestPSO.SetRenderTargetFormats(2, formats, depthFormat);
 		m_TestPSO.SetRenderTargetFormats(1, &formats[0], DXGI_FORMAT_UNKNOWN);
-		m_TestPSO.SetInputLayout(_countof(colorElem), colorElem);
-		//--- CHANGE THE DEPTH STATE ALWAYS TO DRAW ON TOP OF GEOMETRY
+		m_TestPSO.SetInputLayout(_countof(colorElem), colorElem); //--- CHANGE THE DEPTH STATE ALWAYS TO DRAW ON TOP OF GEOMETRY
 		m_TestPSO.SetDepthStencilState(Graphics::DepthStateDisabled);
 		//--- THIS HAS TO BE SET TO UNKNOWN FORMAT TO CONFORM TO FRAMEWORK
 		//m_TestPSO.SetDepthTargetFormat(DXGI_FORMAT_UNKNOWN);
@@ -85,6 +84,7 @@ class SurfelSpawnChanceVisualization :
 
 
 	}
+	
 
 public:
 	void SetDebugMode(GraphicsContext& gfx,UINT debugModeIndex) 
@@ -97,5 +97,28 @@ public:
 		
 	}
 
+	void SetupRenderStage(GraphicsContext& gfxContext,
+		const D3D12_VIEWPORT& viewport,
+		const D3D12_RECT& scissor,
+		ColorBuffer& rayTracingOutColor,
+		const Math::Camera& camera) override {
+
+
+		gfxContext.SetPipelineState(m_TestPSO);
+		gfxContext.SetRootSignature(m_Test);
+
+
+		gfxContext.TransitionResource(*m_GBuffer.g_Depth, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, true);
+		gfxContext.TransitionResource(*m_GBuffer.g_Normal, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, true);
+
+
+		D3D12_CPU_DESCRIPTOR_HANDLE rtvs[]{ m_GBuffer.g_Color->GetRTV(), m_GBuffer.g_Normal->GetRTV() };
+
+		gfxContext.SetRenderTargets(ARRAYSIZE(rtvs), rtvs);
+
+		gfxContext.SetViewportAndScissor(viewport, scissor);
+
+		//RenderTriangleObject(gfxContext, camera.GetViewProjMatrix(), camera.GetPosition(), TestRenderer::kOpaque);
+	 }
 };
 

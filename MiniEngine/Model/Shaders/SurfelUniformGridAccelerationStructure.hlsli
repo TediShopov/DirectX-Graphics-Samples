@@ -190,6 +190,28 @@ void SurfelSOIBoundingCells(SurfelData surfel,UniformGrid grid, out uint3 bb[2])
 }
 
 
+bool RayDiscIntersection(
+    float3 rayOrigin,
+    float3 rayDir,             // Should be normalized
+    float3 discCenter,
+    float3 discNormal,         // Should be normalized
+    float  discRadius,
+    out float t,
+    out float3 hitPoint)
+{
+    // Compute denominator for ray-plane intersection
+    float denom = dot(rayDir, discNormal);
+    if (abs(denom) < 1e-6f)
+        return false;
+    t = dot(discCenter - rayOrigin, discNormal) / denom;
+    if (t < 0.0f)
+        return false;
+    // Compute intersection point
+    hitPoint = rayOrigin + t * rayDir;
+    // Check if the point lies within the disc radius
+    float distSq = dot(hitPoint - discCenter, hitPoint - discCenter);
+    return distSq <= (discRadius * discRadius);
+}
 
 //Max expected overlapp is expected to 128 cells
 void SurfelCountDebug(SurfelData surfel, UniformGrid grid,out uint3 overlappingIndices[128], out uint overlappingCount)

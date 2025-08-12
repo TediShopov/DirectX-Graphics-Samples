@@ -3,8 +3,8 @@
 
  HBIL::HBIL()
 {
-	m_HBILExtraCB._gatherSphereMaxRadius_m = 100;
-	m_HBILExtraCB._gatherSphereMaxRadius_p = 150;
+	m_HBILExtraCB._gatherSphereMaxRadius_m = 50;
+	m_HBILExtraCB._gatherSphereMaxRadius_p = 80;
 
 }
 
@@ -120,11 +120,12 @@
 
 	// Construct LH perspective projection matrix
 	float fovY = camera.GetFOV(); // example FOV
-	float aspect = m_GBuffer.g_Color->GetWidth() / m_GBuffer.g_Color->GetHeight();
+	float aspect = (float)m_GBuffer.g_Color->GetWidth() / (float)m_GBuffer.g_Color->GetHeight();
 	float nearZ = camera.GetNearClip();
 	float farZ = camera.GetFarClip();
 
 	Matrix4 projMatrix = ExtendedUtility::CreatePerspectiveFovLH(fovY, aspect, nearZ, farZ);
+	Matrix4 originalProjectionMatrxi = camera.GetProjMatrix();
 	Matrix4 viewProjMatrix = projMatrix * viewMatrix;
 
 
@@ -168,6 +169,7 @@
 	m_MainHBILCB._coneAngleBias = 0.1f;
 	m_MainHBILCB._framesCount = framesCount;
 	m_MainHBILCB._flags = 0;
+
 
 
 	UpdateCameraCBufferLH(camera, m_HBILCameraCB);

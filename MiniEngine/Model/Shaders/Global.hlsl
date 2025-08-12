@@ -9,9 +9,11 @@
 #define SQRT2	1.4142135623730950488016887242097
 
 //#define TAN_HALF_FOV	0.6		// tan( vertical FOV / 2 ) with vertical FOV = 90°
+//#define TAN_HALF_FOV	0.8		// tan( vertical FOV / 2 ) with vertical FOV = 90°
+//#define TAN_HALF_FOV	0.00685399910	// tan( vertical FOV / 2 ) with vertical FOV = 90°
 #define TAN_HALF_FOV	0.414213568		// tan( vertical FOV / 2 ) with vertical FOV = 90°
 
-#define Z_FAR			100.0	// 100m max encoded in the depth buffer
+//#define Z_FAR			100.0	// 100m max encoded in the depth buffer
 
 cbuffer CB_Main : register(b0) {
 	float2		_resolution;	// viewport resolution (in pixels)
@@ -20,7 +22,8 @@ cbuffer CB_Main : register(b0) {
 
 	float4		_debugValues;
 
-	float4		_mouseUVs;		// XY=Current Mouse UV, ZW=Referenced Mouse UV (set when alt+clicking the screen)
+	//float4		_mouseUVs;		// XY=Current Mouse UV, ZW=Referenced Mouse UV (set when alt+clicking the screen)
+	uint4		_mousePos;		// XY=Current Mouse UV, ZW=Referenced Mouse UV (set when alt+clicking the screen)
 
 	uint		_flags;
 	uint		_framesCount;

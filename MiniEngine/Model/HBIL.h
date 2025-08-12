@@ -32,7 +32,11 @@
 
 	XMFLOAT4		_debugValues;
 
-	XMFLOAT4		_mouseUVs;		// XY=Current Mouse UV, ZW=Referenced Mouse UV (set when alt+clicking the screen)
+	//XMFLOAT4		_mouseUVs;		// XY=Current Mouse UV, ZW=Referenced Mouse UV (set when alt+clicking the screen)
+	UINT		_mouseX;		
+	UINT		_mouseY;	
+	UINT		_mouseZ;
+	UINT		_mouseW;
 
 	UINT		_flags;
 	UINT		_framesCount;
@@ -152,6 +156,11 @@ public:
 
 	CB_HBIL m_HBILExtraCB;
 	HBIL();
+
+	void SetMousePos(UINT x, UINT y) {
+		m_MainHBILCB._mouseX = x;
+		m_MainHBILCB._mouseY = y;
+	 }
 
 #pragma region Initialization
 	virtual void Setup(GBufferPtrs gbuffer,ColorBuffer* downsampledGBuffers,GraphicsPSO quadPSO);

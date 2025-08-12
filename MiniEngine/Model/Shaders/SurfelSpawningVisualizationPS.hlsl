@@ -132,6 +132,136 @@ float EstimateSpawnChance(float coverage,float depthRaw)
     }
 
 }
+// Returns true if intersection occurs between rayStart and rayEnd
+bool SegmentDiscIntersection(
+    float3 rayStart,
+    float3 rayEnd,
+    float3 discCenter,
+    float3 discNormal,  // Should be normalized
+    float  discRadius,
+    out float t,        // 0.0 to 1.0 along segment
+    out float3 hitPoint)
+{
+    float3 rayDir = rayEnd - rayStart;
+    float  segLength = length(rayDir);
+
+    // Avoid division by zero
+    if (segLength < 1e-6f)
+        return false;
+
+    rayDir /= segLength; // Normalize direction
+
+    // Ray-plane intersection
+    float denom = dot(rayDir, discNormal);
+    if (abs(denom) < 1e-6f)
+        return false;
+
+    float distToPlane = dot(discCenter - rayStart, discNormal) / denom;
+
+    // If intersection is outside the segment
+    if (distToPlane < 0.0f || distToPlane > segLength)
+        return false;
+
+    // Compute hit point
+    hitPoint = rayStart + rayDir * distToPlane;
+
+    // Check disc radius
+    float distSq = dot(hitPoint - discCenter, hitPoint - discCenter);
+    if (distSq > (discRadius * discRadius))
+        return false;
+
+    // Convert intersection distance to normalized segment parameter [0,1]
+    t = distToPlane / segLength;
+    return true;
+}
+
+float ContributionFromBentCone(float3 worldPos, float2 uv, out float3 bentNormal, out float radius, out float cosAngle,out float height)
+
+{
+    float4 sampleBentConeTexture = bentCones.SampleLevel(defaultSampler, uv, 0);
+     bentNormal = sampleBentConeTexture.xyz;
+    float AO = ambientOcclusion.SampleLevel(defaultSampler, uv, 0);
+    float cosHalfAngle = (1 - AO);
+    cosAngle = (1 - AO);
+
+    //Static for now
+     height = sampleBentConeTexture.w;
+						 
+    float sinHalfAngle = sqrt(1.0 - cos(cosHalfAngle));
+    float tanHalfAngle = sinHalfAngle / cosHalfAngle;
+     radius = abs(height) * tanHalfAngle * 2;
+
+    radius = min(maxRadius, radius);
+    
+    return  cosHalfAngle;
+
+}
+
+float EstimateSurfelCapSurfaceAreaCoverage( float2 uv,float depthRaw)
+{
+
+    float3 worldPos = ReconstructWorldPosition(uv, depthRaw.x, invViewProjectionMatrix);
+    float3 bentNormal;
+    float radius;
+    float cosAngle;
+    float height;
+    ContributionFromBentCone(worldPos, uv, bentNormal, radius, cosAngle, height);
+    return 1-RemapFloat(radius, minRadius, maxRadius, 0.0, 1.0f);
+
+
+}
+
+float EstimateSurfelCapCoverage( float2 uv,float depthRaw)
+{
+
+    float3 worldPos = ReconstructWorldPosition(uv, depthRaw.x, invViewProjectionMatrix);
+
+    uint2 surfelFromTo = ComputeRelevantSurfelRange(worldPos);
+    uint surfelCount = surfelFromTo.y - surfelFromTo.x;
+    float coverage = 0;
+    float maxContribution = 0.0f;
+
+    //For each surfel into the current Surfle Acceleration Structure Cell
+    //In this case is the uniform grid
+    for (uint i = surfelFromTo.x; i < surfelFromTo.y; ++i)
+    {
+        uint surfelIndex = surlfeListUAV[i];
+        SurfelData surfel = surfelsUAV[surfelIndex];
+        if(surfel.isSurfelCap == false)
+            continue;
+
+        float3 rayToWorldPosition = normalize(worldPos - cameraPosition.xyz);
+        float t = 0.0f;
+        float3 hitPoint ;
+        float contribution = 1.f;
+        if(SegmentDiscIntersection(cameraPosition, worldPos, surfel.position, surfel.normal, surfel.radius, t, hitPoint))
+        {
+            //If hit use the distance from the hit point to the world position
+            float bias = length(hitPoint - worldPos);
+            //contribution *= saturate(bias / (surfel.radius * 2));
+            contribution *= 1;
+        }
+        else
+        {
+            contribution *= 0;
+            
+        }
+        
+        if(contribution > maxContribution)
+        {
+            maxContribution = contribution;
+            
+        }
+
+
+        //coverage = contribution;
+
+        //contribution = smoothstep(0, 1, contribution);
+        //coverage += contribution;
+    }
+    coverage = maxContribution;
+    return coverage;
+}
 
 float4 debugOutputSpawnChance(PSInput input)
 {
@@ -148,6 +278,52 @@ float4 debugOutputSpawnChance(PSInput input)
     
     return float4(spawnChance, spawnChance, spawnChance, 1);
 }
+float4 debugSurfelCapOrNot(PSInput input)
+{
+    float3 gResolution;
+    gDepth.GetDimensions(0, gResolution.x, gResolution.y, gResolution.z);
+    uint2 pixelPos = input.position;
+
+    float2 uv = input.position.xy / float2(gResolution.x , gResolution.y );
+    float4 sampledNormal = gNormal.SampleLevel(defaultSampler, uv, 0);
+
+    float4 depthRaw = gDepth.SampleLevel(defaultSampler, uv, 0);
+    float3 worldPos = ReconstructWorldPosition(uv, depthRaw.x, invViewProjectionMatrix);
+
+    uint2 surfelFromTo = ComputeRelevantSurfelRange(worldPos);
+    uint surfelCount = surfelFromTo.y - surfelFromTo.x;
+
+    //For each surfel into the current Surfle Acceleration Structure Cell
+    //In this case is the uniform grid
+    for (uint i = surfelFromTo.x; i < surfelFromTo.y; ++i)
+    {
+        uint surfelIndex = surlfeListUAV[i];
+        SurfelData surfel = surfelsUAV[surfelIndex];
+
+
+
+        //Bias is relative position from surfel world to the current reconstructed world 
+        float3 bias = worldPos - (float3) surfel.position;
+        if (length(bias) < surfel.radius/2.0f)
+        {
+            if (surfel.isSurfelCap)
+            {
+
+
+                
+                
+                return float4(0, 1, 0, 1);
+            }
+            else
+            {
+                return float4(1, 0, 0, 1);
+                
+            }
+        }
+
+    }
+    return float4(0, 0, 0, 1);
+}
 
 
 
@@ -155,40 +331,55 @@ float4 main(PSInput input) : SV_TARGET
 {
     if(debugModeIndex.x == 0)
     {
-        return debugOutputSpawnChance(input);
-    }
-    else if(debugModeIndex.x == 1)
-    {
         //Unified debugging overlay ( Informed Spawn Chance In Green / Defaul spawn chance in red)
         float3 gResolution;
         gDepth.GetDimensions(0, gResolution.x, gResolution.y, gResolution.z);
         uint2 pixelPos = input.position;
         float2 uv = input.position.xy / float2(gResolution.x, gResolution.y);
-        float AO =  ambientOcclusion.Sample(defaultSampler, uv);
+        float4 depthRaw = gDepth.SampleLevel(defaultSampler, uv, 0);
+        float AO = ambientOcclusion.Sample(defaultSampler, uv);
+
+
+        float3 worldPos = ReconstructWorldPosition(uv, depthRaw.x, invViewProjectionMatrix);
+        float3 bentNormal;
+        float radius;
+        float cosAngle;
+        float height;
+        ContributionFromBentCone(worldPos, uv, bentNormal, radius, cosAngle, height);
+                
+        float RContribution = 1-RemapFloat(radius, 0, maxRadius, 0, 1);
+
+        //float contribution = AO * 0.5 + RContribution * 0.5f;
+        float contribution = AO * RContribution;
+        //float contribution = RContribution;
 
         //Possibly modify this by the augmented depth value to 
         //make it easier to react in AO in the distance
-        float AOThreshold = 0.4f;
-        float4 depthRaw = gDepth.SampleLevel(defaultSampler, uv, 0);
-
-        if(AO < AOThreshold)
+        //float AOThreshold = 0.15f;
+        if (contribution < AOVariables.x)
         {
             //Ambient Occlussion is larger --> Resort to Surfel Cap spawning
+            //float coverage = EstimateSurfelCapCoverage(uv, depthRaw.x);
+            //float coverage = EstimateSurfelCapSurfaceAreaCoverage(uv, depthRaw.x);
+            //float spawnChance = EstimateSpawnChance(coverage, depthRaw.x);
+            //return float4(0, spawnChance, 0, 1);
             return float4(0, 1, 0, 1);
+
             
         }
         else
         {
-            float coverage = EstimateSurfelCoverage(uv, depthRaw.x);
-            float spawnChance = EstimateSpawnChance(coverage, depthRaw.x);
-            return float4(spawnChance, 0, 0, 1);
+            //float coverage = EstimateSurfelCoverage(uv, depthRaw.x);
+            //float spawnChance = EstimateSpawnChance(coverage, depthRaw.x);
+            //return float4(spawnChance, 0, 0, 1);
+            return float4(1, 0, 0, 1);
             
         }
-
-
-
-
-
+    }
+    else if(debugModeIndex.x == 1)
+    {
+        //Render surfel based on if they have surfel cap flag
+        return debugSurfelCapOrNot(input);
 
     }
 

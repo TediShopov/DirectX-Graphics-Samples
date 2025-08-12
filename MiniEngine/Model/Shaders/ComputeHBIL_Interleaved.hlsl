@@ -49,7 +49,7 @@ RWStructuredBuffer<DebugHBILData> _debug_hbil : register(u0);
 ////////////////////////////////////////////////////////////////////////////////
 // Implement the methods expected by the HBIL header
 float	FetchDepth( float2 _pixelPosition, float _mipLevel ) {
-	return Z_FAR * _tex_splitDepth[uint3( floor( _pixelPosition ), _renderPassIndex.z )];
+	return _ZNearFar_Q_Z.y * _tex_splitDepth[uint3( floor( _pixelPosition ), _renderPassIndex.z )];
 }
 
 float3	FetchNormal( float2 _pixelPosition, float _mipLevel ) {

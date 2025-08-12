@@ -224,8 +224,8 @@ UINT TestRenderer::frameIndex = 0;
 	 float m_aspectRatio = 16.0f / 9.0f;
 	  float m_depthValue = 0.1f;
 	  float _TRI_SCALE = 0.3f;
-	  float QUAD_SCALE = 0.8f;
-	  //float QUAD_SCALE = 1;
+	  //float QUAD_SCALE = 0.8f;
+	  float QUAD_SCALE = 1;
 	 ColorVertex triangleVertices[3] =
 	{
 		{ { 0.0f, _TRI_SCALE * m_aspectRatio, m_depthValue,1}, { 1.0f, 0.0f, 0.0f, 1.0f } },
@@ -625,7 +625,7 @@ UINT TestRenderer::frameIndex = 0;
 			GridVisualization->m_TestPSO
 		);
 
-		SurfelIllumination->SetupInformed(&m_HBIL->m_OutputBentCone);
+		SurfelIllumination->SetupInformed(&m_HBIL->m_OutputBentCone,&m_HBIL->m_OutputIrradiance);
 		
 
 
@@ -1376,6 +1376,7 @@ UINT TestRenderer::frameIndex = 0;
 			//Used for altering the 0-1 range chance
 			ImGui::DragFloat("Chance Power", &SurfelIllumination->m_SurfelGen.gChancePower,0.01f,0.01f,1.2f);
 			ImGui::DragFloat("Chance Mulitply", &SurfelIllumination->m_SurfelGen.gChanceMultiply,1,1,150);
+			ImGui::DragFloat("AO Threhold", &SurfelIllumination->m_SurfelGen.AOVariables.x, 0.01f, 0.0f, 1.0f);
 
 
 
@@ -1591,9 +1592,9 @@ XMVECTOR VectorProjection(XMVECTOR u, XMVECTOR v, float* scalarOut)
 					 Vector3 LocalCameraRight = Vector3(XMLoadFloat4(&d.localCameraDirectionRight));
 					 Vector3 LocalCameraAt = Vector3(XMLoadFloat4(&d.localCameraDirectionAt));
 
-					 //RenderSpheresAlongRay(blue,LocalSpaceAt, LocalCameraUp, samples,offset,gfxContext,camera.GetViewProjMatrix(),camera.GetPosition(),TestRenderer::kOpaque);
-					 //RenderSpheresAlongRay(blue,LocalSpaceAt, LocalCameraRight, samples,offset,gfxContext,camera.GetViewProjMatrix(),camera.GetPosition(),TestRenderer::kOpaque);
-					 //RenderSpheresAlongRay(blue,LocalSpaceAt, LocalCameraAt, samples,offset,gfxContext,camera.GetViewProjMatrix(),camera.GetPosition(),TestRenderer::kOpaque);
+					 RenderSpheresAlongRay(blue,LocalSpaceAt, LocalCameraUp, samples,offset,gfxContext,camera.GetViewProjMatrix(),camera.GetPosition(),TestRenderer::kOpaque);
+					 RenderSpheresAlongRay(blue,LocalSpaceAt, LocalCameraRight, samples,offset,gfxContext,camera.GetViewProjMatrix(),camera.GetPosition(),TestRenderer::kOpaque);
+					 RenderSpheresAlongRay(blue,LocalSpaceAt, LocalCameraAt, samples,offset,gfxContext,camera.GetViewProjMatrix(),camera.GetPosition(),TestRenderer::kOpaque);
 
 					 Vector3 NormalSampledAtW = Vector3(XMVector3Normalize( XMLoadFloat4(&d.normalAtW)));
 					 //NormalSampledAtW.SetZ(-NormalSampledAtW.GetZ());
@@ -2006,6 +2007,16 @@ XMVECTOR VectorProjection(XMVECTOR u, XMVECTOR v, float* scalarOut)
 				//m_HBILInterleaved->RenderHBIL(gfxContext,camera);
 
 				//m_HBIL->m_renderAtColorBuffer = true;
+				ImVec2 mousePos = ImGui::GetMousePos();
+
+				//Calculate correct TAN_HALF_FOV
+				float verticalFovRad = camera.GetFOV();
+
+				// Calculate the tangent of half the vertical FOV
+				float TAN_HALF_FOV = tan(verticalFovRad * 0.5);
+
+
+				m_HBIL->SetMousePos(mousePos.x, mousePos.y);
 				m_HBIL->RenderHBIL(gfxContext, camera);
 				RenderFullScreenQuad(gfxContext);
 
@@ -2027,8 +2038,8 @@ XMVECTOR VectorProjection(XMVECTOR u, XMVECTOR v, float* scalarOut)
 
 		if (m_stopSurfelUpdate == false)
 		{
-			SurfelIllumination->SpawnSurfels(cfx, camera);
-			//SurfelIllumination->SpawnSurfelsInformed(cfx, camera);
+			//SurfelIllumination->SpawnSurfels(cfx, camera);
+			SurfelIllumination->SpawnSurfelsInformed(cfx, camera);
 
 		}
 

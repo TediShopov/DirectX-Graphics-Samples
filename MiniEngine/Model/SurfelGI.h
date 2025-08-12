@@ -89,8 +89,10 @@ __declspec(align(16)) struct SurfelData
 		int gRemovalThreshold = 0;
 		float gChancePower ;
 		float gChanceMultiply;
-
 		float maxRadius;
+
+		Vector3 cameraPosition;
+		XMFLOAT4 AOVariables; //Threshold and padding
 
 		UniformGrid UniformGrid;
 	};
@@ -196,7 +198,8 @@ public:
 	UINT _CELL_COUNT_;
 	static const int _SURFEL_MAX_COUNT_ = 100000;
 	//static const int _SURFEL_PER_CELL = 150;
-	static const int _SURFEL_PER_CELL = 500;
+	//static const int _SURFEL_PER_CELL = 500;
+	static const int _SURFEL_PER_CELL = 1;
 
 	//--- PIPELINE STATE OBJECTS --
 
@@ -285,12 +288,13 @@ public:
 
 	GBufferPtrs m_GBuffer;
 	ColorBuffer* m_bentCones;
+	ColorBuffer* m_AO;
 	DescriptorHeap m_informedSpawningDescriptorHear;
 
 	void UpdateProjection(const Camera& camera);
 
 	void Setup(GBufferPtrs gBuff);
-	void SetupInformed(ColorBuffer* m_bentCondesInput);
+	void SetupInformed(ColorBuffer* m_bentCondesInput,ColorBuffer* AO);
 
 	void SendParametersInformed(ComputeContext& gfxContext);
 	void SendParametersInformedGraphics(GraphicsContext& gfxContext);

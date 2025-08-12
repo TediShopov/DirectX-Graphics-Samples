@@ -64,7 +64,7 @@ public:
 
 void Setup(GBufferPtrs gbuffer,ColorBuffer* rayTracingOutColor);
 
-	void SetupRenderStage(GraphicsContext& gfxContext,
+	virtual void SetupRenderStage(GraphicsContext& gfxContext,
 		const D3D12_VIEWPORT& viewport,
 		const D3D12_RECT& scissor,
 		ColorBuffer& rayTracingOutColor,

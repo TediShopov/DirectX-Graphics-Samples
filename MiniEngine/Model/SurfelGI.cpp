@@ -26,6 +26,7 @@
 
   void SurfelGI::UpdateProjection(const Camera& camera)
 {
+	m_SurfelGen.cameraPosition = camera.GetPosition();
 	Matrix4 invViewProj = Invert(camera.GetViewProjMatrix());
 	Vector3 mathPos = camera.GetPosition();
 
@@ -62,15 +63,18 @@
 	InitializePSOs();
 }
 
-  void  SurfelGI::SetupInformed(ColorBuffer* m_bentCondesInput) 
+  void  SurfelGI::SetupInformed(ColorBuffer* m_bentCondesInput,ColorBuffer* AO) 
   {
 	  this->m_bentCones = m_bentCondesInput;
+	  this->m_AO = AO;
 	  m_informedSpawningDescriptorHear.Create(L"INFORMED SURFEL SPAWNING SRV HEAP", D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 10);
 	  ExtendedUtility::CopyDescriptorsToHeap(m_informedSpawningDescriptorHear, {
 		  m_GBuffer.g_Depth->GetDepthSRV(),
 		  m_GBuffer.g_Normal->GetSRV(),
 		  m_bentCones->GetSRV(),
-		  Graphics::g_SSAOFullScreen.GetSRV(),
+		  //Graphics::g_SSAOFullScreen.GetSRV(),
+		  m_AO->GetSRV(),
+
 		  m_SurfelData.m_GPUBuffer.GetUAV(),
 		  m_SurfelList.m_GPUBuffer.GetUAV(),
 		  m_SurfelGrid.m_GPUBuffer.GetUAV(),
@@ -499,6 +503,9 @@ void SurfelGI::SpawnSurfelsInformed(ComputeContext& gfxContext, const Camera& ca
 	gfxContext.SetPipelineState(m_InformedGenerationPassPSO);
 	gfxContext.SetRootSignature(m_SurfelInformedGenerationRT);
 	UpdateProjection( camera);
+
+
+
 	SendParametersInformed(gfxContext);
 
 	//Dispatch grid number

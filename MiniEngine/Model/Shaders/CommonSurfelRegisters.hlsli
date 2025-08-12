@@ -19,9 +19,10 @@ cbuffer SurfelGenCB : register(b0)
     int gRemovalThreshold = 0;
     float gChancePower = 1.1;
     float gChanceMultiply = 15;
-
     float maxRadius;
     
+    float4 cameraPosition;
+    float4 AOVariables;
     
     
     

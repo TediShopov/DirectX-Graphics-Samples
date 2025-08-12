@@ -89,8 +89,93 @@ bool IsInSurfelGeneralDirection(float3 relativePosition, SurfelData surfel, out 
     return dotN > 0;
 
 }
-void ProbabilistcSpawn(float coverage, uint3 minCoverageThreadID,float3 worldPos, float4 sampledNormal, float4 depthRaw, float2 gResolution)
+
+float EstimateSurfelCoverage( float2 uv,float depthRaw, inout float maxContribution, inout int maxContributionSurfelIndex)
 {
+
+    float3 worldPos = ReconstructWorldPosition(uv, depthRaw.x, invViewProjectionMatrix);
+
+    uint2 surfelFromTo = ComputeRelevantSurfelRange(worldPos);
+    uint surfelCount = surfelFromTo.y - surfelFromTo.x;
+    float coverage = 0;
+
+    //For each surfel into the current Surfle Acceleration Structure Cell
+    //In this case is the uniform grid
+    for (uint i = surfelFromTo.x; i < surfelFromTo.y; ++i)
+    {
+        uint surfelIndex = surlfeListUAV[i];
+        SurfelData surfel = surfelsUAV[surfelIndex];
+        float dotN = 1;
+
+        //Bias is relative position from surfel world to the current reconstructed world 
+        float3 bias = worldPos - (float3) surfel.position;
+
+        float dist = length(bias);
+        float contribution = 1.f;
+
+        contribution *= saturate(1 - dist / surfel.radius);
+        contribution = smoothstep(0, 1, contribution);
+
+        coverage += contribution;
+
+        if (maxContribution < contribution)
+        {
+            maxContribution = contribution;
+            maxContributionSurfelIndex = i;
+        }
+    }
+    return coverage;
+}
+float EstimateSpawnChance(float coverage,float depthRaw)
+{
+    if (coverage < gPlacementThreshold)
+    {
+        float chanceSpawn = 1;
+         chanceSpawn = pow(depthRaw, gChancePower) * gChanceMultiply;
+        chanceSpawn *= (1 - coverage);
+        return float4(chanceSpawn, chanceSpawn, chanceSpawn, 1);
+    }
+    else
+    {
+        return 0;
+    }
+
+}
+SurfelData SurfelPrototype(float3 worldPos,float depthRaw, float4 sampledNormal, float2 gResolution)
+{
+    float linearDepth = LinearizeDepth(depthRaw, depthFar, depthNear);
+    float v = linearDepth;
+
+    SurfelData newSurfel;
+    float calcProjArea = calcProjectArea(10, 250, fovY, gResolution.xy);
+    float varRadius = clamp(calcSurfelRadius(v, fovY, gResolution.xy, calcProjArea, 100000), minRadius, maxRadius);
+
+    newSurfel.position = float4(worldPos, 1) + sampledNormal * 1.0f;
+    newSurfel.randomValues = float4(0, 0, 0, 1);
+    newSurfel.color = float4(0, 0, 0, 1);
+    newSurfel.contribution = uint4(0, FrameIndex, 0, 0);
+    newSurfel.mean = float4(0, 0, 0, 0);
+    newSurfel.raySamples = float4(10, 0, 0, 0);
+    newSurfel.padding = float3(FrameIndex, FrameIndex, FrameIndex);
+    newSurfel.normal = sampledNormal;
+    newSurfel.radius = varRadius;
+//    newSurfel.tilePos = tilePos;
+//    newSurfel.pixelPos = pixelPos;
+    newSurfel.tilePos = float2(0, 0);
+    newSurfel.pixelPos = float2(0, 0);
+
+    newSurfel.msme.mean = float4(0, 0, 0, 0);
+    newSurfel.msme.shortMean = float3(0, 0, 0);
+    newSurfel.msme.variance = float3(1e-4, 1e-4, 1e-4);
+    newSurfel.msme.inconsistency = 1;
+    newSurfel.msme.vbbr = 1;
+
+                    //Not a surfel cap by default
+    newSurfel.isSurfelCap = 0;
+    newSurfel.height = 0;
+    newSurfel.angle = 0;
+    newSurfel.padSurfelCap = 0;
+    return newSurfel;
 }
 
 
@@ -146,44 +231,10 @@ void main(
     // Also evalute weighted color output (indrect lighting).
     if (surfelCount < kPerCellSurfelLimit-2)
     {
-        float coverage = 0.f; //Represent how well covered is the grid cell 
         float maxContribution = 0.0f;
 
         uint maxContributionSurfelIndex = RandomUintInRange(threadRandomnessSeed, 0, surfelCount);
-
-        //For each surfel into the current Surfle Acceleration Structure Cell
-        //In this case is the uniform grid
-        for (uint i = surfelFromTo.x; i < surfelFromTo.y; ++i)
-        {
-            //uint surfelIndex = surlfeListUAV[index];
-            uint surfelIndex = surlfeListUAV[i];
-            SurfelData surfel = surfelsUAV[surfelIndex];
-            float dotN = 1;
-
-            //Bias is relative position from surfel world to the current reconstructed world 
-            float3 bias = worldPos - (float3) surfel.position;
-            if (IsInSurfelInfluence(bias, surfel) == false)
-                continue;
-//            if (IsInSurfelGeneralDirection(bias, surfel, dotN) == false)
-//                continue;
-
-            float dist = length(bias);
-            float contribution = 1.f;
-
-            contribution *= saturate(dotN);
-            contribution *= saturate(1 - dist / surfel.radius);
-            contribution = smoothstep(0, 1, contribution);
-
-            coverage += contribution;
-            if (maxContribution < contribution)
-            {
-                maxContribution = contribution;
-                maxContributionSurfelIndex = i;
-            }
-        }
-
-
-
+        float coverage = EstimateSurfelCoverage(uv, depthRaw.x, maxContribution, maxContributionSurfelIndex); //Represent how well covered is the grid cell 
         uint coverageData = PackCoverageData(coverage, threadRandomnessSeed, groupThreadID);
 
             //This is clever trick to utilize InterlockedMin.
@@ -207,7 +258,6 @@ void main(
     uint coverage ; 
     UnpackCoverageData(coverageData, coverage, rndThreshold, minCoverageThreadID);
     
-    float linearDepth = LinearizeDepth(depthRaw, depthFar, depthNear);
     float normalizedDepth = RemapFloat(LinearizeDepth(depthRaw, depthNear, depthFar), depthNear, depthFar, 0, 1);
     
     
@@ -221,42 +271,12 @@ void main(
             // genearte new surfel probabilistically.
             if (coverage < gPlacementThreshold)
             {
-                float chanceSpawn ;
-                chanceSpawn = pow(depthRaw, gChancePower) * gChanceMultiply;
-                chanceSpawn *= (1 - coverage);
-
+                float chanceSpawn = EstimateSpawnChance(coverage,depthRaw.x);
                 float changeAgainst = RandomFloat01(threadRandomnessSeed);
 
-                if (changeAgainst < chanceSpawn)
-                {
-                    SurfelData newSurfel;
-                    float v = linearDepth;
-                    float calcProjArea = calcProjectArea(10, 250, fovY, gResolution.xy);
-                    float varRadius = clamp(calcSurfelRadius(v, fovY, gResolution.xy, calcProjArea, 100000), minRadius, maxRadius);
+                if (changeAgainst < chanceSpawn) {
+                    SurfelData newSurfel = SurfelPrototype(worldPos,depthRaw.x, sampledNormal, gResolution.xy);
 
-                    newSurfel.position = float4(worldPos, 1) + sampledNormal * 1.0f;
-                    newSurfel.randomValues = float4(changeAgainst, chanceSpawn, changeAgainst, 1);
-                    newSurfel.color = float4(0, 0, 0, 1);
-                    newSurfel.contribution = uint4(0, FrameIndex, 0, 0);
-                    newSurfel.mean = float4(0, 0, 0, 0);
-                    newSurfel.raySamples = float4(10, 0, 0, 0);
-                    newSurfel.padding = float3(FrameIndex, FrameIndex, FrameIndex);
-                    newSurfel.normal = sampledNormal;
-                    newSurfel.radius = varRadius;
-                    newSurfel.tilePos = tilePos;
-                    newSurfel.pixelPos = pixelPos;
-
-                    newSurfel.msme.mean = float4(0, 0, 0, 0);
-                    newSurfel.msme.shortMean = float3(0, 0, 0);
-                    newSurfel.msme.variance = float3(1e-4, 1e-4, 1e-4);
-                    newSurfel.msme.inconsistency = 1;
-                    newSurfel.msme.vbbr = 1;
-
-                    //Not a surfel cap by default
-                    newSurfel.isSurfelCap =  0;
-                    newSurfel.height = 0;
-                    newSurfel.angle = 0;
-                    newSurfel.padSurfelCap = 0;
                     AttemptSpawnSurfel(newSurfel);
                 }
             }
