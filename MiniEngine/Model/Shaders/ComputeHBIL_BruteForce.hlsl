@@ -323,7 +323,7 @@ PS_OUT	main(PSInput input) {
     float noise = (wang_hash(input.position.y * _resolution.x + input.position.x)
 						^ wang_hash(uint(_jitterPosition)))
 						* 2.3283064365386963e-10;
-    //noise = 1;
+    noise = 0;
 
 	// Setup camera ray
     float3 csView = BuildCameraRay(UV);

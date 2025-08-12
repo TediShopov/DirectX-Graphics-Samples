@@ -340,7 +340,6 @@ float4 main(PSInput input) : SV_TARGET
         float AO = ambientOcclusion.Sample(defaultSampler, uv);
         float inverseAO = 1-AO;
 
-
         float3 worldPos = ReconstructWorldPosition(uv, depthRaw.x, invViewProjectionMatrix);
         float3 bentNormal;
         float radius;

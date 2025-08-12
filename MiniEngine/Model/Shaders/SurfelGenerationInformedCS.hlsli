@@ -104,28 +104,19 @@ float ContributionFromBentCone(float3 worldPos, float2 uv, out float3 bentNormal
 {
     float4 sampleBentConeTexture = bentCones.SampleLevel(defaultSampler, uv, 0);
      bentNormal = sampleBentConeTexture.xyz;
-    //float cosHalfAngle = sampleBentConeTexture.w / 2.0f;
-    //Compute  from the given AO occlusion as in the original brute force method
     float AO = ambientOcclusion.SampleLevel(defaultSampler, uv, 0);
-    float cosHalfAngle = (1 - AO)/2.0f;
+    float cosHalfAngle = (1 - AO);
     cosAngle = (1 - AO);
-
-     //float4 originToAvg = XMVectorSubtract( XMLoadFloat3(&avg),LocalSpaceAt);
-					 //RenderSphereAt(yellow, 5, Vector4(avg), gfxContext, camera.GetViewProjMatrix(), camera.GetPosition(), TestRenderer::kOpaque);
-
-					 //Calculate Height
 
     //Static for now
      height = sampleBentConeTexture.w;
-    //float4 projection = VectorProjection(originToAvg, BentNormalAtW,  & height);
-					 //float4 projection = VectorProjection( BentNormalAtW,originToAvg, &height);
-    //float4 worldPosition = XMVectorAdd(LocalSpaceAt, projection);
-    
 						 
     float sinHalfAngle = sqrt(1.0 - cos(cosHalfAngle));
     float tanHalfAngle = sinHalfAngle / cosHalfAngle;
      radius = abs(height) * tanHalfAngle * 2;
+    radius *= 2;
 
+    //radius = min(maxRadius, radius);
     
     return  cosHalfAngle;
 
@@ -280,6 +271,8 @@ void main(
 
     float3 bentNormal = float3(0, 0, 0);
     float radius = 0;
+    float cosAngle;
+    float height;
     
     //
 
@@ -293,7 +286,14 @@ void main(
         uint maxContributionSurfelIndex = RandomUintInRange(threadRandomnessSeed, 0, surfelCount);
 
         //Represent how well covered is the grid cell 
-        float coverage = EstimateSurfelCoverage(uv, depthRaw.x, maxContribution, maxContributionSurfelIndex);
+        //float coverage = EstimateSurfelCoverage(uv, depthRaw.x, maxContribution, maxContributionSurfelIndex);
+
+        //Use spawn chance for cap
+       ContributionFromBentCone(worldPos, uv, bentNormal, radius, cosAngle, height);
+        float spawnChance = RemapFloat(radius, 0, AOVariables.z, 0, 1);
+       //Non-linearly transform
+        spawnChance = pow(spawnChance, 2);
+        float coverage = spawnChance;
 
 
 
@@ -334,18 +334,13 @@ void main(
             // genearte new surfel probabilistically.
             if (coverage < gPlacementThreshold ) {
 
-                float AO = ambientOcclusion.SampleLevel(defaultSampler, uv,0);
+                float AO = ambientOcclusion.SampleLevel(defaultSampler, uv, 0);
+
 
                 float3 worldPos = ReconstructWorldPosition(uv, depthRaw.x, invViewProjectionMatrix);
-                float cosAngle;
-                float height;
                 ContributionFromBentCone(worldPos, uv, bentNormal, radius, cosAngle, height);
-                
-                float RContribution = RemapFloat(radius, 0, maxRadius, 0, 1);
-
-                //float contribution = AO * 0.5 + RContribution * 0.5f;
-                float contribution = AO * 0.5 + RContribution * 0.5f;
-                
+                float RContribution = 1 - RemapFloat(radius, 0, AOVariables.y, 0, 1);
+                float contribution = lerp(AO, RContribution, AOVariables.w);
 
                 
 
@@ -354,22 +349,24 @@ void main(
                 //Possibly modify this by the augmented depth value to 
                 //make it easier to react in AO in the distance
 
-                if (AO < contribution)
+                if (contribution < AOVariables.x)
                 {
+                    float spawnChance = RemapFloat(radius, 0, AOVariables.z, 0, 1);
+                    //Non-linearly transform
+                    spawnChance = pow(spawnChance, 2);
                     //Spawn surfel cap
                     //float chanceSpawn = EstimateSpawnChance(coverage, depthRaw.x);
-                    float chanceSpawn =  EstimateSurfelCapSurfaceAreaCoverage(uv, depthRaw);
+                    //float chanceSpawn = EstimateSurfelCapSurfaceAreaCoverage(uv, depthRaw);
                     float changeAgainst = RandomFloat01(threadRandomnessSeed);
-                    changeAgainst *= 0.3f;
+                    //changeAgainst *= 0.3f;
 
 
 
 
-                    if (changeAgainst > chanceSpawn)
+                    if (spawnChance > changeAgainst)
                     {
                         float cosAngle = 0;
                         float height = 0;
-                        ContributionFromBentCone(worldPos, uv, bentNormal, radius, cosAngle,height);
 
                         //SurfelData newSurfel = SurfelPrototype(worldPos, depthRaw.x, sampledNormal, gResolution.xy);
                         //newSurfel.isSurfelCap = true;
@@ -381,7 +378,7 @@ void main(
 
                         //newSurfel.position = float4(worldPos, 1) + float4(normalize(bentNormal), 0) * bentCones.SampleLevel(defaultSampler, uv, 0).w/2.0f;
                         newSurfel.position = float4(worldPos, 1);
-                        newSurfel.randomValues = float4(changeAgainst, chanceSpawn, changeAgainst, 1);
+                        newSurfel.randomValues = float4(changeAgainst, spawnChance, changeAgainst, 1);
                         newSurfel.color = float4(0, 0, 0, 1);
                         newSurfel.contribution = uint4(0, FrameIndex, 0, 0);
                         newSurfel.mean = float4(0, 0, 0, 0);
@@ -390,7 +387,7 @@ void main(
                     //newSurfel.normal = sampledNormal;
                         newSurfel.normal = float4(bentNormal, 0);
                     //newSurfel.radius = varRadius;
-                        newSurfel.radius = radius/2.0f;
+                        newSurfel.radius = radius / 2.0f;
                         newSurfel.tilePos = tilePos;
                         newSurfel.pixelPos = pixelPos;
 
