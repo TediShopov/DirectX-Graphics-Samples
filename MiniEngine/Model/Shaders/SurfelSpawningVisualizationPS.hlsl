@@ -191,7 +191,7 @@ float ContributionFromBentCone(float3 worldPos, float2 uv, out float3 bentNormal
     float tanHalfAngle = sinHalfAngle / cosHalfAngle;
      radius = abs(height) * tanHalfAngle * 2;
 
-    radius = min(maxRadius, radius);
+    //radius = min(maxRadius, radius);
     
     return  cosHalfAngle;
 
@@ -338,6 +338,7 @@ float4 main(PSInput input) : SV_TARGET
         float2 uv = input.position.xy / float2(gResolution.x, gResolution.y);
         float4 depthRaw = gDepth.SampleLevel(defaultSampler, uv, 0);
         float AO = ambientOcclusion.Sample(defaultSampler, uv);
+        float inverseAO = 1-AO;
 
 
         float3 worldPos = ReconstructWorldPosition(uv, depthRaw.x, invViewProjectionMatrix);
@@ -346,32 +347,15 @@ float4 main(PSInput input) : SV_TARGET
         float cosAngle;
         float height;
         ContributionFromBentCone(worldPos, uv, bentNormal, radius, cosAngle, height);
-                
-        float RContribution = 1-RemapFloat(radius, 0, maxRadius, 0, 1);
-
-        //float contribution = AO * 0.5 + RContribution * 0.5f;
-        float contribution = AO * RContribution;
-        //float contribution = RContribution;
-
-        //Possibly modify this by the augmented depth value to 
-        //make it easier to react in AO in the distance
-        //float AOThreshold = 0.15f;
+        float RContribution = 1 - RemapFloat(radius, 0, AOVariables.y, 0, 1);
+        float contribution = lerp(AO, RContribution, AOVariables.w);
         if (contribution < AOVariables.x)
         {
-            //Ambient Occlussion is larger --> Resort to Surfel Cap spawning
-            //float coverage = EstimateSurfelCapCoverage(uv, depthRaw.x);
-            //float coverage = EstimateSurfelCapSurfaceAreaCoverage(uv, depthRaw.x);
-            //float spawnChance = EstimateSpawnChance(coverage, depthRaw.x);
-            //return float4(0, spawnChance, 0, 1);
-            return float4(0, 1, 0, 1);
-
-            
+            float spawnChance = 1 - RemapFloat(radius, 0, AOVariables.z, 0, 1);
+            return float4(0, 1-spawnChance, 0, 1);
         }
         else
         {
-            //float coverage = EstimateSurfelCoverage(uv, depthRaw.x);
-            //float spawnChance = EstimateSpawnChance(coverage, depthRaw.x);
-            //return float4(spawnChance, 0, 0, 1);
             return float4(1, 0, 0, 1);
             
         }

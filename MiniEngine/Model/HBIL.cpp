@@ -6,6 +6,7 @@
 	m_HBILExtraCB._gatherSphereMaxRadius_m = 50;
 	m_HBILExtraCB._gatherSphereMaxRadius_p = 80;
 
+
 }
 
  void HBIL::CreateHBILRootSignatue()

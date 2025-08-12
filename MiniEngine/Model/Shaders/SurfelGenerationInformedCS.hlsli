@@ -344,7 +344,7 @@ void main(
                 float RContribution = RemapFloat(radius, 0, maxRadius, 0, 1);
 
                 //float contribution = AO * 0.5 + RContribution * 0.5f;
-                float contribution = RContribution;
+                float contribution = AO * 0.5 + RContribution * 0.5f;
                 
 
                 

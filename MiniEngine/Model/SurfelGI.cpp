@@ -359,6 +359,11 @@
 	  m_SurfelGen.minRadius = 15;
 	  m_SurfelGen.maxRadius = 90;
 
+	  m_SurfelGen.AOVariables.x = 0.5f;
+	  m_SurfelGen.AOVariables.y = 6;
+	  m_SurfelGen.AOVariables.z = 200;
+	  m_SurfelGen.AOVariables.w = 0.5f;
+
 	  m_SurfelGen.gPlacementThreshold = 1;
 	  m_SurfelGen.gChancePower = 0.5f;
 	  m_SurfelGen.gChanceMultiply = 10.0f;

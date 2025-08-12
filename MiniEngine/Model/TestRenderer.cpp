@@ -625,7 +625,8 @@ UINT TestRenderer::frameIndex = 0;
 			GridVisualization->m_TestPSO
 		);
 
-		SurfelIllumination->SetupInformed(&m_HBIL->m_OutputBentCone,&m_HBIL->m_OutputIrradiance);
+		//SurfelIllumination->SetupInformed(&m_HBIL->m_OutputBentCone,&m_HBIL->m_OutputIrradiance);
+		SurfelIllumination->SetupInformed(&m_HBIL->m_OutputBentCone,&Graphics::g_SSAOFullScreen);
 		
 
 
@@ -1377,6 +1378,9 @@ UINT TestRenderer::frameIndex = 0;
 			ImGui::DragFloat("Chance Power", &SurfelIllumination->m_SurfelGen.gChancePower,0.01f,0.01f,1.2f);
 			ImGui::DragFloat("Chance Mulitply", &SurfelIllumination->m_SurfelGen.gChanceMultiply,1,1,150);
 			ImGui::DragFloat("AO Threhold", &SurfelIllumination->m_SurfelGen.AOVariables.x, 0.01f, 0.0f, 1.0f);
+			ImGui::DragFloat("Surfel Cap Min Radius", &SurfelIllumination->m_SurfelGen.AOVariables.y, 1.0f, 1.0f, 300.0f);
+			ImGui::DragFloat("Surlfe Cap Max Radius", &SurfelIllumination->m_SurfelGen.AOVariables.z, 1.0f, 1.0f, 300.0f);
+			ImGui::DragFloat("Lerp ", &SurfelIllumination->m_SurfelGen.AOVariables.w, 0.01f, 0.0f, 1.0f);
 
 
 
