@@ -299,7 +299,8 @@ UINT TestRenderer::frameIndex = 0;
 		SurfelGIVisualization = new SurfelGIOnlyVisualization();
 		MaterialBindingDebug = new SurfelGIOnlyVisualization();
 		frameIndex = 0;
-		m_CameraSequence.LoadConfig("DebugConfigPath.json");
+		//m_CameraSequence.LoadConfig("DebugConfigPath.json");
+
 
 		m_Sphere = nullptr;
 		m_Disc = nullptr;

@@ -4,6 +4,8 @@
 #include <string>
 #include "imgui.h"
 #include <sstream>
+#include "json.hpp"
+#include <fstream>
 
 using namespace Math;
 
@@ -29,20 +31,62 @@ public:
 	std::string m_loadedPath = "NONE";
 	CameraSequencer()
 	{
+		m_loadedPath = "DebugConfigPath.json";
 		m_config.captureScreenshots = false;
 		m_config.logMetrics = false;
 	}
 
 	bool LoadConfig(const std::string& path) {
+
+
 		m_loadedPath = path;
-		m_pathLoaded = true;
-		m_config.captureScreenshots = false;
-		m_config.logMetrics = false;
+		std::ifstream f(path);
+		if (!f.is_open()) return false;
+
+		nlohmann::json j;
+		f >> j;
+
+		m_config.cameraStops.clear();
+		for (auto& s : j["cameraStops"])
+		{
+			CameraStop stop;
+			stop.position = { s["position"][0], s["position"][1], s["position"][2] };
+			stop.rotation =Quaternion(XMVectorSet(s["rotation"][0], s["rotation"][1], s["rotation"][2], s["rotation"][3]));
+			stop.dwellTime = s["dwellTime"];
+			m_config.cameraStops.push_back(stop);
+		}
+		m_config.logMetrics = j.value("logMetrics", true);
+		m_config.captureScreenshots = j.value("captureScreenshots", true);
+
 		return true;
 	}
 	bool SaveConfig(const std::string& path)
 	{
-		return false;
+
+		nlohmann::json j;
+		j["logMetrics"] = m_config.logMetrics;
+		j["captureScreenshots"] = m_config.captureScreenshots;
+		j["cameraStops"] = nlohmann::json::array();
+
+		XMFLOAT3 pos;
+		XMFLOAT4 rot;
+		for (auto& s : m_config.cameraStops)
+		{
+
+			XMStoreFloat3(&pos, (XMVECTOR)s.position);
+			XMStoreFloat4(&rot, (XMVECTOR)s.rotation);
+			nlohmann::json stop;
+			stop["position"] = {pos.x,pos.y,pos.z};
+			stop["rotation"] = {rot.x, rot.y, rot.z, rot.w};
+			stop["dwellTime"] = s.dwellTime;
+
+			j["cameraStops"].push_back(stop);
+		}
+
+		std::ofstream f(path);
+		if (!f.is_open()) return false;
+		f << j.dump(4);
+		return true;
 
 	}
 	void AddStop(const DirectX::XMFLOAT3& pos,
@@ -93,9 +137,18 @@ public:
 			// Display all the camera stops for debugging
 			ImGui::Text(debugStringCameraStops.str().c_str());
 
-			bool a, b, c;
-			ImGui::Checkbox("A", &a);
-			ImGui::Checkbox("B", &b);
+			bool save, load, c;
+			ImGui::Checkbox("Save", &save);
+
+			if (save)
+			{
+				SaveConfig(m_loadedPath);
+			}
+			ImGui::Checkbox("Load", &load);
+			if (load)
+			{
+				LoadConfig(m_loadedPath);
+			}
 			ImGui::Checkbox("C", &c);
 		}
 		ImGui::End();
