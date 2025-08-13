@@ -53,7 +53,7 @@ public:
 	bool LoadConfig(const std::string& path) {
 
 
-		m_targetPath =TestFolder + path;
+		m_targetPath =  path;
 		std::ifstream f(path);
 		if (!f.is_open()) return false;
 
@@ -97,7 +97,7 @@ public:
 			j["cameraStops"].push_back(stop);
 		}
 
-		std::ofstream f(TestFolder + path);
+		std::ofstream f(path);
 		if (!f.is_open()) return false;
 		f << j.dump(4);
 		return true;
