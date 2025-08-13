@@ -116,6 +116,7 @@
     <ClCompile Include="HBIL.cpp" />
     <ClCompile Include="HBILInterleaved.cpp" />
     <ClCompile Include="SurfelSpawnChanceVisualization.cpp" />
+    <ClCompile Include="CameraSequencer.cpp" />
   </ItemGroup>
   <ItemGroup>
     <Filter Include="Source Files">
@@ -240,6 +241,7 @@
     <ClInclude Include="GBufferDownsample.h" />
     <ClInclude Include="HBILInterleaved.h" />
     <ClInclude Include="SurfelSpawnChanceVisualization.h" />
+    <ClInclude Include="CameraSequencer.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="Shaders\Common.hlsli">

@@ -70,6 +70,7 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClInclude Include="Animation.h" />
+    <ClInclude Include="CameraSequencer.h" />
     <ClInclude Include="ConstantBuffers.h" />
     <ClInclude Include="DescriptorHeapStack.h" />
     <ClInclude Include="ExtendedUtility.h" />
@@ -150,6 +151,7 @@
   <ItemGroup>
     <ClCompile Include="Animation.cpp" />
     <ClCompile Include="BuildH3D.cpp" />
+    <ClCompile Include="CameraSequencer.cpp" />
     <ClCompile Include="DescriptorHeapStack.cpp" />
     <ClCompile Include="ExtendedUtility.cpp" />
     <ClCompile Include="Geometry\BaseMesh.cpp" />

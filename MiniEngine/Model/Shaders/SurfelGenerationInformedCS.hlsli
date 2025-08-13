@@ -114,7 +114,7 @@ float ContributionFromBentCone(float3 worldPos, float2 uv, out float3 bentNormal
     float sinHalfAngle = sqrt(1.0 - cos(cosHalfAngle));
     float tanHalfAngle = sinHalfAngle / cosHalfAngle;
      radius = abs(height) * tanHalfAngle * 2;
-    radius *= 2;
+    //radius *= 2;
 
     //radius = min(maxRadius, radius);
     
@@ -292,7 +292,7 @@ void main(
        ContributionFromBentCone(worldPos, uv, bentNormal, radius, cosAngle, height);
         float spawnChance = RemapFloat(radius, 0, AOVariables.z, 0, 1);
        //Non-linearly transform
-        spawnChance = pow(spawnChance, 2);
+        spawnChance = pow(spawnChance, 5);
         float coverage = spawnChance;
 
 
@@ -353,7 +353,7 @@ void main(
                 {
                     float spawnChance = RemapFloat(radius, 0, AOVariables.z, 0, 1);
                     //Non-linearly transform
-                    spawnChance = pow(spawnChance, 2);
+                    spawnChance = pow(spawnChance, 5);
                     //Spawn surfel cap
                     //float chanceSpawn = EstimateSpawnChance(coverage, depthRaw.x);
                     //float chanceSpawn = EstimateSurfelCapSurfaceAreaCoverage(uv, depthRaw);
@@ -376,8 +376,8 @@ void main(
                         float calcProjArea = calcProjectArea(10, 250, fovY, gResolution.xy);
                         float varRadius = clamp(calcSurfelRadius(v, fovY, gResolution.xy, calcProjArea, 100000), minRadius, maxRadius);
 
-                        //newSurfel.position = float4(worldPos, 1) + float4(normalize(bentNormal), 0) * bentCones.SampleLevel(defaultSampler, uv, 0).w/2.0f;
-                        newSurfel.position = float4(worldPos, 1);
+                        newSurfel.position = float4(worldPos, 1) + float4(normalize(bentNormal), 0) * height;
+                        //newSurfel.position = float4(worldPos, 1);
                         newSurfel.randomValues = float4(changeAgainst, spawnChance, changeAgainst, 1);
                         newSurfel.color = float4(0, 0, 0, 1);
                         newSurfel.contribution = uint4(0, FrameIndex, 0, 0);

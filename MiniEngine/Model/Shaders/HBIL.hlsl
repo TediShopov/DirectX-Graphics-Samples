@@ -24,7 +24,7 @@
 // This is an interesting line as it will prevent radiance from being sampled again once too many invalid samples are encountered
 //	(i.e. the bilateral filtering keeps on accumulating, making new samples less and less susceptible to be accepted once they started to get rejected)
 //	but it also dims the lighting quite quickly so not sure if we need to use it or not... IMHO it should be enabled otherwise we get some visual artefacts...
-#define	RUNNING_WEIGHT_DIM	0
+#define	RUNNING_WEIGHT_DIM	1
 
 // !!VERY NICE IDEA TO EXPLORE FURTHER
 // This idea consists in changing the step size to start slow then go faster, instead of using a constant step size
@@ -217,7 +217,8 @@ float4	SampleIrradiance( float2 _ssCentralPosition, float2 _ssPosition, float2 _
 		return 0.0;	// Below the horizon... No visible contribution.
 
 	// Filter outlier horizon values
-	float2	bilateralWeights = BilateralFilter( _ssCentralPosition, _centralZ, _csCentralNormal, _ssPosition, Z, lcsCurrentNormal, _radius_meters, _maxCosTheta, cosTheta );
+	//float2	bilateralWeights = BilateralFilter( _ssCentralPosition, _centralZ, _csCentralNormal, _ssPosition, Z, lcsCurrentNormal, _radius_meters, _maxCosTheta, cosTheta );
+    float2 bilateralWeights = float2(1, 1);
 
 	#if RUNNING_WEIGHT_DIM
 		_radianceSamplingWeight *= bilateralWeights.x;	// Cumulate fades so we can never sample radiance again after too many invalid samples are encountered

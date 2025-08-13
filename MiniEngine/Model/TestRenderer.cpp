@@ -61,6 +61,7 @@
 #include "HBIL.h"
 #include "GBufferDownsample.h"
 #include "HBILInterleaved.h"
+#include "CameraSequencer.h"
 
 
 
@@ -149,6 +150,8 @@ UINT TestRenderer::frameIndex = 0;
 	 DescriptorHeap TestRenderer::SSRHeap = DescriptorHeap();
 	 ColorBuffer TestRenderer::colorCopyBuffer = ColorBuffer();
 	 DepthBuffer TestRenderer::depthCopyBuffer = DepthBuffer();
+	 CameraSequencer m_CameraSequence;
+
 
 	 struct SunData {
 		 XMFLOAT3 sunDirection;
@@ -296,6 +299,7 @@ UINT TestRenderer::frameIndex = 0;
 		SurfelGIVisualization = new SurfelGIOnlyVisualization();
 		MaterialBindingDebug = new SurfelGIOnlyVisualization();
 		frameIndex = 0;
+		m_CameraSequence.LoadConfig("DebugConfigPath.json");
 
 		m_Sphere = nullptr;
 		m_Disc = nullptr;
@@ -861,6 +865,46 @@ UINT TestRenderer::frameIndex = 0;
 
 			RenderSphereObject(gfxContext, ViewProjMat, viewerPos, Filter);
 	}
+	void TestRenderer::RenderSurfelAt(Vector4 color,Vector4 normal,float scale, Vector4 position, RENDER_OBJECT_INSTANCE_PARAMS) {
+
+		gfxContext.SetIndexBuffer(m_Disc->m_IndexBufferView);
+		gfxContext.SetVertexBuffer(0, m_Disc->m_VertexBufferView);
+
+
+			Transform t;
+			//UINT surfelIndex = SurfelIllumination->m_SurfelListActual[i];
+			//SurfelData s = SurfelIllumination->m_SurfelDataArray[surfelIndex];
+			SurfelData s;
+			s.color = color;
+			s.normal = normal;
+			s.radius = Vector4(scale,scale,scale,1);
+			s.position = position;
+			Vector4 extrudedPossition = s.position + (s.normal * 1.0f);
+
+
+			VSConstants vsConstants = SetupObjectVSConstants(gfxContext, ViewProjMat, viewerPos, Filter);
+
+			t.setPosition(extrudedPossition);
+
+			if (XMVector4Length(s.normal).m128_f32[0] > 0.001f)
+			{
+				Vector4 quat = Vector4(GetRotationQuaternionFromUpToDirection(s.normal));
+				t.setQuaternion(quat.GetX(), quat.GetY(), quat.GetZ(), quat.GetW());
+				t.setComposeRotationFromQuaternions(true);
+
+				t.setScale(s.radius.GetX(), s.radius.GetX(), s.radius.GetX());
+
+
+				vsConstants.modelToWorld = Matrix4(t.getTransformMatrix());
+				XMStoreFloat3(&vsConstants.viewerPos, viewerPos);
+
+				gfxContext.SetDynamicConstantBufferView(Renderer::kMeshConstants, sizeof(vsConstants), &vsConstants);
+				gfxContext.SetDynamicConstantBufferView(Renderer::kCommonCBV, sizeof(Vector4), &s.color);
+				//--- Draw three indices of the triangle
+				gfxContext.DrawIndexed(m_Disc->m_Indices.size(), 0, 0);
+
+			}
+	}
 
 	void TestRenderer::RenderSphereObject(RENDER_OBJECT_INSTANCE_PARAMS)
 	{
@@ -1268,6 +1312,10 @@ UINT TestRenderer::frameIndex = 0;
 		bool pressedToggleDebugHBIL = GameInput::IsFirstPressed(GameInput::kKey_p);
 		bool pressedToggleRenderAOOnScreen = GameInput::IsFirstPressed(GameInput::kKey_z);
 
+		if (pressedToggleCameraUpdated)
+		{
+			m_CameraSequence.AddStop(last_camera_data);
+		}
 
 		if (pressedToggleRenderAOOnScreen)
 		{
@@ -1350,6 +1398,8 @@ UINT TestRenderer::frameIndex = 0;
 		ImGui_ImplDX12_NewFrame();
 		ImGui_ImplWin32_NewFrame();
 		ImGui::NewFrame();
+
+		m_CameraSequence.RenderImGui();
 
 		// Your ImGui UI code here
 		ImGui::Begin("Surfel Gen CB");
@@ -1656,7 +1706,12 @@ XMVECTOR VectorProjection(XMVECTOR u, XMVECTOR v, float* scalarOut)
 					 //RenderSphereAt(yellow, 5, Vector4(worldPosition), gfxContext, camera.GetViewProjMatrix(), camera.GetPosition(), TestRenderer::kOpaque);
 					 //RenderSphereAt(yellow, radiusOfCone*2, Vector4(worldPosition), gfxContext, camera.GetViewProjMatrix(), camera.GetPosition(), TestRenderer::kOpaque);
 					 RenderSphereAt(green, 3, Vector4(d.wsSampleAverage), gfxContext, camera.GetViewProjMatrix(), camera.GetPosition(), TestRenderer::kOpaque);
-					 RenderSphereAt(yellow, radiusOfCone, Vector4(worldPosition), gfxContext, camera.GetViewProjMatrix(), camera.GetPosition(), TestRenderer::kOpaque);
+					 //RenderSphereAt(yellow, radiusOfCone, Vector4(worldPosition), gfxContext, camera.GetViewProjMatrix(), camera.GetPosition(), TestRenderer::kOpaque);
+					 RenderSurfelAt(yellow,
+						 
+						 Vector4(normalizedNormal), radiusOfCone,Vector4(worldPosition), 
+						 gfxContext, 
+						 camera.GetViewProjMatrix(), camera.GetPosition(), TestRenderer::kOpaque);
 
 
 
