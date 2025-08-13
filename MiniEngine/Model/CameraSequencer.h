@@ -23,15 +23,29 @@ struct SequenceConfig
     bool captureScreenshots = true;
 };
 
+
+class X {
+public:
+    X(std::string& s) : s_{s} { s.resize(len_); }
+    ~X() { s_.resize(strlen(s_.c_str())); }
+    operator char*(){ return (char*)s_.data(); }
+    static constexpr auto len() { return len_-1; }
+private:
+    std::string& s_;
+    static constexpr auto len_=255;
+};
+
+
 class CameraSequencer
 {
 
 public:
+	const std::string TestFolder = "Tests/";
 	bool m_pathLoaded = false;
-	std::string m_loadedPath = "NONE";
+	std::string m_targetName = "NONE";			// The path visualized in the ImGui that will Save/Load from
+	std::string m_targetPath = "NONE";			// The path visualized in the ImGui that will Save/Load from
 	CameraSequencer()
 	{
-		m_loadedPath = "DebugConfigPath.json";
 		m_config.captureScreenshots = false;
 		m_config.logMetrics = false;
 	}
@@ -39,7 +53,7 @@ public:
 	bool LoadConfig(const std::string& path) {
 
 
-		m_loadedPath = path;
+		m_targetPath =TestFolder + path;
 		std::ifstream f(path);
 		if (!f.is_open()) return false;
 
@@ -83,7 +97,7 @@ public:
 			j["cameraStops"].push_back(stop);
 		}
 
-		std::ofstream f(path);
+		std::ofstream f(TestFolder + path);
 		if (!f.is_open()) return false;
 		f << j.dump(4);
 		return true;
@@ -107,15 +121,32 @@ public:
 
 
 	}
+	void Reset()
+	{
+		m_config.cameraStops.clear();
+		m_config.logMetrics= false;
+		m_config.captureScreenshots= false;
+	}
 
 	bool m_expanded = true;
+
+	bool m_save, m_load, m_reset;
 	void RenderImGui()
 	{
-		std::ostringstream displayNameSection;
-		displayNameSection << "Camera Sequcen: " << m_loadedPath;
 
 		// Your ImGui UI code here
 		ImGui::Begin("Camera Sequence Debug View");
+
+
+		if(ImGui::InputText("Target Test File",X(m_targetName),X::len()))
+		{
+			int a = 3;
+		}
+		m_targetPath = TestFolder + m_targetName;
+
+		std::ostringstream displayNameSection;
+		displayNameSection << "Camera Sequence: " << m_targetPath;
+
 
 		if (ImGui::CollapsingHeader(displayNameSection.str().c_str(), &m_expanded))
 		{
@@ -137,19 +168,25 @@ public:
 			// Display all the camera stops for debugging
 			ImGui::Text(debugStringCameraStops.str().c_str());
 
-			bool save, load, c;
-			ImGui::Checkbox("Save", &save);
 
-			if (save)
+			if (ImGui::Checkbox("Save", &m_save))
 			{
-				SaveConfig(m_loadedPath);
+				SaveConfig(m_targetPath);
+				m_save = false;
 			}
-			ImGui::Checkbox("Load", &load);
-			if (load)
+			;
+			if (ImGui::Checkbox("Load", &m_load))
 			{
-				LoadConfig(m_loadedPath);
+				LoadConfig(m_targetPath);
+				m_load = false;
 			}
-			ImGui::Checkbox("C", &c);
+			if (ImGui::Checkbox("Reset", &m_reset)) 
+			{
+				Reset();
+				m_reset = false;
+
+			}
+
 		}
 		ImGui::End();
 

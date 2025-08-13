@@ -1290,111 +1290,224 @@ UINT TestRenderer::frameIndex = 0;
 
 	float bunnyScale = 1000;
 
+	char MapToChar(GameInput::DigitalInput key)
+{
+    using GI = GameInput::DigitalInput;
+
+    switch (key)
+    {
+    case GI::kKey_a: return 'a';
+    case GI::kKey_b: return 'b';
+    case GI::kKey_c: return 'c';
+    case GI::kKey_d: return 'd';
+    case GI::kKey_e: return 'e';
+    case GI::kKey_f: return 'f';
+    case GI::kKey_g: return 'g';
+    case GI::kKey_h: return 'h';
+    case GI::kKey_i: return 'i';
+    case GI::kKey_j: return 'j';
+    case GI::kKey_k: return 'k';
+    case GI::kKey_l: return 'l';
+    case GI::kKey_m: return 'm';
+    case GI::kKey_n: return 'n';
+    case GI::kKey_o: return 'o';
+    case GI::kKey_p: return 'p';
+    case GI::kKey_q: return 'q';
+    case GI::kKey_r: return 'r';
+    case GI::kKey_s: return 's';
+    case GI::kKey_t: return 't';
+    case GI::kKey_u: return 'u';
+    case GI::kKey_v: return 'v';
+    case GI::kKey_w: return 'w';
+    case GI::kKey_x: return 'x';
+    case GI::kKey_y: return 'y';
+    case GI::kKey_z: return 'z';
+    default: return ' ';
+    }
+}
+
+	ImGuiKey MapGameInputKeyToImGuiKey(GameInput::DigitalInput key)
+{
+    using GI = GameInput::DigitalInput;
+
+    switch (key)
+    {
+    case GI::kKey_a: return ImGuiKey_A;
+    case GI::kKey_b: return ImGuiKey_B;
+    case GI::kKey_c: return ImGuiKey_C;
+    case GI::kKey_d: return ImGuiKey_D;
+    case GI::kKey_e: return ImGuiKey_E;
+    case GI::kKey_f: return ImGuiKey_F;
+    case GI::kKey_g: return ImGuiKey_G;
+    case GI::kKey_h: return ImGuiKey_H;
+    case GI::kKey_i: return ImGuiKey_I;
+    case GI::kKey_j: return ImGuiKey_J;
+    case GI::kKey_k: return ImGuiKey_K;
+    case GI::kKey_l: return ImGuiKey_L;
+    case GI::kKey_m: return ImGuiKey_M;
+    case GI::kKey_n: return ImGuiKey_N;
+    case GI::kKey_o: return ImGuiKey_O;
+    case GI::kKey_p: return ImGuiKey_P;
+    case GI::kKey_q: return ImGuiKey_Q;
+    case GI::kKey_r: return ImGuiKey_R;
+    case GI::kKey_s: return ImGuiKey_S;
+    case GI::kKey_t: return ImGuiKey_T;
+    case GI::kKey_u: return ImGuiKey_U;
+    case GI::kKey_v: return ImGuiKey_V;
+    case GI::kKey_w: return ImGuiKey_W;
+    case GI::kKey_x: return ImGuiKey_X;
+    case GI::kKey_y: return ImGuiKey_Y;
+    case GI::kKey_z: return ImGuiKey_Z;
+    // ... map all alphanumeric keys ...
+    case GI::kKey_space: return ImGuiKey_Space;
+    case GI::kKey_escape: return ImGuiKey_Escape;
+    case GI::kKey_left: return ImGuiKey_LeftArrow;
+    case GI::kKey_right: return ImGuiKey_RightArrow;
+    case GI::kKey_up: return ImGuiKey_UpArrow;
+    case GI::kKey_down: return ImGuiKey_DownArrow;
+    case GI::kKey_lshift: return ImGuiKey_LeftShift; // Or RightShift
+    case GI::kKey_lcontrol: return ImGuiKey_LeftCtrl;   // Or RightCtrl
+    case GI::kKey_lalt: return ImGuiKey_LeftAlt;     // Or RightAlt
+    default: return ImGuiKey_None;
+    }
+}
+
 	void TestRenderer::RenderImGuiUI(GraphicsContext& gfx) {
 		ImGuiIO& io = ImGui::GetIO();
 
 
-		bool pressedDebugButton = GameInput::IsFirstPressed(GameInput::kKey_f);
-		bool pressedDebugMode = GameInput::IsFirstPressed(GameInput::kKey_g);
-		bool pressedStopButton = GameInput::IsFirstPressed(GameInput::kKey_b);
-		bool pressedOnlyRelevantButton = GameInput::IsFirstPressed(GameInput::kKey_t);
-		bool pressedToggleFillAccelerationStructure = GameInput::IsFirstPressed(GameInput::kKey_z);
-		bool pressedInclinationPlus = GameInput::IsFirstPressed(GameInput::kKey_j);
-		bool pressedInclinatoinMinus = GameInput::IsFirstPressed(GameInput::kKey_k);
-		bool pressedOrientationPlus = GameInput::IsFirstPressed(GameInput::kKey_u);
-		bool pressedOriantationMinus = GameInput::IsFirstPressed(GameInput::kKey_i);
-		bool pressedToggleUseSSRMOnly = GameInput::IsFirstPressed(GameInput::kKey_n);
-		bool pressedTogglePhysicalSurfels = GameInput::IsFirstPressed(GameInput::kKey_h);
-
-		bool pressedResetSurfels = GameInput::IsFirstPressed(GameInput::kKey_x);
-		bool pressedResetSurfelsIrradiance = GameInput::IsFirstPressed(GameInput::kKey_c);
-		bool pressedToggleSSR = GameInput::IsFirstPressed(GameInput::kKey_m);
-		bool pressedToggleCameraUpdated = GameInput::IsFirstPressed(GameInput::kKey_space);
-		bool pressedToggleDebugHBIL = GameInput::IsFirstPressed(GameInput::kKey_p);
-		bool pressedToggleRenderAOOnScreen = GameInput::IsFirstPressed(GameInput::kKey_z);
-
-		if (pressedToggleCameraUpdated)
+		if (io.WantCaptureKeyboard == false)
 		{
-			m_CameraSequence.AddStop(last_camera_data);
+
+			bool pressedDebugButton = GameInput::IsFirstPressed(GameInput::kKey_f);
+			bool pressedDebugMode = GameInput::IsFirstPressed(GameInput::kKey_g);
+			bool pressedStopButton = GameInput::IsFirstPressed(GameInput::kKey_b);
+			bool pressedOnlyRelevantButton = GameInput::IsFirstPressed(GameInput::kKey_t);
+			bool pressedToggleFillAccelerationStructure = GameInput::IsFirstPressed(GameInput::kKey_z);
+			bool pressedInclinationPlus = GameInput::IsFirstPressed(GameInput::kKey_j);
+			bool pressedInclinatoinMinus = GameInput::IsFirstPressed(GameInput::kKey_k);
+			bool pressedOrientationPlus = GameInput::IsFirstPressed(GameInput::kKey_u);
+			bool pressedOriantationMinus = GameInput::IsFirstPressed(GameInput::kKey_i);
+			bool pressedToggleUseSSRMOnly = GameInput::IsFirstPressed(GameInput::kKey_n);
+			bool pressedTogglePhysicalSurfels = GameInput::IsFirstPressed(GameInput::kKey_h);
+
+			bool pressedResetSurfels = GameInput::IsFirstPressed(GameInput::kKey_x);
+			bool pressedResetSurfelsIrradiance = GameInput::IsFirstPressed(GameInput::kKey_c);
+			bool pressedToggleSSR = GameInput::IsFirstPressed(GameInput::kKey_m);
+			bool pressedToggleCameraUpdated = GameInput::IsFirstPressed(GameInput::kKey_space);
+			bool pressedToggleDebugHBIL = GameInput::IsFirstPressed(GameInput::kKey_p);
+			bool pressedToggleRenderAOOnScreen = GameInput::IsFirstPressed(GameInput::kKey_z);
+
+			if (pressedToggleCameraUpdated)
+			{
+				m_CameraSequence.AddStop(last_camera_data);
+			}
+
+			if (pressedToggleRenderAOOnScreen)
+			{
+				m_HBIL->m_renderAtColorBuffer = !m_HBIL->m_renderAtColorBuffer;
+
+			}
+
+
+			if (pressedToggleDebugHBIL)
+			{
+				m_hbil_render = !m_hbil_render;
+				//m_hbil_updateDebug = !m_hbil_updateDebug;
+
+			}
+
+			if (pressedToggleSSR)
+			{
+				m_drawSSRTest = !m_drawSSRTest;
+
+			}
+			if (pressedResetSurfels)
+			{
+				SurfelIllumination->ResetSurfels(gfx);
+
+			}
+			if (pressedResetSurfelsIrradiance)
+			{
+				SurfelIllumination->ReadbackSurfelData(gfx);
+				//Reset Surfels Code
+				SurfelIllumination->ResetSurfelsIrradiance(gfx);
+
+			}
+
+
+
+			if (pressedTogglePhysicalSurfels)
+				m_drawPhysicalSurfelInstances = !m_drawPhysicalSurfelInstances;
+			if (pressedToggleUseSSRMOnly)
+				m_useSSRMonly = !m_useSSRMonly;
+
+
+			if (pressedToggleFillAccelerationStructure)
+			{
+				m_useSimpleAlgorithm = !m_useSimpleAlgorithm;
+
+			}
+
+			if (pressedOnlyRelevantButton)
+				m_renderOnlyCurrentCellSurfels = !m_renderOnlyCurrentCellSurfels;
+			if (pressedDebugButton)
+				m_enableDebugOverlay = !m_enableDebugOverlay;
+
+			if (pressedDebugMode)
+			{
+				m_debugOverlayMode++;
+				if (m_debugOverlayMode > 7)
+					m_debugOverlayMode = 0;
+
+				//m_debugOverlayMode = !((bool)m_debugOverlayMode);
+
+			}
+
+			if (pressedStopButton)
+				m_stopSurfelUpdate = !m_stopSurfelUpdate;
+
+			if (pressedInclinationPlus)
+				m_sunData.sunInclination += 0.1f;
+			if (pressedInclinatoinMinus)
+				m_sunData.sunInclination -= 0.1f;
+
+			if (pressedOrientationPlus)
+				m_sunData.sunOrientation += 5.0f;
+			if (pressedOriantationMinus)
+				m_sunData.sunOrientation -= 5.0f;
+
+
 		}
-
-		if (pressedToggleRenderAOOnScreen)
-		{
-			m_HBIL->m_renderAtColorBuffer = !m_HBIL->m_renderAtColorBuffer;
-
-		}
-
-
-		if (pressedToggleDebugHBIL)
-		{
-			m_hbil_render = !m_hbil_render;
-			//m_hbil_updateDebug = !m_hbil_updateDebug;
-
-		}
-
-		if (pressedToggleSSR)
-		{
-			m_drawSSRTest = !m_drawSSRTest;
-
-		}
-		if (pressedResetSurfels)
-		{
-			SurfelIllumination->ResetSurfels(gfx);
-
-		}
-		if (pressedResetSurfelsIrradiance)
-		{
-			SurfelIllumination->ReadbackSurfelData(gfx);
-			//Reset Surfels Code
-			SurfelIllumination->ResetSurfelsIrradiance(gfx);
-
-		}
-
-
-
-		if (pressedTogglePhysicalSurfels)
-			m_drawPhysicalSurfelInstances = !m_drawPhysicalSurfelInstances;
-		if (pressedToggleUseSSRMOnly)
-			m_useSSRMonly = !m_useSSRMonly;
-
-
-		if (pressedToggleFillAccelerationStructure)
-		{
-			m_useSimpleAlgorithm = !m_useSimpleAlgorithm;
-
-		}
-
-		if (pressedOnlyRelevantButton)
-			m_renderOnlyCurrentCellSurfels = !m_renderOnlyCurrentCellSurfels;
-		if (pressedDebugButton)
-			m_enableDebugOverlay = !m_enableDebugOverlay;
-
-		if (pressedDebugMode)
-		{
-			m_debugOverlayMode++;
-			if (m_debugOverlayMode > 7)
-				m_debugOverlayMode = 0;
-			
-			//m_debugOverlayMode = !((bool)m_debugOverlayMode);
-
-		}
-
-		if (pressedStopButton)
-			m_stopSurfelUpdate = !m_stopSurfelUpdate;
-
-		if (pressedInclinationPlus)
-			m_sunData.sunInclination += 0.1f;
-		if (pressedInclinatoinMinus)
-			m_sunData.sunInclination -= 0.1f;
-
-		if (pressedOrientationPlus)
-			m_sunData.sunOrientation += 5.0f;
-		if (pressedOriantationMinus)
-			m_sunData.sunOrientation -= 5.0f;
-
 
 		bool pressedOne = GameInput::IsPressed(GameInput::kMouse0);
 		io.AddMouseButtonEvent(0, pressedOne);
+		if (io.WantCaptureKeyboard)
+		{
+			// --- Keyboard ---
+			for (int key = 0; key < GameInput::kNumDigitalInputs; ++key)
+			{
+
+				GameInput::DigitalInput giKey = static_cast<GameInput::DigitalInput>(key);
+				ImGuiKey imguiKey = MapGameInputKeyToImGuiKey(giKey);
+				if (imguiKey != ImGuiKey_None)
+				{
+					bool pressed = GameInput::IsFirstPressed(giKey);
+					if (pressed)
+					{
+						io.AddKeyEvent(imguiKey, true);
+						io.AddInputCharacter(MapToChar(giKey));
+					}
+					else
+					{
+						io.AddKeyEvent(imguiKey, false);
+
+					}
+				}
+			}
+
+		}
+
 
 		ImGui_ImplDX12_NewFrame();
 		ImGui_ImplWin32_NewFrame();

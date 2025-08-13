@@ -38,6 +38,7 @@
 #include "TestRenderer.h"
 #include <wrl/client.h>
 #include <iostream>
+#include "Imgui/imgui-master/imgui.h"
 
 #define LEGACY_RENDERER
 
@@ -246,7 +247,11 @@ void ModelViewer::Update( float deltaT )
 
     if (m_cameraUpdatesEnabled)
     {
-		m_CameraController->Update(deltaT);
+        if (ImGui::GetIO().WantCaptureKeyboard == false)
+        {
+			m_CameraController->Update(deltaT);
+
+        }
 
     }
 
