@@ -1215,7 +1215,6 @@ UINT TestRenderer::frameIndex = 0;
 			bool pressedResetSurfels = GameInput::IsFirstPressed(GameInput::kKey_x);
 			bool pressedResetSurfelsIrradiance = GameInput::IsFirstPressed(GameInput::kKey_c);
 			bool pressedToggleSSR = GameInput::IsFirstPressed(GameInput::kKey_m);
-			bool pressedToggleCameraUpdated = GameInput::IsFirstPressed(GameInput::kKey_space);
 			bool pressedToggleDebugHBIL = GameInput::IsFirstPressed(GameInput::kKey_p);
 			//bool pressedToggleRenderAOOnScreen = GameInput::IsFirstPressed(GameInput::kKey_z);
 

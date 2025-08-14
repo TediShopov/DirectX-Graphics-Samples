@@ -292,7 +292,7 @@ void main(
        ContributionFromBentCone(worldPos, uv, bentNormal, radius, cosAngle, height);
         float spawnChance = RemapFloat(radius, 0, AOVariables.z, 0, 1);
        //Non-linearly transform
-        spawnChance = pow(spawnChance, 5);
+        spawnChance = pow(spawnChance, 2);
         float coverage = spawnChance;
 
 
@@ -353,7 +353,7 @@ void main(
                 {
                     float spawnChance = RemapFloat(radius, 0, AOVariables.z, 0, 1);
                     //Non-linearly transform
-                    spawnChance = pow(spawnChance, 5);
+                    spawnChance = pow(spawnChance, 2);
                     //Spawn surfel cap
                     //float chanceSpawn = EstimateSpawnChance(coverage, depthRaw.x);
                     //float chanceSpawn = EstimateSurfelCapSurfaceAreaCoverage(uv, depthRaw);

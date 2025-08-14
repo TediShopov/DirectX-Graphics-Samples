@@ -274,7 +274,7 @@ void ModelViewer::Startup( void )
     PostEffects::EnableAdaptation = false;
     SSAO::Enable = true;
     
-    m_SequenceRunner = new CameraSequenceRunner(&m_Camera);
+    m_SequenceRunner = new CameraSequenceRunner(m_Camera);
 
     Renderer::Initialize();
 
@@ -389,6 +389,7 @@ void ModelViewer::UpdateInput(float deltaT)
 
 	if (GameInput::IsFirstPressed(GameInput::kKey_space))
 	{
+		m_SequenceRunner->Start();
 		m_cameraUpdatesEnabled = !m_cameraUpdatesEnabled;
 	}
 
@@ -402,6 +403,18 @@ void ModelViewer::UpdateInput(float deltaT)
 		}
 
 	}
+    else
+    {
+		if (ImGui::GetIO().WantCaptureKeyboard == false)
+		{
+			m_SequenceRunner->Update(deltaT);
+		}
+            
+    }
+
+
+
+
 }
 
 void ModelViewer::RenderScene( void )
