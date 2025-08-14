@@ -91,14 +91,14 @@ void FlyingFPSCamera::Update( float deltaTime )
         (GameInput::IsPressed( GameInput::kKey_q ) ? -deltaTime : 0.0f)
         );
 
-    if (m_Momentum)
-    {
-        ApplyMomentum(m_LastYaw, yaw, deltaTime);
-        ApplyMomentum(m_LastPitch, pitch, deltaTime);
-        ApplyMomentum(m_LastForward, forward, deltaTime);
-        ApplyMomentum(m_LastStrafe, strafe, deltaTime);
-        ApplyMomentum(m_LastAscent, ascent, deltaTime);
-    }
+//    if (m_Momentum)
+//    {
+//        ApplyMomentum(m_LastYaw, yaw, deltaTime);
+//        ApplyMomentum(m_LastPitch, pitch, deltaTime);
+//        ApplyMomentum(m_LastForward, forward, deltaTime);
+//        ApplyMomentum(m_LastStrafe, strafe, deltaTime);
+//        ApplyMomentum(m_LastAscent, ascent, deltaTime);
+//    }
 
     // don't apply momentum to mouse inputs
     yaw += GameInput::GetAnalogInput(GameInput::kAnalogMouseX) * m_MouseSensitivityX;

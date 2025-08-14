@@ -39,6 +39,12 @@
 #include <wrl/client.h>
 #include <iostream>
 #include "Imgui/imgui-master/imgui.h"
+#include "CameraSequencer.h"
+#include "CameraSequenceRunner.h"
+#include "Imgui/imgui-master/imgui.h"
+#include "Imgui/imgui-master/backends/imgui_impl_win32.h"
+#include "Imgui/imgui-master/backends/imgui_impl_dx12.h"
+#include "ExtendedUtility.h"
 
 #define LEGACY_RENDERER
 
@@ -49,17 +55,115 @@ using namespace std;
 
 using Renderer::MeshSorter;
 
+struct ExampleDescriptorHeapAllocator
+	{
+		ID3D12DescriptorHeap* Heap = nullptr;
+		D3D12_DESCRIPTOR_HEAP_TYPE  HeapType = D3D12_DESCRIPTOR_HEAP_TYPE_NUM_TYPES;
+		D3D12_CPU_DESCRIPTOR_HANDLE HeapStartCpu;
+		D3D12_GPU_DESCRIPTOR_HANDLE HeapStartGpu;
+		UINT                        HeapHandleIncrement;
+		ImVector<int>               FreeIndices;
+
+		void Create(ID3D12Device* device, ID3D12DescriptorHeap* heap)
+		{
+			IM_ASSERT(Heap == nullptr && FreeIndices.empty());
+			Heap = heap;
+			D3D12_DESCRIPTOR_HEAP_DESC desc = heap->GetDesc();
+			HeapType = desc.Type;
+			HeapStartCpu = Heap->GetCPUDescriptorHandleForHeapStart();
+			HeapStartGpu = Heap->GetGPUDescriptorHandleForHeapStart();
+			HeapHandleIncrement = device->GetDescriptorHandleIncrementSize(HeapType);
+			FreeIndices.reserve((int)desc.NumDescriptors);
+			for (int n = desc.NumDescriptors; n > 0; n--)
+				FreeIndices.push_back(n - 1);
+		}
+		void Destroy()
+		{
+			Heap = nullptr;
+			FreeIndices.clear();
+		}
+		void Alloc(D3D12_CPU_DESCRIPTOR_HANDLE* out_cpu_desc_handle, D3D12_GPU_DESCRIPTOR_HANDLE* out_gpu_desc_handle)
+		{
+			IM_ASSERT(FreeIndices.Size > 0);
+			int idx = FreeIndices.back();
+			FreeIndices.pop_back();
+			out_cpu_desc_handle->ptr = HeapStartCpu.ptr + (idx * HeapHandleIncrement);
+			out_gpu_desc_handle->ptr = HeapStartGpu.ptr + (idx * HeapHandleIncrement);
+		}
+		void Free(D3D12_CPU_DESCRIPTOR_HANDLE out_cpu_desc_handle, D3D12_GPU_DESCRIPTOR_HANDLE out_gpu_desc_handle)
+		{
+			int cpu_idx = (int)((out_cpu_desc_handle.ptr - HeapStartCpu.ptr) / HeapHandleIncrement);
+			int gpu_idx = (int)((out_gpu_desc_handle.ptr - HeapStartGpu.ptr) / HeapHandleIncrement);
+			IM_ASSERT(cpu_idx == gpu_idx);
+			FreeIndices.push_back(cpu_idx);
+		}
+	};
+
+
+ ExampleDescriptorHeapAllocator	g_pd3dSrvDescHeapAlloc;
 class ModelViewer : public GameCore::IGameApp
 {
+
+ ID3D12DescriptorHeap* g_pd3dSrvDescHeap = nullptr;
 public:
     bool m_cameraUpdatesEnabled = true;
 
     ModelViewer( void ) {}
 
     virtual void Startup( void ) override;
+	virtual void InitImGui(void)
+		{
+
+		ImGui::CreateContext();
+		ImGuiIO& io = ImGui::GetIO(); (void)io;
+		io.MouseDrawCursor = true;
+		ID3D12Device* device = Graphics::g_Device;
+		{
+			D3D12_DESCRIPTOR_HEAP_DESC desc = {};
+			desc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
+			desc.NumDescriptors = 10;
+			desc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
+			if (device->CreateDescriptorHeap(&desc, IID_PPV_ARGS(&g_pd3dSrvDescHeap)) != S_OK)
+			{
+				int a = 3;
+				//return false;
+
+			}
+			g_pd3dSrvDescHeapAlloc.Create(device, g_pd3dSrvDescHeap);
+		}
+
+
+
+		ImGui_ImplWin32_Init(g_hWnd);
+		ImGui_ImplDX12_InitInfo info;
+		info.Device = g_Device;
+		info.NumFramesInFlight = 2;
+		info.CommandQueue = Graphics::g_CommandManager.GetCommandQueue();
+		// info.DSVFormat = DXGI;
+		// info.RTVFormat = Graphics::g_OverlayBuffer.GetFormat();
+
+		info.RTVFormat = DXGI_FORMAT_R8G8B8A8_UNORM;
+		info.DSVFormat = DXGI_FORMAT_UNKNOWN;
+
+		info.SrvDescriptorHeap = g_pd3dSrvDescHeap;
+		info.SrvDescriptorAllocFn = [](ImGui_ImplDX12_InitInfo* info, D3D12_CPU_DESCRIPTOR_HANDLE* out_cpu_handle, D3D12_GPU_DESCRIPTOR_HANDLE* out_gpu_handle)
+			{
+				g_pd3dSrvDescHeapAlloc.Alloc(out_cpu_handle, out_gpu_handle);
+				return;
+			};
+		info.SrvDescriptorFreeFn = [](ImGui_ImplDX12_InitInfo*, D3D12_CPU_DESCRIPTOR_HANDLE cpu_handle, D3D12_GPU_DESCRIPTOR_HANDLE gpu_handle)
+			{
+				g_pd3dSrvDescHeapAlloc.Free(cpu_handle, gpu_handle);
+				return;
+			};
+
+		bool t = ImGui_ImplDX12_Init(&info);
+
+		}
     virtual void Cleanup( void ) override;
 
     virtual void Update( float deltaT ) override;
+    void UpdateInput(float deltaT);
     virtual void RenderScene( void ) override;
     virtual void RenderUI(GraphicsContext& gfx) override;
 
@@ -79,6 +183,8 @@ private:
 
     ModelInstance m_ModelInst;
     ShadowCamera m_SunShadowCamera;
+	CameraSequencer m_CameraSequence;
+	CameraSequenceRunner* m_SequenceRunner;
 };
 
 CREATE_APPLICATION( ModelViewer )
@@ -168,10 +274,12 @@ void ModelViewer::Startup( void )
     PostEffects::EnableAdaptation = false;
     SSAO::Enable = true;
     
+    m_SequenceRunner = new CameraSequenceRunner(&m_Camera);
 
     Renderer::Initialize();
 
     LoadIBLTextures();
+    InitImGui();
 
     std::wstring gltfFileName;
 
@@ -233,27 +341,7 @@ void ModelViewer::Update( float deltaT )
 {
     ScopedTimer _prof(L"Update State");
 
-    if (GameInput::IsFirstPressed(GameInput::kLShoulder))
-        DebugZoom.Decrement();
-    else if (GameInput::IsFirstPressed(GameInput::kRShoulder))
-        DebugZoom.Increment();
-
-
-    if(GameInput::IsFirstPressed(GameInput::kKey_space))
-    {
-        m_cameraUpdatesEnabled = !m_cameraUpdatesEnabled;
-    }
-
-
-    if (m_cameraUpdatesEnabled)
-    {
-        if (ImGui::GetIO().WantCaptureKeyboard == false)
-        {
-			m_CameraController->Update(deltaT);
-
-        }
-
-    }
+    UpdateInput(deltaT);
 
     GraphicsContext& gfxContext = GraphicsContext::Begin(L"Scene Update");
 
@@ -280,6 +368,40 @@ void ModelViewer::Update( float deltaT )
     m_MainScissor.top = 0;
     m_MainScissor.right = (LONG)g_SceneColorBuffer.GetWidth();
     m_MainScissor.bottom = (LONG)g_SceneColorBuffer.GetHeight();
+}
+
+void ModelViewer::UpdateInput(float deltaT)
+{
+	if (GameInput::IsFirstPressed(GameInput::kLShoulder))
+		DebugZoom.Decrement();
+	else if (GameInput::IsFirstPressed(GameInput::kRShoulder))
+		DebugZoom.Increment();
+
+	bool saveTestState = GameInput::IsFirstPressed(GameInput::kKey_z);
+
+	if (saveTestState)
+	{
+		m_CameraSequence.AddStop(m_Camera);
+	}
+
+
+
+
+	if (GameInput::IsFirstPressed(GameInput::kKey_space))
+	{
+		m_cameraUpdatesEnabled = !m_cameraUpdatesEnabled;
+	}
+
+
+	if (m_cameraUpdatesEnabled)
+	{
+		if (ImGui::GetIO().WantCaptureKeyboard == false)
+		{
+			m_CameraController->Update(deltaT);
+
+		}
+
+	}
 }
 
 void ModelViewer::RenderScene( void )
@@ -437,62 +559,57 @@ void DumpDREDInfoA(ID3D12Device* device)
 }
 void ModelViewer::RenderUI(GraphicsContext& gfx)
 {
-    //I am here
-    //$GraphRenderer::RenderGraphs(Context, GraphRenderer::GraphType::Profile);
+	auto io = ImGui::GetIO();
 
-//    TextContext Text(gfx);
-//    Text.Begin();
-//
-//    EngineProfiling::DisplayFrameRate(Text);
-//    float x, y;
-//
-//    Text.ResetCursor( x, y );
-//
-////    if (!sm_IsVisible)
-////    {
-////        EngineProfiling::Display(Text, x, y, w, h);
-////        return;
-////    }
-//    float w = g_SceneColorBuffer.GetWidth();
-//    float h = g_SceneColorBuffer.GetHeight();
-//
-//    
-//    float s_ScrollTopTrigger = y + h * 0.2f;
-//    float s_ScrollBottomTrigger = y + h * 0.8f;
-//
-//    float hScale = g_DisplayWidth / 1920.0f;
-//    float vScale = g_DisplayHeight / 1080.0f;
-//
-//    gfx.SetScissor((uint32_t)Floor(x * hScale), (uint32_t)Floor(y * vScale), 
-//        (uint32_t)Ceiling((x + w) * hScale), (uint32_t)Ceiling((y + h) * vScale));
-//
-//    //Text.ResetCursor(x, y - s_ScrollOffset );
-//    Text.ResetCursor(x, y + h*0.8f);
-//    Text.SetColor( Color(0.0f,1.0f,0.0f,1.0f) );
-//    Text.SetTextSize(30.0f);
-//
-//    std::ostringstream oss;
-//    oss << "Camera Position:" << "X:" <<
-//        setw(1) <<  (float)m_Camera.GetPosition().GetX() << "Y:" <<
-//        (float)m_Camera.GetPosition().GetY() << "Z:" <<
-//        (float)m_Camera.GetPosition().GetZ() <<
-//        ".";
-//
-//    Text.DrawString(oss.str());
-//
-//    //Text.DrawString("Engine Tuning\n");
-//
-//    //VariableGroup::sm_RootGroup.Display( Text, x, sm_SelectedVariable );
-//    
-//    //EngineProfiling::DisplayPerfGraph(Context);
-//
-//    Text.End();
+	bool pressedOne = GameInput::IsPressed(GameInput::kMouse0);
+	io.AddMouseButtonEvent(0, pressedOne);
+	if (io.WantCaptureKeyboard)
+	{
+		// --- Keyboard ---
+		for (int key = 0; key < GameInput::kNumDigitalInputs; ++key)
+		{
+
+			GameInput::DigitalInput giKey = static_cast<GameInput::DigitalInput>(key);
+			ImGuiKey imguiKey = ExtendedUtility::MapGameInputKeyToImGuiKey(giKey);
+			if (imguiKey != ImGuiKey_None)
+			{
+				bool pressed = GameInput::IsFirstPressed(giKey);
+				if (pressed)
+				{
+					io.AddKeyEvent(imguiKey, true);
+					io.AddInputCharacter(ExtendedUtility::MapToChar(giKey));
+				}
+				else
+				{
+					io.AddKeyEvent(imguiKey, false);
+
+				}
+			}
+		}
+
+	}
 
 
+	ImGui_ImplDX12_NewFrame();
+	ImGui_ImplWin32_NewFrame();
+	ImGui::NewFrame();
 
-    TestRenderer::RenderImGuiUI(gfx);
+	m_CameraSequence.RenderImGui();
+	m_SequenceRunner->SetSequence(&m_CameraSequence.GetMutableConfig());
+	m_SequenceRunner->RenderImGui();
+	TestRenderer::RenderImGuiUI(gfx);
 
-    gfx.SetScissor(0, 0, g_DisplayWidth, g_DisplayHeight);
+
+	ImGui::Render();
+
+	ID3D12GraphicsCommandList* cmdList = gfx.GetCommandList();
+	ID3D12DescriptorHeap* ppHeaps[] = {
+	g_pd3dSrvDescHeap,      // CBV/SRV/UAV heap (for textures)
+	};
+	cmdList->SetDescriptorHeaps(1, ppHeaps);
+	ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), cmdList);
+	gfx.SetScissor(0, 0, g_DisplayWidth, g_DisplayHeight);
+
 
 
 }

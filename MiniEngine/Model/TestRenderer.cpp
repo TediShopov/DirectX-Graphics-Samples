@@ -62,6 +62,7 @@
 #include "GBufferDownsample.h"
 #include "HBILInterleaved.h"
 #include "CameraSequencer.h"
+#include "CameraSequenceRunner.h"
 
 
 
@@ -75,52 +76,6 @@ using namespace std;
 
 #pragma region			ImGuiDecriptor
 
-struct ExampleDescriptorHeapAllocator
-	{
-		ID3D12DescriptorHeap* Heap = nullptr;
-		D3D12_DESCRIPTOR_HEAP_TYPE  HeapType = D3D12_DESCRIPTOR_HEAP_TYPE_NUM_TYPES;
-		D3D12_CPU_DESCRIPTOR_HANDLE HeapStartCpu;
-		D3D12_GPU_DESCRIPTOR_HANDLE HeapStartGpu;
-		UINT                        HeapHandleIncrement;
-		ImVector<int>               FreeIndices;
-
-		void Create(ID3D12Device* device, ID3D12DescriptorHeap* heap)
-		{
-			IM_ASSERT(Heap == nullptr && FreeIndices.empty());
-			Heap = heap;
-			D3D12_DESCRIPTOR_HEAP_DESC desc = heap->GetDesc();
-			HeapType = desc.Type;
-			HeapStartCpu = Heap->GetCPUDescriptorHandleForHeapStart();
-			HeapStartGpu = Heap->GetGPUDescriptorHandleForHeapStart();
-			HeapHandleIncrement = device->GetDescriptorHandleIncrementSize(HeapType);
-			FreeIndices.reserve((int)desc.NumDescriptors);
-			for (int n = desc.NumDescriptors; n > 0; n--)
-				FreeIndices.push_back(n - 1);
-		}
-		void Destroy()
-		{
-			Heap = nullptr;
-			FreeIndices.clear();
-		}
-		void Alloc(D3D12_CPU_DESCRIPTOR_HANDLE* out_cpu_desc_handle, D3D12_GPU_DESCRIPTOR_HANDLE* out_gpu_desc_handle)
-		{
-			IM_ASSERT(FreeIndices.Size > 0);
-			int idx = FreeIndices.back();
-			FreeIndices.pop_back();
-			out_cpu_desc_handle->ptr = HeapStartCpu.ptr + (idx * HeapHandleIncrement);
-			out_gpu_desc_handle->ptr = HeapStartGpu.ptr + (idx * HeapHandleIncrement);
-		}
-		void Free(D3D12_CPU_DESCRIPTOR_HANDLE out_cpu_desc_handle, D3D12_GPU_DESCRIPTOR_HANDLE out_gpu_desc_handle)
-		{
-			int cpu_idx = (int)((out_cpu_desc_handle.ptr - HeapStartCpu.ptr) / HeapHandleIncrement);
-			int gpu_idx = (int)((out_gpu_desc_handle.ptr - HeapStartGpu.ptr) / HeapHandleIncrement);
-			IM_ASSERT(cpu_idx == gpu_idx);
-			FreeIndices.push_back(cpu_idx);
-		}
-	};
-
-static ID3D12DescriptorHeap* g_pd3dSrvDescHeap = nullptr;
-ExampleDescriptorHeapAllocator	g_pd3dSrvDescHeapAlloc;
 
 #pragma endregion
 
@@ -150,7 +105,8 @@ UINT TestRenderer::frameIndex = 0;
 	 DescriptorHeap TestRenderer::SSRHeap = DescriptorHeap();
 	 ColorBuffer TestRenderer::colorCopyBuffer = ColorBuffer();
 	 DepthBuffer TestRenderer::depthCopyBuffer = DepthBuffer();
-	 CameraSequencer m_CameraSequence;
+//	 CameraSequencer m_CameraSequence;
+//	 CameraSequenceRunner* m_SequenceRunner;
 
 
 	 struct SunData {
@@ -299,6 +255,7 @@ UINT TestRenderer::frameIndex = 0;
 		SurfelGIVisualization = new SurfelGIOnlyVisualization();
 		MaterialBindingDebug = new SurfelGIOnlyVisualization();
 		frameIndex = 0;
+		//m_SequenceRunner = new CameraSequenceRunner(&camera);
 		//m_CameraSequence.LoadConfig("DebugConfigPath.json");
 
 
@@ -458,6 +415,8 @@ UINT TestRenderer::frameIndex = 0;
 		camera.SetPosition(Vector3(m_Transform.getPosition()));
 
 
+
+
 		uint32_t VertexStride = m_Model->GetVertexStride();
 		//Allocate just and extra descriptor table entry
 		uint32_t DestCount = 9;
@@ -555,62 +514,6 @@ UINT TestRenderer::frameIndex = 0;
 			gbuffer,
 			&TestRaytracing::GetOutputBuffer()
 		);
-
-
-		//Imgui Startup
-
-		ImGui::CreateContext();
-		ImGuiIO& io = ImGui::GetIO(); (void)io;
-		io.MouseDrawCursor = true;
-		//io.WantCaptureMouse = true;
-		//io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard; // Optional
-
-
-		//ImGui::StyleColorsDark(); // or ImGui::StyleColorsClassic();
-
-		// Setup Platform/Renderer bindings
-		//renderTargetHeap.Create(L"Render Target Heap", D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 10, true);
-		ID3D12Device* device = Graphics::g_Device;
-		{
-			D3D12_DESCRIPTOR_HEAP_DESC desc = {};
-			desc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
-			desc.NumDescriptors = 10;
-			desc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
-			if (device->CreateDescriptorHeap(&desc, IID_PPV_ARGS(&g_pd3dSrvDescHeap)) != S_OK)
-			{
-				int a = 3;
-				//return false;
-
-			}
-			g_pd3dSrvDescHeapAlloc.Create(device, g_pd3dSrvDescHeap);
-		}
-
-
-
-		ImGui_ImplWin32_Init(hwnd);
-		ImGui_ImplDX12_InitInfo info;
-		info.Device = device;
-		info.NumFramesInFlight = 2;
-		info.CommandQueue = Graphics::g_CommandManager.GetCommandQueue();
-		// info.DSVFormat = DXGI;
-		// info.RTVFormat = Graphics::g_OverlayBuffer.GetFormat();
-
-		info.RTVFormat = DXGI_FORMAT_R8G8B8A8_UNORM;
-		info.DSVFormat = DXGI_FORMAT_UNKNOWN;
-
-		info.SrvDescriptorHeap = g_pd3dSrvDescHeap;
-		info.SrvDescriptorAllocFn = [](ImGui_ImplDX12_InitInfo* info, D3D12_CPU_DESCRIPTOR_HANDLE* out_cpu_handle, D3D12_GPU_DESCRIPTOR_HANDLE* out_gpu_handle)
-			{
-				g_pd3dSrvDescHeapAlloc.Alloc(out_cpu_handle, out_gpu_handle);
-				return;
-			};
-		info.SrvDescriptorFreeFn = [](ImGui_ImplDX12_InitInfo*, D3D12_CPU_DESCRIPTOR_HANDLE cpu_handle, D3D12_GPU_DESCRIPTOR_HANDLE gpu_handle)
-			{
-				g_pd3dSrvDescHeapAlloc.Free(cpu_handle, gpu_handle);
-				return;
-			};
-
-		bool t = ImGui_ImplDX12_Init(&info);
 
 		m_HBIL = new HBIL();
 		m_HBILInterleaved = new HBILInterleaved();
@@ -1290,88 +1193,6 @@ UINT TestRenderer::frameIndex = 0;
 
 	float bunnyScale = 1000;
 
-	char MapToChar(GameInput::DigitalInput key)
-{
-    using GI = GameInput::DigitalInput;
-
-    switch (key)
-    {
-    case GI::kKey_a: return 'a';
-    case GI::kKey_b: return 'b';
-    case GI::kKey_c: return 'c';
-    case GI::kKey_d: return 'd';
-    case GI::kKey_e: return 'e';
-    case GI::kKey_f: return 'f';
-    case GI::kKey_g: return 'g';
-    case GI::kKey_h: return 'h';
-    case GI::kKey_i: return 'i';
-    case GI::kKey_j: return 'j';
-    case GI::kKey_k: return 'k';
-    case GI::kKey_l: return 'l';
-    case GI::kKey_m: return 'm';
-    case GI::kKey_n: return 'n';
-    case GI::kKey_o: return 'o';
-    case GI::kKey_p: return 'p';
-    case GI::kKey_q: return 'q';
-    case GI::kKey_r: return 'r';
-    case GI::kKey_s: return 's';
-    case GI::kKey_t: return 't';
-    case GI::kKey_u: return 'u';
-    case GI::kKey_v: return 'v';
-    case GI::kKey_w: return 'w';
-    case GI::kKey_x: return 'x';
-    case GI::kKey_y: return 'y';
-    case GI::kKey_z: return 'z';
-    default: return ' ';
-    }
-}
-
-	ImGuiKey MapGameInputKeyToImGuiKey(GameInput::DigitalInput key)
-{
-    using GI = GameInput::DigitalInput;
-
-    switch (key)
-    {
-    case GI::kKey_a: return ImGuiKey_A;
-    case GI::kKey_b: return ImGuiKey_B;
-    case GI::kKey_c: return ImGuiKey_C;
-    case GI::kKey_d: return ImGuiKey_D;
-    case GI::kKey_e: return ImGuiKey_E;
-    case GI::kKey_f: return ImGuiKey_F;
-    case GI::kKey_g: return ImGuiKey_G;
-    case GI::kKey_h: return ImGuiKey_H;
-    case GI::kKey_i: return ImGuiKey_I;
-    case GI::kKey_j: return ImGuiKey_J;
-    case GI::kKey_k: return ImGuiKey_K;
-    case GI::kKey_l: return ImGuiKey_L;
-    case GI::kKey_m: return ImGuiKey_M;
-    case GI::kKey_n: return ImGuiKey_N;
-    case GI::kKey_o: return ImGuiKey_O;
-    case GI::kKey_p: return ImGuiKey_P;
-    case GI::kKey_q: return ImGuiKey_Q;
-    case GI::kKey_r: return ImGuiKey_R;
-    case GI::kKey_s: return ImGuiKey_S;
-    case GI::kKey_t: return ImGuiKey_T;
-    case GI::kKey_u: return ImGuiKey_U;
-    case GI::kKey_v: return ImGuiKey_V;
-    case GI::kKey_w: return ImGuiKey_W;
-    case GI::kKey_x: return ImGuiKey_X;
-    case GI::kKey_y: return ImGuiKey_Y;
-    case GI::kKey_z: return ImGuiKey_Z;
-    // ... map all alphanumeric keys ...
-    case GI::kKey_space: return ImGuiKey_Space;
-    case GI::kKey_escape: return ImGuiKey_Escape;
-    case GI::kKey_left: return ImGuiKey_LeftArrow;
-    case GI::kKey_right: return ImGuiKey_RightArrow;
-    case GI::kKey_up: return ImGuiKey_UpArrow;
-    case GI::kKey_down: return ImGuiKey_DownArrow;
-    case GI::kKey_lshift: return ImGuiKey_LeftShift; // Or RightShift
-    case GI::kKey_lcontrol: return ImGuiKey_LeftCtrl;   // Or RightCtrl
-    case GI::kKey_lalt: return ImGuiKey_LeftAlt;     // Or RightAlt
-    default: return ImGuiKey_None;
-    }
-}
-
 	void TestRenderer::RenderImGuiUI(GraphicsContext& gfx) {
 		ImGuiIO& io = ImGui::GetIO();
 
@@ -1396,18 +1217,7 @@ UINT TestRenderer::frameIndex = 0;
 			bool pressedToggleSSR = GameInput::IsFirstPressed(GameInput::kKey_m);
 			bool pressedToggleCameraUpdated = GameInput::IsFirstPressed(GameInput::kKey_space);
 			bool pressedToggleDebugHBIL = GameInput::IsFirstPressed(GameInput::kKey_p);
-			bool pressedToggleRenderAOOnScreen = GameInput::IsFirstPressed(GameInput::kKey_z);
-
-			if (pressedToggleCameraUpdated)
-			{
-				m_CameraSequence.AddStop(last_camera_data);
-			}
-
-			if (pressedToggleRenderAOOnScreen)
-			{
-				m_HBIL->m_renderAtColorBuffer = !m_HBIL->m_renderAtColorBuffer;
-
-			}
+			//bool pressedToggleRenderAOOnScreen = GameInput::IsFirstPressed(GameInput::kKey_z);
 
 
 			if (pressedToggleDebugHBIL)
@@ -1480,40 +1290,10 @@ UINT TestRenderer::frameIndex = 0;
 
 		}
 
-		bool pressedOne = GameInput::IsPressed(GameInput::kMouse0);
-		io.AddMouseButtonEvent(0, pressedOne);
-		if (io.WantCaptureKeyboard)
-		{
-			// --- Keyboard ---
-			for (int key = 0; key < GameInput::kNumDigitalInputs; ++key)
-			{
 
-				GameInput::DigitalInput giKey = static_cast<GameInput::DigitalInput>(key);
-				ImGuiKey imguiKey = MapGameInputKeyToImGuiKey(giKey);
-				if (imguiKey != ImGuiKey_None)
-				{
-					bool pressed = GameInput::IsFirstPressed(giKey);
-					if (pressed)
-					{
-						io.AddKeyEvent(imguiKey, true);
-						io.AddInputCharacter(MapToChar(giKey));
-					}
-					else
-					{
-						io.AddKeyEvent(imguiKey, false);
-
-					}
-				}
-			}
-
-		}
-
-
-		ImGui_ImplDX12_NewFrame();
-		ImGui_ImplWin32_NewFrame();
-		ImGui::NewFrame();
-
-		m_CameraSequence.RenderImGui();
+		//m_CameraSequence.RenderImGui();
+		//m_SequenceRunner->SetSequence(&m_CameraSequence.GetMutableConfig());
+		//m_SequenceRunner->RenderImGui();
 
 		// Your ImGui UI code here
 		ImGui::Begin("Surfel Gen CB");
@@ -1655,14 +1435,6 @@ UINT TestRenderer::frameIndex = 0;
 		//ImGui::ShowDemoWindow();
 		//ImGui::Text("Hello from ImGui!");
 		ImGui::End();
-		ImGui::Render();
-
-		ID3D12GraphicsCommandList* cmdList = gfx.GetCommandList();
-		ID3D12DescriptorHeap* ppHeaps[] = {
-		g_pd3dSrvDescHeap,      // CBV/SRV/UAV heap (for textures)
-		};
-		cmdList->SetDescriptorHeaps(1, ppHeaps);
-		ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), cmdList);
 
 	}
 
