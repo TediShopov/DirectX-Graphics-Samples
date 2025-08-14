@@ -34,10 +34,15 @@ public:
 
 
     }
+    bool InRange(int index)
+    {
+        return index >= 0 && index < sequence->cameraStops.size();
+
+    }
 
     void SetCamera(int index) 
     {
-        if (index >= 0 && index < sequence->cameraStops.size())
+        if (InRange(index))
         {
             auto camStop = sequence->cameraStops[index];
 
@@ -50,7 +55,9 @@ public:
     void Update(float deltaTime) override {
 		//if (paused || state == SeqState::Idle) return;
 		if (paused ) return;
-		m_TargetCamera.SetPosition(Vector3(0,0,0));
+        if (InRange(m_targetCameraIndex) == false) {
+            Reset();
+        }
         stateTimer += deltaTime;
 
         SetCamera(m_targetCameraIndex);
@@ -60,6 +67,7 @@ public:
     case SeqState::Move:
 
         {
+        //TODO implement lerping between positions
             //float t = (float)(stateTimer / moveDuration);
 		    //float t = (float)(stateTimer / 1.0f);
             //Clamp
