@@ -63,6 +63,13 @@
 #include "HBILInterleaved.h"
 #include "CameraSequencer.h"
 #include "CameraSequenceRunner.h"
+#include "nvperf_host.h"
+#include "nvperf_d3d12_host.h"
+#include "nvperf_host_impl.h"
+#include "NvPerfRangeProfilerD3D12.h"
+#include <NvPerfReportGeneratorD3D12.h>
+
+
 
 
 
@@ -108,6 +115,8 @@ UINT TestRenderer::frameIndex = 0;
 //	 CameraSequencer m_CameraSequence;
 //	 CameraSequenceRunner* m_SequenceRunner;
 
+	 // Nvidia Init
+	 nv::perf::profiler::ReportGeneratorD3D12 m_nvperf;
 
 	 struct SunData {
 		 XMFLOAT3 sunDirection;
@@ -245,8 +254,21 @@ UINT TestRenderer::frameIndex = 0;
 	///--- INTIIALIZATION ---
 	void TestRenderer::Startup(Math::Camera& camera, HWND hwnd)
 	{
-//		DragonModel.Load(L"OBJ/Dragon.obj");
-//		DragonModel.Load(L"D:/MScSurfelBasedGI/DirectX-Graphics-Samples/MiniEngine/Model/OBJ/Dragon.obj");
+		//		DragonModel.Load(L"OBJ/Dragon.obj");
+		//		DragonModel.Load(L"D:/MScSurfelBasedGI/DirectX-Graphics-Samples/MiniEngine/Model/OBJ/Dragon.obj");
+
+		m_nvperf.additionalMetrics = { "crop__write_throughput" };
+		// Initialize
+		m_nvperf.InitializeReportGenerator(g_Device);
+
+		// Optional: set frame range name (so reports have a “Frame” top-level marker)
+		m_nvperf.SetFrameLevelRangeName("Frame");
+
+		// Depth of nested PushRange calls you might use
+		m_nvperf.SetNumNestingLevels(10); // heuristic default
+
+		//m_nvperf.StartCollectionOnNextFrame();
+
 
 		SurfelIllumination = new SurfelGI();  // Definition (allocates storage)
 		GridVisualization = new HashGridVisualization();
@@ -270,7 +292,7 @@ UINT TestRenderer::frameIndex = 0;
 
 
 		//m_Transform.setScale(50,50,50);
-		m_Transform.setScale(10,10,10);
+		m_Transform.setScale(10, 10, 10);
 
 		m_sunData.ambientLightIntensity = 0.3f;
 		//m_sunData.ambientLightIntensity = 0;
@@ -348,8 +370,8 @@ UINT TestRenderer::frameIndex = 0;
 		m_CutoutModelPSO = m_ModelPSO;
 		m_CutoutModelPSO.SetRasterizerState(RasterizerTwoSided);
 		m_CutoutModelPSO.Finalize();
-			//--- DEMO PASS FOR RENDERING SPHERE ---
-			// Full color pass
+		//--- DEMO PASS FOR RENDERING SPHERE ---
+		// Full color pass
 		m_TestSpherePSO = m_DepthPSO;
 		m_TestSpherePSO.SetBlendState(BlendDisable);
 		//m_TestSpherePSO.SetRenderTargetFormats(2, formats, DepthFormat);
@@ -456,7 +478,7 @@ UINT TestRenderer::frameIndex = 0;
 
 		};
 
-		
+
 		SurfelIllumination->Setup(
 			gbuffer
 		);
@@ -479,7 +501,7 @@ UINT TestRenderer::frameIndex = 0;
 
 		SSRHeap.Create(L"SSR Heap", D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 2);
 		colorCopyBuffer.Create(L"Color Copy Buffer", g_SceneColorBuffer.GetWidth(), g_SceneColorBuffer.GetHeight(), 1, ColorFormat);
-		depthCopyBuffer.Create(L"Depth Copy Buffer A", g_SceneDepthBuffer.GetWidth(), g_SceneDepthBuffer.GetHeight(),1, DepthFormat);
+		depthCopyBuffer.Create(L"Depth Copy Buffer A", g_SceneDepthBuffer.GetWidth(), g_SceneDepthBuffer.GetHeight(), 1, DepthFormat);
 
 		ExtendedUtility::CopyDescriptorsToHeap(
 			SSRHeap,
@@ -534,8 +556,8 @@ UINT TestRenderer::frameIndex = 0;
 		);
 
 		//SurfelIllumination->SetupInformed(&m_HBIL->m_OutputBentCone,&m_HBIL->m_OutputIrradiance);
-		SurfelIllumination->SetupInformed(&m_HBIL->m_OutputBentCone,&Graphics::g_SSAOFullScreen);
-		
+		SurfelIllumination->SetupInformed(&m_HBIL->m_OutputBentCone, &Graphics::g_SSAOFullScreen);
+
 
 
 
@@ -1747,7 +1769,8 @@ XMVECTOR VectorProjection(XMVECTOR u, XMVECTOR v, float* scalarOut)
 	 }
 	void TestRenderer::RenderScene(RENDER_SCENE_PARAMS)
 	{
-
+		m_nvperf.OnFrameStart(Graphics::g_CommandManager.GetGraphicsQueue().GetCommandQueue());
+		m_nvperf.rangeCommands.PushRange(gfxContext.GetCommandList(), "Testing");
 
 
 		ComputeContext& cfx = reinterpret_cast<ComputeContext&>(gfxContext);
@@ -1756,8 +1779,9 @@ XMVECTOR VectorProjection(XMVECTOR u, XMVECTOR v, float* scalarOut)
 		if (m_stopSurfelUpdate == false || m_stopSurfelUpdate == true && m_stopSurfelUpdate != m_prevStopSurfelUpdate)
 		{
 			SurfelIllumination->FillAccelerationStructuresReduceThenScan(cfx);
-
 		}
+
+
 		//SurfelIllumination->FillAccelerationStructures(cfx);
 
 		//Control GPU Readback
@@ -1941,7 +1965,7 @@ XMVECTOR VectorProjection(XMVECTOR u, XMVECTOR v, float* scalarOut)
 
 		m_GBufferDownsample->Dispatch(cfx, camera);
 		m_GBufferSlice->Dispatch(cfx, camera);
-	//	m_HBIL->ComputeDownsampledTexture(cfx,camera);
+		//	m_HBIL->ComputeDownsampledTexture(cfx,camera);
 		{
 
 			ScopedTimer _prof(L"Render HBIL Tri", gfxContext);
@@ -1995,10 +2019,14 @@ XMVECTOR VectorProjection(XMVECTOR u, XMVECTOR v, float* scalarOut)
 
 
 		SurfelIllumination->ApplySurfels(cfx, camera);
-		
+
 		if (m_stopSurfelUpdate == false)
 			SurfelIllumination->RecycleSurfels(cfx, camera);
 
+		m_nvperf.rangeCommands.PopRange(gfxContext.GetCommandList());
 		m_prevStopSurfelUpdate = m_stopSurfelUpdate;
+		m_nvperf.OnFrameEnd();
+		m_nvperf.StartCollectionOnNextFrame();
+
 
 	}

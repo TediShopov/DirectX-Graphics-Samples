@@ -58,7 +58,7 @@
       <EnableDPIAwareness>true</EnableDPIAwareness>
     </Manifest>
     <ClCompile>
-      <AdditionalIncludeDirectories Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">D:\MScSurfelBasedGI\DirectX-Graphics-Samples\MiniEngine\Model\Imgui\imgui-master;$(ProjectDir)nv_helpers_dx12;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">D:\MScSurfelBasedGI\DirectX-Graphics-Samples\Libraries\include;D:\MScSurfelBasedGI\DirectX-Graphics-Samples\Libraries\include\windows-desktop-x64;D:\MScSurfelBasedGI\DirectX-Graphics-Samples\Libraries\NvPerfUtility\include;D:\MScSurfelBasedGI\DirectX-Graphics-Samples\MiniEngine\Model\Imgui\imgui-master;$(ProjectDir)nv_helpers_dx12;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <LanguageStandard Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">stdcpp14</LanguageStandard>
     </ClCompile>
     <ClCompile>
@@ -67,6 +67,10 @@
     <ClCompile>
       <LanguageStandard Condition="'$(Configuration)|$(Platform)'=='Release|x64'">stdcpp14</LanguageStandard>
     </ClCompile>
+    <Lib>
+      <AdditionalLibraryDirectories Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">D:\MScSurfelBasedGI\DirectX-Graphics-Samples\Libraries\bin\x64;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalDependencies Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">nvperf_grfx_host.lib</AdditionalDependencies>
+    </Lib>
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClInclude Include="Animation.h" />
@@ -101,6 +105,7 @@
     <ClInclude Include="ModelOBJ.h" />
     <ClInclude Include="MSMEVisualization.h" />
     <ClInclude Include="ParticleEffects.h" />
+    <ClInclude Include="PerfSdkMinimal.h" />
     <ClInclude Include="Renderer.h" />
     <ClInclude Include="SurfelGIOnlyVisualization.h" />
     <ClInclude Include="SurfelIrradianceAccumulation.h" />
@@ -187,6 +192,7 @@
     <ClCompile Include="ModelOBJ.cpp" />
     <ClCompile Include="MSMEVisualization.cpp" />
     <ClCompile Include="ParticleEffects.cpp" />
+    <ClCompile Include="PerfSdkMinimal.cpp" />
     <ClCompile Include="Renderer.cpp" />
     <ClCompile Include="SponzaRenderer.cpp" />
     <ClCompile Include="SurfelGI.cpp" />
