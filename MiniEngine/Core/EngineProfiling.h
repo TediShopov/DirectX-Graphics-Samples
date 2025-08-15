@@ -20,6 +20,7 @@ class CommandContext;
 
 namespace EngineProfiling
 {
+    void Initialize();
     void Update();
 
     void BeginBlock(const std::wstring& name, CommandContext* Context = nullptr);
@@ -29,6 +30,17 @@ namespace EngineProfiling
     void DisplayPerfGraph(GraphicsContext& Text);
     void Display(TextContext& Text, float x, float y, float w, float h);
     bool IsPaused();
+
+
+    void BeginBlockPerfSDK(const std::wstring& name, CommandContext* Context = nullptr);
+    void EndBlockPerfSDK(CommandContext* Context = nullptr);
+
+
+    void OnFrameStart();
+    void OnFrameEnd();
+    void BeginSession();
+    void EndSessoin();
+    void CollectReport();
 }
 
 #ifdef RELEASE

@@ -146,6 +146,9 @@ uint64_t CommandContext::Finish( bool WaitForCompletion )
     Queue.DiscardAllocator(FenceValue, m_CurrentAllocator);
     m_CurrentAllocator = nullptr;
 
+
+    //EngineProfiling::OnFrameEnd();
+
     m_CpuLinearAllocator.CleanupUsedPages(FenceValue);
     m_GpuLinearAllocator.CleanupUsedPages(FenceValue);
     m_DynamicViewDescriptorHeap.CleanupUsedHeaps(FenceValue);

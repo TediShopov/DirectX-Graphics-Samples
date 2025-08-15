@@ -308,7 +308,11 @@ namespace nv { namespace perf { namespace profiler {
             }
 
             auto beginSessionFn = [&]() {
-                return BeginSessionWithOptions(pCommandQueue);
+                nv::perf::profiler::SessionOptions oppts;
+                oppts.numTraceBuffers = 10;
+                oppts.maxNumRanges = 10;
+                oppts.avgRangeNameLength = 256;
+                return BeginSessionWithOptions(pCommandQueue,&oppts);
             };
             if (!m_stateMachine.OnFrameStart(beginSessionFn))
             {

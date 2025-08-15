@@ -70,22 +70,27 @@ namespace GameCore
         game.Update(DeltaTime);
         game.RenderScene();
 
-
         PostEffects::Render();
         // ----- UI RELATED -----
 
+
         GraphicsContext& UiContext = GraphicsContext::Begin(L"Render UI");
+        EngineProfiling::OnFrameStart();
         UiContext.TransitionResource(g_OverlayBuffer, D3D12_RESOURCE_STATE_RENDER_TARGET, true);
         UiContext.ClearColor(g_OverlayBuffer);
         UiContext.SetRenderTarget(g_OverlayBuffer.GetRTV());
         UiContext.SetViewportAndScissor(0, 0, g_OverlayBuffer.GetWidth(), g_OverlayBuffer.GetHeight());
 
+        EngineProfiling::BeginBlock(L"A", &UiContext);
         game.RenderUI(UiContext); 
+        EngineProfiling::EndBlock(&UiContext);
+
         UiContext.SetRenderTarget(g_OverlayBuffer.GetRTV());
         UiContext.SetViewportAndScissor(0, 0, g_OverlayBuffer.GetWidth(), g_OverlayBuffer.GetHeight());
         //EngineTuning::Display( UiContext, 10.0f, 40.0f, 1900.0f, 1040.0f );
 
-        UiContext.Finish();
+        EngineProfiling::OnFrameEnd();
+        UiContext.Finish(true);
 
 
         Display::Present();

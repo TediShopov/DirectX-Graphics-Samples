@@ -63,11 +63,12 @@
 #include "HBILInterleaved.h"
 #include "CameraSequencer.h"
 #include "CameraSequenceRunner.h"
-#include "nvperf_host.h"
-#include "nvperf_d3d12_host.h"
-#include "nvperf_host_impl.h"
-#include "NvPerfRangeProfilerD3D12.h"
-#include <NvPerfReportGeneratorD3D12.h>
+
+//#include "nvperf_host.h"
+//#include "nvperf_d3d12_host.h"
+//#include "nvperf_host_impl.h"
+//#include "NvPerfRangeProfilerD3D12.h"
+//#include <NvPerfReportGeneratorD3D12.h>
 
 
 
@@ -116,7 +117,7 @@ UINT TestRenderer::frameIndex = 0;
 //	 CameraSequenceRunner* m_SequenceRunner;
 
 	 // Nvidia Init
-	 nv::perf::profiler::ReportGeneratorD3D12 m_nvperf;
+	 ///nv::perf::profiler::ReportGeneratorD3D12 m_nvperf;
 
 	 struct SunData {
 		 XMFLOAT3 sunDirection;
@@ -150,7 +151,7 @@ UINT TestRenderer::frameIndex = 0;
 	 //Control if we should be drawing those on the rays in the scene in global space
 	 bool m_hbil_drawDebug = true;
 	 //Control if we should drawing render results of hbil on texture quad in front of camera
-	 bool m_hbil_render = true;
+	 bool m_hbil_render = false;
 	 Camera last_camera_data;
 	 //Vector3 m_hbil_cameraLastPos;
 
@@ -257,15 +258,15 @@ UINT TestRenderer::frameIndex = 0;
 		//		DragonModel.Load(L"OBJ/Dragon.obj");
 		//		DragonModel.Load(L"D:/MScSurfelBasedGI/DirectX-Graphics-Samples/MiniEngine/Model/OBJ/Dragon.obj");
 
-		m_nvperf.additionalMetrics = { "crop__write_throughput" };
-		// Initialize
-		m_nvperf.InitializeReportGenerator(g_Device);
+		//m_nvperf.additionalMetrics = { "crop__write_throughput" };
+		//// Initialize
+		//m_nvperf.InitializeReportGenerator(g_Device);
 
-		// Optional: set frame range name (so reports have a “Frame” top-level marker)
-		m_nvperf.SetFrameLevelRangeName("Frame");
+		//// Optional: set frame range name (so reports have a “Frame” top-level marker)
+		//m_nvperf.SetFrameLevelRangeName("Frame");
 
-		// Depth of nested PushRange calls you might use
-		m_nvperf.SetNumNestingLevels(10); // heuristic default
+		//// Depth of nested PushRange calls you might use
+		//m_nvperf.SetNumNestingLevels(10); // heuristic default
 
 		//m_nvperf.StartCollectionOnNextFrame();
 
@@ -1769,8 +1770,9 @@ XMVECTOR VectorProjection(XMVECTOR u, XMVECTOR v, float* scalarOut)
 	 }
 	void TestRenderer::RenderScene(RENDER_SCENE_PARAMS)
 	{
-		m_nvperf.OnFrameStart(Graphics::g_CommandManager.GetGraphicsQueue().GetCommandQueue());
-		m_nvperf.rangeCommands.PushRange(gfxContext.GetCommandList(), "Testing");
+		//m_nvperf.OnFrameStart(Graphics::g_CommandManager.GetGraphicsQueue().GetCommandQueue());
+		//m_nvperf.rangeCommands.PushRange(gfxContext.GetCommandList(), "Testing");
+		//EngineProfiling::BeginBlock(L"Testing", &gfxContext);
 
 
 		ComputeContext& cfx = reinterpret_cast<ComputeContext&>(gfxContext);
@@ -2023,10 +2025,10 @@ XMVECTOR VectorProjection(XMVECTOR u, XMVECTOR v, float* scalarOut)
 		if (m_stopSurfelUpdate == false)
 			SurfelIllumination->RecycleSurfels(cfx, camera);
 
-		m_nvperf.rangeCommands.PopRange(gfxContext.GetCommandList());
+		//m_nvperf.rangeCommands.PopRange(gfxContext.GetCommandList());
 		m_prevStopSurfelUpdate = m_stopSurfelUpdate;
-		m_nvperf.OnFrameEnd();
-		m_nvperf.StartCollectionOnNextFrame();
+
+		//EngineProfiling::EndBlock(&gfxContext);
 
 
 	}

@@ -11,6 +11,7 @@
 // Author:  James Stanard 
 //
 
+#define NV_PERF_ENABLE_INSTRUMENTATION 
 #include "pch.h"
 #include "SystemTime.h"
 #include "Display.h"
@@ -23,12 +24,24 @@
 #include <unordered_map>
 #include <array>
 
+//#include "nvperf_host.h"
+//#include "nvperf_d3d12_host.h"
+#include <NvPerfReportGeneratorD3D12.h>
+#ifdef NV_PERF_ENABLE_INSTRUMENTATION
+#include "nvperf_host_impl.h"
+#endif // !NV_PERF_ENABLE_INSTRUMENTATION
+
+#include <NvPerfUtilities.h>
+#include <locale>
+#include <codecvt>
+
 using namespace Graphics;
 using namespace GraphRenderer;
 using namespace Math;
 using namespace std;
 
 #define PERF_GRAPH_ERROR uint32_t(0xFFFFFFFF)
+
 namespace EngineProfiling
 {
     bool Paused = false;
@@ -421,11 +434,42 @@ NestedTimingTree* NestedTimingTree::sm_SelectedScope = &NestedTimingTree::sm_Roo
 bool NestedTimingTree::sm_CursorOnGraph = false;
 namespace EngineProfiling
 {
+	nv::perf::profiler::ReportGeneratorD3D12 m_nvperf;
     BoolVar DrawFrameRate("Display Frame Rate", true);
     BoolVar DrawProfiler("Display Profiler", false);
     //BoolVar DrawPerfGraph("Display Performance Graph", false);
     const bool DrawPerfGraph = false;
     
+    void Initialize()
+    {
+		//m_nvperf.additionalMetrics = { "crop__write_throughput" };
+		// Initialize
+		m_nvperf.InitializeReportGenerator(g_Device);
+		auto initStatus = m_nvperf.GetInitStatus();
+
+		// Optional: set frame range name (so reports have a “Frame” top-level marker)
+		m_nvperf.SetFrameLevelRangeName("Frame");
+
+		// Depth of nested PushRange calls you might use
+		//m_nvperf.SetNumNestingLevels(10); // heuristic default
+		m_nvperf.SetNumNestingLevels(3); // heuristic default
+		m_nvperf.SetMaxNumRanges(3); // heuristic default
+        //m_nvperf.outputOptions.directoryName = "D3D12Test";
+
+
+		//printf("NvPerf requires %u configuration passes\n", numPasses);
+        //nv::perf::SetLogVolumeLevel(nv::perf::LogSeverity::Inf,100);
+
+
+
+
+
+
+    }
+    void TestGpuDial()
+    {
+
+    }
     void Update( void )
     {
         if (GameInput::IsFirstPressed( GameInput::kStartButton ) 
@@ -438,12 +482,31 @@ namespace EngineProfiling
 
     void BeginBlock(const wstring& name, CommandContext* Context)
     {
-        NestedTimingTree::PushProfilingMarker(name, Context);
+		NestedTimingTree::PushProfilingMarker(name, Context);
+		std::wstring string_to_convert;
+
+        //OnFrameStart();
+		//setup converter
+		using convert_type = std::codecvt_utf8<wchar_t>;
+		std::wstring_convert<convert_type, wchar_t> converter;
+		//use converter (.to_bytes: wstr->str, .from_bytes: str->wstr)
+		std::string converted_str = converter.to_bytes(string_to_convert);
+        
+
+        if (Context != nullptr)
+        {
+			m_nvperf.rangeCommands.PushRange(Context->GetCommandList(), converted_str.c_str());
+			m_nvperf.rangeCommands.PushRange(Context->GetCommandList(), "A");
+
+        }
     }
 
     void EndBlock(CommandContext* Context)
     {
         NestedTimingTree::PopProfilingMarker(Context);
+        if(Context != nullptr)
+			m_nvperf.rangeCommands.PopRange(Context->GetCommandList());
+
     }
 
     bool IsPaused()
@@ -494,6 +557,45 @@ namespace EngineProfiling
         }
 
         Text.GetCommandContext().SetScissor(0, 0, g_DisplayWidth, g_DisplayHeight);
+    }
+    void OnFrameEnd()
+    {
+        //m_nvperf.OnFrameStart
+
+		bool res = m_nvperf.OnFrameEnd();
+        //m_nvperf.Reset();
+		//m_nvperf.StartCollectionOnNextFrame();
+
+    }
+    void BeginSession()
+    {
+        m_nvperf.BeginSession(Graphics::g_CommandManager.GetGraphicsQueue().GetCommandQueue());
+    }
+    void EndSessoin()
+    {
+        m_nvperf.Reset();
+    }
+    void CollectReport()
+    {
+        bool a = m_nvperf.StartCollectionOnNextFrame();
+    }
+    void BeginBlockPerfSDK(const std::wstring& name, CommandContext* Context)
+    {
+        if (Context != nullptr)
+        {
+			//m_nvperf.rangeCommands.PushRange(Context->GetCommandList(), converted_str.c_str());
+			m_nvperf.rangeCommands.PushRange(Context->GetCommandList(), "A");
+
+        }
+    }
+    void EndBlockPerfSDK(CommandContext* Context)
+    {
+		m_nvperf.rangeCommands.PopRange(Context->GetCommandList());
+    }
+    void OnFrameStart()
+    {
+		bool res = m_nvperf.OnFrameStart(Graphics::g_CommandManager.GetGraphicsQueue().GetCommandQueue());
+		//bool res = m_nvperf.OnFrameStart(Graphics::g_CommandManager.GetCommandQueue());
     }
 
 } // EngineProfiling

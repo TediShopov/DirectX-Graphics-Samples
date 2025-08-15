@@ -1260,7 +1260,7 @@ namespace nv { namespace perf { namespace profiler {
         template <class TBeginSession>
         bool OnFrameStart(TBeginSession&& beginSessionFn)
         {
-            if (IsCollectingReport())
+           if (IsCollectingReport())
             {
                 if (!m_reportProfiler.IsInSession())
                 {

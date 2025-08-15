@@ -487,7 +487,9 @@ void Display::Present(void)
 
     UINT PresentInterval = s_EnableVSync ? std::min(4, (int)Round(s_FrameTime * 60.0f)) : 0;
 
+    //EngineProfiling::OnFrameEnd();
     s_SwapChain1->Present(PresentInterval, 0);
+    //EngineProfiling::OnFrameStart();
 
     g_CurrentBuffer = (g_CurrentBuffer + 1) % SWAP_CHAIN_BUFFER_COUNT;
 
