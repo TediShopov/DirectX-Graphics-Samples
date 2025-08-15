@@ -443,9 +443,10 @@ void ModelViewer::RenderScene( void )
     {
 #ifdef LEGACY_RENDERER
         //Sponza::RenderScene(gfxContext, m_Camera, viewport, scissor);
-		EngineProfiling::BeginBlockPerfSDK(L"Testing", &gfxContext);
+		//EngineProfiling::BeginBlock(L"TestingBear", &gfxContext);
         TestRenderer::RenderScene(gfxContext, m_Camera, viewport, scissor,false,false);
-		EngineProfiling::EndBlockPerfSDK(&gfxContext);
+		//EngineProfiling::EndBlock( &gfxContext);
+		//EngineProfiling::EndBlockPerfSDK(&gfxContext);
 #endif
     }
     else
@@ -551,10 +552,10 @@ void ModelViewer::RenderScene( void )
 
     gfxContext.Finish(true);
 	//EngineProfiling::OnFrameEnd();
-    if(GameInput::IsPressed(GameInput::kKey_space))
-    {
-        EngineProfiling::CollectReport();
-    }
+//    if(GameInput::IsPressed(GameInput::kKey_space))
+//    {
+//        EngineProfiling::CollectReport();
+//    }
 	//EngineProfiling::EndSessoin();
 
 }

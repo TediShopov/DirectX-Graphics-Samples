@@ -396,17 +396,4 @@ RWStructuredBuffer<uint> sgrid
     }
     
 }
-float3 ReconstructWorldPosition(float2 uv, float depth, float4x4 invViewProj)
-{
-    float4 ndc;
-    // Convert from UV to NDC [-1, 1]
-    ndc.xy = uv * 2.0 - 1.0;
-    // For some reason Y has to be flipped
-    ndc.y = -ndc.y;
-    // Using Raw Depth
-    ndc.z =  depth;
-    ndc.w = 1.0;
-    float4 worldPos = mul( invViewProj,ndc);
-    return worldPos.xyz / worldPos.w;
-}
 

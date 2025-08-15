@@ -1,6 +1,7 @@
 
 #include "Common.hlsli"
 #include "CommonSurfelRegisters.hlsli"
+#include "SurfelSpawningUtility.hlsli"
 //#include "SurfelASAsserts.hlsli"
 struct PSInput
 {
@@ -61,77 +62,6 @@ float3 computeRadianceForWorldPos(float3 worldPos, float3 worldNormal)
 
 }
 
-uint2 ComputeRelevantSurfelRange(float3 worldPos)
-{
-    uint2 fromTo;
-    //Compute cell indices
-    uint3 cellIndex = ComputeGridIndex(worldPos, Grid.gridOrigin, Grid.cellSize);
-    uint flattenedIndex = HashGridIndex(cellIndex, Grid);
-
-    fromTo.x = surfelGridUAV[flattenedIndex];
-    fromTo.y = surfelGridUAV[flattenedIndex + 1];
-    return fromTo;
-}
-
-bool IsInSurfelInfluence(float3 relativePosition, SurfelData surfel)
-{
-    float dist2 = dot(relativePosition, relativePosition);
-    return dist2 < surfel.radius * surfel.radius;
-}
-bool IsInSurfelGeneralDirection(float3 relativePosition, SurfelData surfel, out float dotN)
-{
-    float3 normal = normalize(surfel.normal);
-     dotN = dot(normalize(relativePosition), normal);
-    return dotN > 0;
-
-}
-
-float EstimateSurfelCoverage( float2 uv,float depthRaw)
-{
-
-    float3 worldPos = ReconstructWorldPosition(uv, depthRaw.x, invViewProjectionMatrix);
-
-    uint2 surfelFromTo = ComputeRelevantSurfelRange(worldPos);
-    uint surfelCount = surfelFromTo.y - surfelFromTo.x;
-    float coverage = 0;
-    float maxContribution = 0.0f;
-
-    //For each surfel into the current Surfle Acceleration Structure Cell
-    //In this case is the uniform grid
-    for (uint i = surfelFromTo.x; i < surfelFromTo.y; ++i)
-    {
-        uint surfelIndex = surlfeListUAV[i];
-        SurfelData surfel = surfelsUAV[surfelIndex];
-        float dotN = 1;
-
-        //Bias is relative position from surfel world to the current reconstructed world 
-        float3 bias = worldPos - (float3) surfel.position;
-
-        float dist = length(bias);
-        float contribution = 1.f;
-
-        contribution *= saturate(1 - dist / surfel.radius);
-        contribution = smoothstep(0, 1, contribution);
-
-        coverage += contribution;
-    }
-    return coverage;
-}
-float EstimateSpawnChance(float coverage,float depthRaw)
-{
-    if (coverage < gPlacementThreshold)
-    {
-        float chanceSpawn = 1;
-         chanceSpawn = pow(depthRaw, gChancePower) * gChanceMultiply;
-        chanceSpawn *= (1 - coverage);
-        return float4(chanceSpawn, chanceSpawn, chanceSpawn, 1);
-    }
-    else
-    {
-        return 0;
-    }
-
-}
 // Returns true if intersection occurs between rayStart and rayEnd
 bool SegmentDiscIntersection(
     float3 rayStart,
@@ -273,7 +203,9 @@ float4 debugOutputSpawnChance(PSInput input)
     float4 sampledNormal = gNormal.SampleLevel(defaultSampler, uv, 0);
 
     float4 depthRaw = gDepth.SampleLevel(defaultSampler, uv, 0);
-    float coverage = EstimateSurfelCoverage(uv,depthRaw.x);
+    float mC;
+    uint mcIndex;
+    float coverage = EstimateSurfelCoverage(uv,depthRaw.x,mC,mcIndex);
     float spawnChance = EstimateSpawnChance(coverage, depthRaw.x);
     
     return float4(spawnChance, spawnChance, spawnChance, 1);
@@ -362,7 +294,8 @@ float4 main(PSInput input) : SV_TARGET
     else if(debugModeIndex.x == 1)
     {
         //Render surfel based on if they have surfel cap flag
-        return debugSurfelCapOrNot(input);
+        return debugOutputSpawnChance(input);
+        //return debugSurfelCapOrNot(input);
 
     }
 

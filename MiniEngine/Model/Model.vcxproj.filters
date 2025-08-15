@@ -294,6 +294,9 @@
     <None Include="Shaders\DownsampleDepthExpPS.hlsli">
       <Filter>Shaders</Filter>
     </None>
+    <None Include="Shaders\SurfelSpawningUtility.hlsli">
+      <Filter>Shaders</Filter>
+    </None>
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="Shaders\DefaultVS.hlsl">

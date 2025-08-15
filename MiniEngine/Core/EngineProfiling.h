@@ -32,8 +32,8 @@ namespace EngineProfiling
     bool IsPaused();
 
 
-    void BeginBlockPerfSDK(const std::wstring& name, CommandContext* Context = nullptr);
-    void EndBlockPerfSDK(CommandContext* Context = nullptr);
+//    void BeginBlockPerfSDK(const std::wstring& name, CommandContext* Context = nullptr);
+//    void EndBlockPerfSDK(CommandContext* Context = nullptr);
 
 
     void OnFrameStart();

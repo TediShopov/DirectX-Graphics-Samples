@@ -452,8 +452,8 @@ namespace EngineProfiling
 
 		// Depth of nested PushRange calls you might use
 		//m_nvperf.SetNumNestingLevels(10); // heuristic default
-		m_nvperf.SetNumNestingLevels(3); // heuristic default
-		m_nvperf.SetMaxNumRanges(3); // heuristic default
+		m_nvperf.SetNumNestingLevels(10); // heuristic default
+		m_nvperf.SetMaxNumRanges(100); // heuristic default
         //m_nvperf.outputOptions.directoryName = "D3D12Test";
 
 
@@ -462,6 +462,12 @@ namespace EngineProfiling
 
 
 
+		using convert_type = std::codecvt_utf8<wchar_t>;
+		std::wstring_convert<convert_type, wchar_t> converter;
+		//use converter (.to_bytes: wstr->str, .from_bytes: str->wstr)
+
+        std::wstring string_to_convert = L"Assam";
+		std::string converted_str = converter.to_bytes(string_to_convert);
 
 
 
@@ -496,8 +502,6 @@ namespace EngineProfiling
         if (Context != nullptr)
         {
 			m_nvperf.rangeCommands.PushRange(Context->GetCommandList(), converted_str.c_str());
-			m_nvperf.rangeCommands.PushRange(Context->GetCommandList(), "A");
-
         }
     }
 
@@ -579,19 +583,19 @@ namespace EngineProfiling
     {
         bool a = m_nvperf.StartCollectionOnNextFrame();
     }
-    void BeginBlockPerfSDK(const std::wstring& name, CommandContext* Context)
-    {
-        if (Context != nullptr)
-        {
-			//m_nvperf.rangeCommands.PushRange(Context->GetCommandList(), converted_str.c_str());
-			m_nvperf.rangeCommands.PushRange(Context->GetCommandList(), "A");
-
-        }
-    }
-    void EndBlockPerfSDK(CommandContext* Context)
-    {
-		m_nvperf.rangeCommands.PopRange(Context->GetCommandList());
-    }
+//    void BeginBlockPerfSDK(const std::wstring& name, CommandContext* Context)
+//    {
+//        if (Context != nullptr)
+//        {
+//			m_nvperf.rangeCommands.PushRange(Context->GetCommandList(), converted_str.c_str());
+//			//m_nvperf.rangeCommands.PushRange(Context->GetCommandList(), "A");
+//
+//        }
+//    }
+//    void EndBlockPerfSDK(CommandContext* Context)
+//    {
+//		m_nvperf.rangeCommands.PopRange(Context->GetCommandList());
+//    }
     void OnFrameStart()
     {
 		bool res = m_nvperf.OnFrameStart(Graphics::g_CommandManager.GetGraphicsQueue().GetCommandQueue());

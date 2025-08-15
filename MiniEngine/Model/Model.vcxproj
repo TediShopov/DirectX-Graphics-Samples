@@ -267,6 +267,7 @@
     <FxCompile Include="Shaders\SurfelFASSurfelInclusivePrefixSumSCS.hlsli">
       <FileType>Document</FileType>
     </FxCompile>
+    <None Include="Shaders\SurfelSpawningUtility.hlsli" />
     <None Include="Shaders\SurfelUniformGridAccelerationStructure.hlsli">
       <FileType>Document</FileType>
     </None>

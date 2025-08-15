@@ -2,6 +2,7 @@
 #include "Common.hlsli"
 //#include "SurfelUniformGridAccelerationStructure.hlsli"
 #include "CommonSurfelRegisters.hlsli"
+#include "SurfelSpawningUtility.hlsli"
 
 
 

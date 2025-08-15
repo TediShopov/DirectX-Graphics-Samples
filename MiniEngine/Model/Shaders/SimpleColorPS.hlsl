@@ -1,6 +1,7 @@
 
 #include "Common.hlsli"
 #include "CommonSurfelRegisters.hlsli"
+#include "SurfelSpawningUtility.hlsli"
 //#include "SurfelASAsserts.hlsli"
 struct PSInput
 {

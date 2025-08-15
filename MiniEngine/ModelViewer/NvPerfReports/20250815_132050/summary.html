@@ -971,44 +971,98 @@ Then follow the links to per-range reports in the Full Name column for more deta
       g_json = {
         "debug": false,
 "populateDummyValues": false,
-"secondsSinceEpoch": 1755254686,
+"secondsSinceEpoch": 1755260450,
 "device": {
   "gpuName": "NVIDIA GeForce RTX 3070 Laptop GPU",
   "chipName": "GA104"
 },
-"ranges": [ "Frame"],
-"range_file_names": [ "00000_Frame.html"],
+"ranges": [ "Frame", "Frame/", "Frame//"],
+"range_file_names": [ "00000_Frame.html", "00001_.html", "00002_.html"],
 "rangesCounters": {
 "Frame": {
-"fe__draw_count": { "sum": 0.000000, "sum.peak_sustained": 1.000000, "sum.per_second": 0.000000, "avg": 0.000000, "avg.per_cycle_elapsed": 0.000000, "avg.per_second": 0.000000, "avg.pct_of_peak_sustained_elapsed": 0.000000, "avg.peak_sustained": 1.000000 }
-, "fe__output_ops_cmd_go_idle": { "sum": 2.000000, "sum.peak_sustained": 1.000000, "sum.per_second": 87026.591459, "avg": 2.000000, "avg.per_cycle_elapsed": 0.000121, "avg.per_second": 87026.591459, "avg.pct_of_peak_sustained_elapsed": 0.012083, "avg.peak_sustained": 1.000000 }
-, "gpu__time_duration": { "sum": 22981.481481, "sum.peak_sustained": 10.000000, "sum.per_second": 1000000000.000000, "avg": 22981.481481, "avg.per_cycle_elapsed": 1.388441, "avg.per_second": 1000000000.000000, "avg.pct_of_peak_sustained_elapsed": 13.884414, "avg.peak_sustained": 10.000000 }
-, "gr__cycles_active": { "sum": 15225.000000, "sum.peak_sustained": 1.000000, "sum.per_second": 662489927.477840, "avg": 15225.000000, "avg.per_cycle_elapsed": 0.919828, "avg.per_second": 662489927.477840, "avg.pct_of_peak_sustained_elapsed": 91.982842, "avg.peak_sustained": 1.000000 }
+"fe__draw_count": { "sum": 6.000000, "sum.peak_sustained": 1.000000, "sum.per_second": 14811.090032, "avg": 6.000000, "avg.per_cycle_elapsed": 0.000021, "avg.per_second": 14811.090032, "avg.pct_of_peak_sustained_elapsed": 0.002058, "avg.peak_sustained": 1.000000 }
+, "fe__output_ops_cmd_go_idle": { "sum": 8.000000, "sum.peak_sustained": 1.000000, "sum.per_second": 19748.120043, "avg": 8.000000, "avg.per_cycle_elapsed": 0.000027, "avg.per_second": 19748.120043, "avg.pct_of_peak_sustained_elapsed": 0.002744, "avg.peak_sustained": 1.000000 }
+, "gpu__time_duration": { "sum": 405101.851852, "sum.peak_sustained": 10.000000, "sum.per_second": 1000000000.000000, "avg": 405101.851852, "avg.per_cycle_elapsed": 1.389467, "avg.per_second": 1000000000.000000, "avg.pct_of_peak_sustained_elapsed": 13.894669, "avg.peak_sustained": 10.000000 }
+, "gr__cycles_active": { "sum": 61851.000000, "sum.peak_sustained": 1.000000, "sum.per_second": 152680121.597221, "avg": 61851.000000, "avg.per_cycle_elapsed": 0.212144, "avg.per_second": 152680121.597221, "avg.pct_of_peak_sustained_elapsed": 21.214397, "avg.peak_sustained": 1.000000 }
 , "gr__dispatch_count": { "sum": 0.000000, "sum.peak_sustained": 1.000000, "sum.per_second": 0.000000, "avg": 0.000000, "avg.per_cycle_elapsed": 0.000000, "avg.per_second": 0.000000, "avg.pct_of_peak_sustained_elapsed": 0.000000, "avg.peak_sustained": 1.000000 }
-, "pda__input_prims": { "sum": 0.000000, "sum.peak_sustained": 16.000000, "sum.per_second": 0.000000, "avg": 0.000000, "avg.per_cycle_elapsed": 0.000000, "avg.per_second": 0.000000, "avg.pct_of_peak_sustained_elapsed": 0.000000, "avg.peak_sustained": 16.000000 }
-, "prop__prop2crop_pixels_realtime": { "sum": 0.000000, "sum.peak_sustained": 96.000000, "sum.per_second": 0.000000, "avg": 0.000000, "avg.per_cycle_elapsed": 0.000000, "avg.per_second": 0.000000, "avg.pct_of_peak_sustained_elapsed": 0.000000, "avg.peak_sustained": 16.000000 }
+, "pda__input_prims": { "sum": 358.000000, "sum.peak_sustained": 16.000000, "sum.per_second": 883728.371923, "avg": 358.000000, "avg.per_cycle_elapsed": 0.001228, "avg.per_second": 883728.371923, "avg.pct_of_peak_sustained_elapsed": 0.007674, "avg.peak_sustained": 16.000000 }
+, "prop__prop2crop_pixels_realtime": { "sum": 333248.000000, "sum.peak_sustained": 96.000000, "sum.per_second": 822627688.509977, "avg": 55541.333333, "avg.per_cycle_elapsed": 0.175773, "avg.per_second": 137104614.751663, "avg.pct_of_peak_sustained_elapsed": 1.098581, "avg.peak_sustained": 16.000000 }
+, "prop__prop2zrop_pixels_realtime": { "sum": 0.000000, "sum.peak_sustained": 384.000000, "sum.per_second": 0.000000, "avg": 0.000000, "avg.per_cycle_elapsed": 0.000000, "avg.per_second": 0.000000, "avg.pct_of_peak_sustained_elapsed": 0.000000, "avg.peak_sustained": 64.000000 }
+}
+, "Frame/": {
+"fe__draw_count": { "sum": 6.000000, "sum.peak_sustained": 1.000000, "sum.per_second": 302521.008403, "avg": 6.000000, "avg.per_cycle_elapsed": 0.000424, "avg.per_second": 302521.008403, "avg.pct_of_peak_sustained_elapsed": 0.042364, "avg.peak_sustained": 1.000000 }
+, "fe__output_ops_cmd_go_idle": { "sum": 0.000000, "sum.peak_sustained": 1.000000, "sum.per_second": 0.000000, "avg": 0.000000, "avg.per_cycle_elapsed": 0.000000, "avg.per_second": 0.000000, "avg.pct_of_peak_sustained_elapsed": 0.000000, "avg.peak_sustained": 1.000000 }
+, "gpu__time_duration": { "sum": 19833.333333, "sum.peak_sustained": 10.000000, "sum.per_second": 1000000000.000000, "avg": 19833.333333, "avg.per_cycle_elapsed": 1.400362, "avg.per_second": 1000000000.000000, "avg.pct_of_peak_sustained_elapsed": 14.003624, "avg.peak_sustained": 10.000000 }
+, "gr__cycles_active": { "sum": 14163.000000, "sum.peak_sustained": 1.000000, "sum.per_second": 714100840.336135, "avg": 14163.000000, "avg.per_cycle_elapsed": 1.000000, "avg.per_second": 714100840.336135, "avg.pct_of_peak_sustained_elapsed": 100.000000, "avg.peak_sustained": 1.000000 }
+, "gr__dispatch_count": { "sum": 0.000000, "sum.peak_sustained": 1.000000, "sum.per_second": 0.000000, "avg": 0.000000, "avg.per_cycle_elapsed": 0.000000, "avg.per_second": 0.000000, "avg.pct_of_peak_sustained_elapsed": 0.000000, "avg.peak_sustained": 1.000000 }
+, "pda__input_prims": { "sum": 358.000000, "sum.peak_sustained": 16.000000, "sum.per_second": 18050420.168067, "avg": 358.000000, "avg.per_cycle_elapsed": 0.025277, "avg.per_second": 18050420.168067, "avg.pct_of_peak_sustained_elapsed": 0.157982, "avg.peak_sustained": 16.000000 }
+, "prop__prop2crop_pixels_realtime": { "sum": 333344.000000, "sum.peak_sustained": 96.000000, "sum.per_second": 16807260504.201683, "avg": 55557.333333, "avg.per_cycle_elapsed": 3.591992, "avg.per_second": 2801210084.033614, "avg.pct_of_peak_sustained_elapsed": 22.449947, "avg.peak_sustained": 16.000000 }
+, "prop__prop2zrop_pixels_realtime": { "sum": 0.000000, "sum.peak_sustained": 384.000000, "sum.per_second": 0.000000, "avg": 0.000000, "avg.per_cycle_elapsed": 0.000000, "avg.per_second": 0.000000, "avg.pct_of_peak_sustained_elapsed": 0.000000, "avg.peak_sustained": 64.000000 }
+}
+, "Frame//": {
+"fe__draw_count": { "sum": 6.000000, "sum.peak_sustained": 1.000000, "sum.per_second": 343038.644786, "avg": 6.000000, "avg.per_cycle_elapsed": 0.000482, "avg.per_second": 343038.644786, "avg.pct_of_peak_sustained_elapsed": 0.048189, "avg.peak_sustained": 1.000000 }
+, "fe__output_ops_cmd_go_idle": { "sum": 0.000000, "sum.peak_sustained": 1.000000, "sum.per_second": 0.000000, "avg": 0.000000, "avg.per_cycle_elapsed": 0.000000, "avg.per_second": 0.000000, "avg.pct_of_peak_sustained_elapsed": 0.000000, "avg.peak_sustained": 1.000000 }
+, "gpu__time_duration": { "sum": 17490.740741, "sum.peak_sustained": 10.000000, "sum.per_second": 1000000000.000000, "avg": 17490.740741, "avg.per_cycle_elapsed": 1.404766, "avg.per_second": 1000000000.000000, "avg.pct_of_peak_sustained_elapsed": 14.047659, "avg.peak_sustained": 10.000000 }
+, "gr__cycles_active": { "sum": 12451.000000, "sum.peak_sustained": 1.000000, "sum.per_second": 711862361.037586, "avg": 12451.000000, "avg.per_cycle_elapsed": 1.000000, "avg.per_second": 711862361.037586, "avg.pct_of_peak_sustained_elapsed": 100.000000, "avg.peak_sustained": 1.000000 }
+, "gr__dispatch_count": { "sum": 0.000000, "sum.peak_sustained": 1.000000, "sum.per_second": 0.000000, "avg": 0.000000, "avg.per_cycle_elapsed": 0.000000, "avg.per_second": 0.000000, "avg.pct_of_peak_sustained_elapsed": 0.000000, "avg.peak_sustained": 1.000000 }
+, "pda__input_prims": { "sum": 358.000000, "sum.peak_sustained": 16.000000, "sum.per_second": 20467972.472208, "avg": 358.000000, "avg.per_cycle_elapsed": 0.028753, "avg.per_second": 20467972.472208, "avg.pct_of_peak_sustained_elapsed": 0.179704, "avg.peak_sustained": 16.000000 }
+, "prop__prop2crop_pixels_realtime": { "sum": 333280.000000, "sum.peak_sustained": 96.000000, "sum.per_second": 19054653255.690842, "avg": 55546.666667, "avg.per_cycle_elapsed": 4.072436, "avg.per_second": 3175775542.615140, "avg.pct_of_peak_sustained_elapsed": 25.452724, "avg.peak_sustained": 16.000000 }
 , "prop__prop2zrop_pixels_realtime": { "sum": 0.000000, "sum.peak_sustained": 384.000000, "sum.per_second": 0.000000, "avg": 0.000000, "avg.per_cycle_elapsed": 0.000000, "avg.per_second": 0.000000, "avg.pct_of_peak_sustained_elapsed": 0.000000, "avg.peak_sustained": 64.000000 }
 }
 }
 , "rangesRatios": {
 "Frame": {
 }
+, "Frame/": {
+}
+, "Frame//": {
+}
 }
 , "rangesThroughputs": {
 "Frame": {
-"crop__throughput": { "avg.pct_of_peak_sustained_elapsed": 0.345895 }
-, "dram__throughput": { "avg.pct_of_peak_sustained_elapsed": 0.394840 }
-, "l1tex__throughput": { "avg.pct_of_peak_sustained_elapsed": 0.011027 }
-, "lts__throughput": { "avg.pct_of_peak_sustained_elapsed": 9.335109 }
-, "pcie__throughput": { "avg.pct_of_peak_sustained_elapsed": 6.093573 }
-, "pda__throughput": { "avg.pct_of_peak_sustained_elapsed": 0.000000 }
+"crop__throughput": { "avg.pct_of_peak_sustained_elapsed": 1.461469 }
+, "dram__throughput": { "avg.pct_of_peak_sustained_elapsed": 0.014743 }
+, "l1tex__throughput": { "avg.pct_of_peak_sustained_elapsed": 0.978499 }
+, "lts__throughput": { "avg.pct_of_peak_sustained_elapsed": 0.545954 }
+, "pcie__throughput": { "avg.pct_of_peak_sustained_elapsed": 0.574900 }
+, "pda__throughput": { "avg.pct_of_peak_sustained_elapsed": 0.007674 }
 , "pes__throughput": { "avg.pct_of_peak_sustained_elapsed": 0.000000 }
-, "prop__throughput": { "avg.pct_of_peak_sustained_elapsed": 0.345895 }
-, "raster__throughput": { "avg.pct_of_peak_sustained_elapsed": 0.384948 }
-, "sm__throughput": { "avg.pct_of_peak_sustained_elapsed": 0.000000 }
-, "vaf__throughput": { "avg.pct_of_peak_sustained_elapsed": 0.000000 }
-, "vpc__throughput": { "avg.pct_of_peak_sustained_elapsed": 1.020019 }
-, "zrop__throughput": { "avg.pct_of_peak_sustained_elapsed": 0.111579 }
+, "prop__throughput": { "avg.pct_of_peak_sustained_elapsed": 1.461469 }
+, "raster__throughput": { "avg.pct_of_peak_sustained_elapsed": 0.927527 }
+, "sm__throughput": { "avg.pct_of_peak_sustained_elapsed": 1.732472 }
+, "vaf__throughput": { "avg.pct_of_peak_sustained_elapsed": 0.043111 }
+, "vpc__throughput": { "avg.pct_of_peak_sustained_elapsed": 0.165620 }
+, "zrop__throughput": { "avg.pct_of_peak_sustained_elapsed": 0.015824 }
+}
+, "Frame/": {
+"crop__throughput": { "avg.pct_of_peak_sustained_elapsed": 29.048943 }
+, "dram__throughput": { "avg.pct_of_peak_sustained_elapsed": 0.573514 }
+, "l1tex__throughput": { "avg.pct_of_peak_sustained_elapsed": 15.893626 }
+, "lts__throughput": { "avg.pct_of_peak_sustained_elapsed": 8.799007 }
+, "pcie__throughput": { "avg.pct_of_peak_sustained_elapsed": 2.954098 }
+, "pda__throughput": { "avg.pct_of_peak_sustained_elapsed": 0.157982 }
+, "pes__throughput": { "avg.pct_of_peak_sustained_elapsed": 0.000000 }
+, "prop__throughput": { "avg.pct_of_peak_sustained_elapsed": 29.048943 }
+, "raster__throughput": { "avg.pct_of_peak_sustained_elapsed": 18.069654 }
+, "sm__throughput": { "avg.pct_of_peak_sustained_elapsed": 28.140318 }
+, "vaf__throughput": { "avg.pct_of_peak_sustained_elapsed": 0.700245 }
+, "vpc__throughput": { "avg.pct_of_peak_sustained_elapsed": 1.422922 }
+, "zrop__throughput": { "avg.pct_of_peak_sustained_elapsed": 0.077585 }
+}
+, "Frame//": {
+"crop__throughput": { "avg.pct_of_peak_sustained_elapsed": 32.852709 }
+, "dram__throughput": { "avg.pct_of_peak_sustained_elapsed": 3.644601 }
+, "l1tex__throughput": { "avg.pct_of_peak_sustained_elapsed": 16.884769 }
+, "lts__throughput": { "avg.pct_of_peak_sustained_elapsed": 10.815330 }
+, "pcie__throughput": { "avg.pct_of_peak_sustained_elapsed": 3.441811 }
+, "pda__throughput": { "avg.pct_of_peak_sustained_elapsed": 0.179704 }
+, "pes__throughput": { "avg.pct_of_peak_sustained_elapsed": 0.000000 }
+, "prop__throughput": { "avg.pct_of_peak_sustained_elapsed": 32.852709 }
+, "raster__throughput": { "avg.pct_of_peak_sustained_elapsed": 20.446492 }
+, "sm__throughput": { "avg.pct_of_peak_sustained_elapsed": 29.895176 }
+, "vaf__throughput": { "avg.pct_of_peak_sustained_elapsed": 0.743913 }
+, "vpc__throughput": { "avg.pct_of_peak_sustained_elapsed": 1.587282 }
+, "zrop__throughput": { "avg.pct_of_peak_sustained_elapsed": 0.073316 }
 }
 }
 

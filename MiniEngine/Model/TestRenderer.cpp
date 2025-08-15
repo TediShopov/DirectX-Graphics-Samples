@@ -151,7 +151,7 @@ UINT TestRenderer::frameIndex = 0;
 	 //Control if we should be drawing those on the rays in the scene in global space
 	 bool m_hbil_drawDebug = true;
 	 //Control if we should drawing render results of hbil on texture quad in front of camera
-	 bool m_hbil_render = false;
+	 bool m_hbil_render = true;
 	 Camera last_camera_data;
 	 //Vector3 m_hbil_cameraLastPos;
 
@@ -967,11 +967,6 @@ UINT TestRenderer::frameIndex = 0;
 		const Vector3 relSphereOffset(0, 0, 0.1);
 		const Vector3 offset = relSphereOffset * modelRadius;
 
-		VSConstants vsConstants = SetupObjectVSConstants(gfxContext, ViewProjMat, viewerPos, Filter);
-		const UINT vertexBufferSize = sizeof(triangleVertices);
-		//---TEMPORARILY switch index and vertex buffers
-		gfxContext.SetIndexBuffer(m_Disc->m_IndexBufferView);
-		gfxContext.SetVertexBuffer(0, m_Disc->m_VertexBufferView);
 
 		for each (SurfelData s in SurfelIllumination->m_SurfelData.m_Actual)
 		{
@@ -979,17 +974,57 @@ UINT TestRenderer::frameIndex = 0;
 			{
 				continue;
 			}
+			if (s.isSurfelCap)
+			{
+				//Different visualization strategy for the surfel NF 
+				//Render sphere with radius at position
+				//RenderSphereAt(s.color, s.radius.GetX(), s.position, gfxContext, ViewProjMat, viewerPos, Filter);
+				RenderSphereAt(Vector4(0,0,0,1), s.radius.GetX()/2.0f, s.position, gfxContext, ViewProjMat, viewerPos, Filter);
 
+				VSConstants vsConstants = SetupObjectVSConstants(gfxContext, ViewProjMat, viewerPos, Filter);
+				const UINT vertexBufferSize = sizeof(triangleVertices);
+				//---TEMPORARILY switch index and vertex buffers
+				gfxContext.SetIndexBuffer(m_Disc->m_IndexBufferView);
+				gfxContext.SetVertexBuffer(0, m_Disc->m_VertexBufferView);
+
+				//This postioing woudl be extruded along bent normal
+				Transform t;
+				Vector4 extrudedPosition = s.position + (s.normal * s.height);
+				t.setPosition(extrudedPosition);
+
+				Vector4 quat = Vector4(GetRotationQuaternionFromUpToDirection(s.normal));
+				t.setQuaternion(quat.GetX(), quat.GetY(), quat.GetZ(), quat.GetW());
+				t.setComposeRotationFromQuaternions(true);
+				t.setScale(s.radius.GetX(), s.radius.GetX(), s.radius.GetX());
+
+				vsConstants.modelToWorld = Matrix4(t.getTransformMatrix());
+				XMStoreFloat3(&vsConstants.viewerPos, viewerPos);
+
+				gfxContext.SetDynamicConstantBufferView(Renderer::kMeshConstants, sizeof(vsConstants), &vsConstants);
+				Vector4 tempYellow = Vector4(1, 0, 1, 1);
+				//gfxContext.SetDynamicConstantBufferView(Renderer::kCommonCBV, sizeof(Vector4), &s.color);
+				gfxContext.SetDynamicConstantBufferView(Renderer::kCommonCBV, sizeof(Vector4), &tempYellow);
+
+
+				//--- Draw three indices of the triangle
+				gfxContext.DrawIndexed(m_Disc->m_Indices.size(), 0, 0);
+
+
+				//Render a surfel by offsetting height alogn bent normal
+
+
+			}
+			else if (XMVector4Length(s.normal).m128_f32[0] > 0.001f)
+			{
+				VSConstants vsConstants = SetupObjectVSConstants(gfxContext, ViewProjMat, viewerPos, Filter);
+				const UINT vertexBufferSize = sizeof(triangleVertices);
+				//---TEMPORARILY switch index and vertex buffers
+				gfxContext.SetIndexBuffer(m_Disc->m_IndexBufferView);
+				gfxContext.SetVertexBuffer(0, m_Disc->m_VertexBufferView);
 
 			Transform t;
-			Vector4 extrudedPossition = s.position ;
+			t.setPosition(s.position);
 
-
-
-			t.setPosition(extrudedPossition);
-
-			if (XMVector4Length(s.normal).m128_f32[0] > 0.001f)
-			{
 				Vector4 quat = Vector4(GetRotationQuaternionFromUpToDirection(s.normal));
 				t.setQuaternion(quat.GetX(), quat.GetY(), quat.GetZ(), quat.GetW());
 				t.setComposeRotationFromQuaternions(true);
@@ -1967,7 +2002,7 @@ XMVECTOR VectorProjection(XMVECTOR u, XMVECTOR v, float* scalarOut)
 
 		m_GBufferDownsample->Dispatch(cfx, camera);
 		m_GBufferSlice->Dispatch(cfx, camera);
-		//	m_HBIL->ComputeDownsampledTexture(cfx,camera);
+		//m_HBIL->ComputeDownsampledTexture(cfx,camera);
 		{
 
 			ScopedTimer _prof(L"Render HBIL Tri", gfxContext);
