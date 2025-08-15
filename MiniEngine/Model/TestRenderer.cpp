@@ -1355,14 +1355,6 @@ UINT TestRenderer::frameIndex = 0;
 		// Your ImGui UI code here
 		ImGui::Begin("Surfel Gen CB");
 
-		//ImGui::SliderInt("Surfel Num", &tempSurfelNumber,0,10000);
-//		bool applySurfelNum = false;
-//		if (ImGui::Checkbox("Apply New Surfel Num", &applySurfelNum))
-//		{
-//			SurfelIllumination->RecreateSurfelListBuffers(tempSurfelNumber);
-//		}
-
-
 		static bool spawnThresholdsCollapsingHeader = true;
 		if (ImGui::CollapsingHeader("Spawning Thresholds", &spawnThresholdsCollapsingHeader))
 		{

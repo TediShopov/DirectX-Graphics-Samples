@@ -102,7 +102,6 @@ struct ShadowPayload
 void MyRaygenShader()
 {
     uint globalIndex = DispatchRaysIndex().x;
-    surfelsUAV[globalIndex].raySamples;
 
     float3 accumulatedIrradiance = float3(0, 0, 0);
     float3 meanRayDir = float3(0, 0, 0);
@@ -114,8 +113,9 @@ void MyRaygenShader()
     float N = lerp(minRays, maxRays, variance);
     surfelsUAV[globalIndex].raySamples.x = N;
     
+    SurfelData surfelTemp = surfelsUAV[globalIndex];
     
-    //float N = surfelsUAV[globalIndex].raySamples.x;
+    //float N = surfelTemp.raySamples.x;
     for (int i = 0; i < N; i++)
     {
         uint3 index3 = DispatchRaysIndex();
@@ -124,7 +124,7 @@ void MyRaygenShader()
         float2 rnd;
         rnd.x = RandomFloat01(seed);
         rnd.y = RandomFloat01(seed);
-        float3 rayDir = CosineSampleHemisphere(rnd, surfelsUAV[globalIndex].normal);
+        float3 rayDir = CosineSampleHemisphere(rnd, surfelTemp.normal);
 
         meanRayDir += rayDir;
         sumOuter += OuterProduct(rayDir, rayDir);
@@ -132,17 +132,29 @@ void MyRaygenShader()
 
     // Trace the ray.
         RayDesc ray;
-        ray.Origin = surfelsUAV[globalIndex].position;
+        ray.Origin = surfelTemp.position;
+
+        //The position is in the centre of the sphere
+        //The surfel we want to be sampling from is the cap of the cone
+        //This is achieved by offsetting (height) along the bent normal
+        if(surfelTemp.isSurfelCap == true)
+        {
+            ray.Origin = surfelTemp.position + surfelTemp.normal * surfelTemp.height;
+
+            
+        }
+
+        
 
         ray.Direction = rayDir;
         ray.TMin = 0.001;
         ray.TMax = 10000.0;
 
-        RayPayload payload = { float4(surfelsUAV[globalIndex].normal.xyz, 0) };
+        RayPayload payload = { float4(surfelTemp.normal.xyz, 0) };
         TraceRay(Scene, RAY_FLAG_NONE, ~0, 0, 1, 0, ray, payload);
         float3 rayHitWorldPos = payload.color;
         float3 Li = payload.color; // returned radiance
-        float cosTheta = saturate(dot(rayDir, surfelsUAV[globalIndex].normal));
+        float cosTheta = saturate(dot(rayDir, surfelTemp.normal));
         //float3 radiance = Li * cosTheta * (2.0f * M_PI);
         float3 radiance = Li * M_PI; accumulatedIrradiance += radiance;
         
