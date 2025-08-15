@@ -2035,8 +2035,8 @@ XMVECTOR VectorProjection(XMVECTOR u, XMVECTOR v, float* scalarOut)
 
 		if (m_stopSurfelUpdate == false)
 		{
-			//SurfelIllumination->SpawnSurfels(cfx, camera);
-			SurfelIllumination->SpawnSurfelsInformed(cfx, camera);
+			SurfelIllumination->SpawnSurfels(cfx, camera);
+			//SurfelIllumination->SpawnSurfelsInformed(cfx, camera);
 
 		}
 

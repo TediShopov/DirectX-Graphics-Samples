@@ -69,7 +69,8 @@ void main(
      // Evaluate min coverage value and pixel position.
     // Also evaluate max contribution and surfel index (for handling over-coverage).
     // Also evalute weighted color output (indrect lighting).
-    if (surfelCount < kPerCellSurfelLimit-2)
+    //if (surfelCount < kPerCellSurfelLimit-2)
+    if (true)
     {
         float maxContribution = 0.0f;
 
