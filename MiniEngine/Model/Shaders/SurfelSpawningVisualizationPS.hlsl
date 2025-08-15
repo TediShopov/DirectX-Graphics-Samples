@@ -192,6 +192,41 @@ float EstimateSurfelCapCoverage( float2 uv,float depthRaw)
     coverage = maxContribution;
     return coverage;
 }
+float EstimateRecycleChance(float coverage)
+{
+    // If coverage is upper removal threshold,
+    // remove surfel that most contribute to coverage probabilistically.
+    if (coverage > gRemovalThreshold)
+    {
+
+        //float chanceRemove = pow(depthRaw, gChancePower) * gChanceMultiply;
+        float chanceRemove = 1;
+        return chanceRemove;
+
+
+    }
+    return 0;
+    
+}
+
+float4 debugRecycleChance(PSInput input)
+{
+    float3 gResolution;
+    gDepth.GetDimensions(0, gResolution.x, gResolution.y, gResolution.z);
+    uint2 pixelPos = input.position;
+
+    float2 uv = input.position.xy / float2(gResolution.x , gResolution.y );
+    float4 sampledNormal = gNormal.SampleLevel(defaultSampler, uv, 0);
+
+    float4 depthRaw = gDepth.SampleLevel(defaultSampler, uv, 0);
+    float mC;
+    uint mcIndex;
+    float coverage = EstimateSurfelCoverage(uv,depthRaw.x,mC,mcIndex);
+    float recycleChance = EstimateRecycleChance(coverage);
+    
+    return float4(recycleChance, recycleChance, recycleChance, 1);
+    
+}
 
 float4 debugOutputSpawnChance(PSInput input)
 {
@@ -294,7 +329,8 @@ float4 main(PSInput input) : SV_TARGET
     else if(debugModeIndex.x == 1)
     {
         //Render surfel based on if they have surfel cap flag
-        return debugOutputSpawnChance(input);
+        //return debugOutputSpawnChance(input);
+        return debugRecycleChance(input);
         //return debugSurfelCapOrNot(input);
 
     }

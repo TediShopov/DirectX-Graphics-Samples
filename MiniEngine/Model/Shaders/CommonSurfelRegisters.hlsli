@@ -14,9 +14,9 @@ cbuffer SurfelGenCB : register(b0)
     uint   MaxSurfels;
     int   CurrentSurfelCount;
     int kPerCellSurfelLimit = 20;
-    int gPlacementThreshold = 2;
+    float gPlacementThreshold = 2;
 
-    int gRemovalThreshold = 0;
+    float gRemovalThreshold = 0;
     float gChancePower = 1.1;
     float gChanceMultiply = 15;
     float maxRadius;

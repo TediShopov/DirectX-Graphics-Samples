@@ -84,9 +84,9 @@ __declspec(align(16)) struct SurfelData
 		// Makes sure the struct after is properly aligned
 		int CurrentSurfelCount;
 		int kPerCellSurfelLimit = 20;
-		int gPlacementThreshold;
+		float gPlacementThreshold;
 
-		int gRemovalThreshold = 0;
+		float gRemovalThreshold = 0;
 		float gChancePower ;
 		float gChanceMultiply;
 		float maxRadius;

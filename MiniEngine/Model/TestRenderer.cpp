@@ -1368,8 +1368,8 @@ UINT TestRenderer::frameIndex = 0;
 		{
 
 			ImGui::DragInt("Per Cell Surfel Limit", &SurfelIllumination->m_SurfelGen.kPerCellSurfelLimit);
-			ImGui::DragInt("Placement Threshold", &SurfelIllumination->m_SurfelGen.gPlacementThreshold);
-			ImGui::DragInt("Removal Threshold", &SurfelIllumination->m_SurfelGen.gRemovalThreshold);
+			ImGui::DragFloat("Placement Threshold", &SurfelIllumination->m_SurfelGen.gPlacementThreshold,0.1f,0.0f,10.0f);
+			ImGui::DragFloat("Removal Threshold", &SurfelIllumination->m_SurfelGen.gRemovalThreshold,0.1f,0.0f,10.0f);
 		}
 
 		static bool spawnChancesCollapsingHeader = true;

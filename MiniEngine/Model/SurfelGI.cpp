@@ -365,6 +365,7 @@
 	  m_SurfelGen.AOVariables.w = 0.5f;
 
 	  m_SurfelGen.gPlacementThreshold = 1;
+	  m_SurfelGen.gRemovalThreshold = 3;
 	  m_SurfelGen.gChancePower = 0.5f;
 	  m_SurfelGen.gChanceMultiply = 10.0f;
 

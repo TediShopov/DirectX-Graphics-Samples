@@ -243,32 +243,30 @@ void main(
             if (coverage > gRemovalThreshold)
             {
 
-                float chanceRemove = pow(depthRaw, gChancePower) * gChanceMultiply;
+                //float chanceRemove = pow(depthRaw, gChancePower) * gChanceMultiply;
+                float chanceRemove = 1.0;
                 float changeAgainst = RandomFloat01(threadRandomnessSeed);
-//                if (changeAgainst < chanceRemove)
-//                {
-//                    uint contributionData = groupShareMaxContribution;
-//                    float maxContribution = f16tof32((contributionData & 0xFFFF0000) >> 16);
-//                    uint maxContributionSurfelIndex = (contributionData & 0x0000FFFF) >> 0;
-//
-//                    
-//
-//                    uint toDestroySurfelIndex = surlfeListUAV[maxContributionSurfelIndex];
-//                    surfelsUAV[toDestroySurfelIndex].radius = 0;
-//
-//                    //Decrement surfel stack pointer by one 
-//                    uint orig;
-//                    InterlockedAdd(surfleStackUAV[0], -1, orig);
-//                    InterlockedAdd(surfleStackUAV[1], -1, orig);
-//                    //InterlockedAdd(CurrentSurfelCount, -1);
-//                    surfleStackUAV[orig-1] = toDestroySurfelIndex;
-//
-//                    
-//                     
-//
-//                    
-//
-//                }
+                if (changeAgainst < chanceRemove)
+                {
+                    uint contributionData = groupShareMaxContribution;
+                    float maxContribution = f16tof32((contributionData & 0xFFFF0000) >> 16);
+                    uint maxContributionSurfelIndex = (contributionData & 0x0000FFFF) >> 0;
+                    uint toDestroySurfelIndex = surlfeListUAV[maxContributionSurfelIndex];
+                    surfelsUAV[toDestroySurfelIndex].radius = 0;
+
+                    //Decrement surfel stack pointer by one 
+                    uint orig;
+                    InterlockedAdd(surfleStackUAV[0], -1, orig);
+                    InterlockedAdd(surfleStackUAV[1], -1, orig);
+                    //InterlockedAdd(CurrentSurfelCount, -1);
+                    surfleStackUAV[orig-1] = toDestroySurfelIndex;
+
+                    
+                     
+
+                    
+
+                }
             }
         }
     }
