@@ -130,3 +130,97 @@ float EstimateSpawnChance(float coverage,float depthRaw)
     }
 
 }
+
+float ContributionFromBentCone(float3 worldPos, float2 uv, out float3 bentNormal, out float radius, out float cosAngle,out float height,Texture2D bentCones, Texture2D ambientOcclusion)
+
+{
+    float4 sampleBentConeTexture = bentCones.SampleLevel(defaultSampler, uv, 0);
+     bentNormal = sampleBentConeTexture.xyz;
+    float AO = ambientOcclusion.SampleLevel(defaultSampler, uv, 0);
+    float cosHalfAngle = (1 - AO);
+    cosAngle = (1 - AO);
+
+    //Static for now
+     height = sampleBentConeTexture.w;
+						 
+    float sinHalfAngle = sqrt(1.0 - cos(cosHalfAngle));
+    float tanHalfAngle = sinHalfAngle / cosHalfAngle;
+     radius = abs(height) * tanHalfAngle * 2;
+    //radius *= 2;
+
+    //radius = min(maxRadius, radius);
+    
+    return  cosHalfAngle;
+
+}
+
+void AttemptSpawnSurfel(SurfelData newSurfel)
+{
+    uint prevStackPointer, prevSurfelCount;
+    InterlockedAdd(surfleStackUAV[0], 1, prevStackPointer);
+    InterlockedAdd(surfleStackUAV[1], 1, prevSurfelCount);
+    uint surfelStackPointer = prevStackPointer + 1;
+
+    if (surfelStackPointer < MaxSurfels + 2)
+    {
+        uint surfelID = surfleStackUAV[prevStackPointer];
+        surfelsUAV[surfelID] = newSurfel;
+    }
+    else
+    {
+        InterlockedAdd(surfleStackUAV[0], -1);
+        InterlockedAdd(surfleStackUAV[1], -1);
+
+    }
+
+}
+
+float EstimateSurfelCapSurfaceAreaCoverage( float2 uv,float depthRaw, Texture2D bentCones,Texture2D ambientOcclusion)
+{
+
+    float3 worldPos = ReconstructWorldPosition(uv, depthRaw.x, invViewProjectionMatrix);
+    float3 bentNormal;
+    float radius;
+    float cosAngle;
+    float height;
+    ContributionFromBentCone(worldPos, uv, bentNormal, radius, cosAngle, height,bentCones,ambientOcclusion);
+    return 1-RemapFloat(radius, minRadius, maxRadius, 0.0, 1.0f);
+
+
+}
+SurfelData SurfelPrototype(float3 worldPos,float depthRaw, float4 sampledNormal, float2 gResolution)
+{
+    float linearDepth = LinearizeDepth(depthRaw, depthFar, depthNear);
+    float v = linearDepth;
+
+    SurfelData newSurfel;
+    float calcProjArea = calcProjectArea(10, 250, fovY, gResolution.xy);
+    float varRadius = clamp(calcSurfelRadius(v, fovY, gResolution.xy, calcProjArea, 100000), minRadius, maxRadius);
+
+    newSurfel.position = float4(worldPos, 1) + sampledNormal * 1.0f;
+    newSurfel.randomValues = float4(0, 0, 0, 1);
+    newSurfel.color = float4(0, 0, 0, 1);
+    newSurfel.contribution = uint4(0, FrameIndex, 0, 0);
+    newSurfel.mean = float4(0, 0, 0, 0);
+    newSurfel.raySamples = float4(10, 0, 0, 0);
+    newSurfel.padding = float3(FrameIndex, FrameIndex, FrameIndex);
+    newSurfel.normal = sampledNormal;
+    newSurfel.radius = varRadius;
+//    newSurfel.tilePos = tilePos;
+//    newSurfel.pixelPos = pixelPos;
+    newSurfel.tilePos = float2(0, 0);
+    newSurfel.pixelPos = float2(0, 0);
+
+    newSurfel.msme.mean = float4(0, 0, 0, 0);
+    newSurfel.msme.shortMean = float3(0, 0, 0);
+    newSurfel.msme.variance = float3(1e-4, 1e-4, 1e-4);
+    newSurfel.msme.inconsistency = 1;
+    newSurfel.msme.vbbr = 1;
+
+                    //Not a surfel cap by default
+    newSurfel.isSurfelCap = 0;
+    newSurfel.height = 0;
+    newSurfel.angle = 0;
+    newSurfel.padSurfelCap = 0;
+    return newSurfel;
+}
