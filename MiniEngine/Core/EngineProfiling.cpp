@@ -32,6 +32,9 @@
 #endif // !NV_PERF_ENABLE_INSTRUMENTATION
 
 #include <NvPerfUtilities.h>
+#include "NvPerfPeriodicSamplerD3D12.h"
+#include "NvPerfHudDataModel.h"
+
 #include <locale>
 #include <codecvt>
 
@@ -435,6 +438,11 @@ bool NestedTimingTree::sm_CursorOnGraph = false;
 namespace EngineProfiling
 {
 	nv::perf::profiler::ReportGeneratorD3D12 m_nvperf;
+
+	nv::perf::sampler::PeriodicSamplerTimeHistoryD3D12 m_sampler;
+	nv::perf::hud::HudDataModel m_hudDataModel;
+//	nv::perf::hud::HudImPlotRenderer m_hudRenderer;
+
     BoolVar DrawFrameRate("Display Frame Rate", true);
     BoolVar DrawProfiler("Display Profiler", false);
     //BoolVar DrawPerfGraph("Display Performance Graph", false);
@@ -459,6 +467,9 @@ namespace EngineProfiling
 
 		//printf("NvPerf requires %u configuration passes\n", numPasses);
         //nv::perf::SetLogVolumeLevel(nv::perf::LogSeverity::Inf,100);
+        // --- INITIALIZE THE PERIODIC SAMPLER ---
+        m_sampler.Initialize(0);
+
 
 
 
@@ -472,6 +483,64 @@ namespace EngineProfiling
 
 
     }
+    bool BeginSamplerSession()
+    {
+        //start a session
+        uint32_t samplingFrequencyInHz = 60;
+		uint32_t samplingIntervalInNs = 1000000000 / samplingFrequencyInHz;
+		uint32_t maxDecodeLatencyInNs = 1000000000;
+		uint32_t maxFrameLatency = 10;
+
+
+        m_sampler.BeginSession(
+            Graphics::g_CommandManager.GetGraphicsQueue().GetCommandQueue(),
+            samplingIntervalInNs,
+            maxDecodeLatencyInNs,
+            maxFrameLatency);
+
+        nv::perf::hud::HudPresets hudPresets;
+		auto deviceIdentifiers = m_sampler.GetGpuDeviceIdentifiers();
+		hudPresets.Initialize(deviceIdentifiers.pChipName);
+		m_hudDataModel.Load(hudPresets.GetPreset("Graphics General Triage"));
+
+        double plotTimeWidthInSeconds = 4.0;
+		m_hudDataModel.Initialize(1.0 / samplingFrequencyInHz,
+			plotTimeWidthInSeconds);
+
+		m_sampler.SetConfig(&m_hudDataModel.GetCounterConfiguration());
+		m_hudDataModel.PrepareSampleProcessing(m_sampler.GetCounterData());
+
+        return true;
+
+
+    }
+    bool ConsumeSampler(std::ostream& outStream)
+    {
+		m_sampler.DecodeCounters();
+		m_sampler.ConsumeSamples([&](const uint8_t* pCounterDataImage,
+			size_t counterDataImageSize, uint32_t rangeIndex, bool& stop) {
+				stop = false;
+				return m_hudDataModel.AddSample(pCounterDataImage,
+					counterDataImageSize, rangeIndex);
+			}
+		);
+		for (auto& frameDelimiter : m_sampler.GetFrameDelimiters())
+		{
+			m_hudDataModel.AddFrameDelimiter(frameDelimiter.frameEndTime);
+		}
+        //Indent for a .csv file
+        m_hudDataModel.Print(outStream, ",");
+        return true;
+
+
+
+
+
+    }
+
+
+
+
     void TestGpuDial()
     {
 
@@ -567,6 +636,7 @@ namespace EngineProfiling
         //m_nvperf.OnFrameStart
 
 		bool res = m_nvperf.OnFrameEnd();
+        m_sampler.OnFrameEnd();
         //m_nvperf.Reset();
 		//m_nvperf.StartCollectionOnNextFrame();
 

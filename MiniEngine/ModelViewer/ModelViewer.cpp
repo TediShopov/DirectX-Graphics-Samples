@@ -427,6 +427,7 @@ void ModelViewer::UpdateInput(float deltaT)
 void ModelViewer::RenderScene( void )
 {
 
+	EngineProfiling::OnFrameStart();
     GraphicsContext& gfxContext = GraphicsContext::Begin(L"Scene Render");
 	//EngineProfiling::BeginSession();
 
@@ -435,7 +436,6 @@ void ModelViewer::RenderScene( void )
     const D3D12_VIEWPORT& viewport = m_MainViewport;
     const D3D12_RECT& scissor = m_MainScissor;
 //	EngineProfiling::BeginSession();
-//	EngineProfiling::OnFrameStart();
 
     ParticleEffectManager::Update(gfxContext.GetComputeContext(), Graphics::GetFrameTime());
 
@@ -529,6 +529,8 @@ void ModelViewer::RenderScene( void )
 		}
     }
 
+
+
     // Some systems generate a per-pixel velocity buffer to better track dynamic and skinned meshes.  Everything
     // is static in our scene, so we generate velocity from camera motion and the depth buffer.  A velocity buffer
     // is necessary for all temporal effects (and motion blur).
@@ -547,15 +549,19 @@ void ModelViewer::RenderScene( void )
 //
 
 
+    if(GameInput::IsPressed(GameInput::kKey_space))
+    {
+		gfxContext.PIXSetMarker(L"Here am I");
+    }
 
     
 
     gfxContext.Finish(true);
-	//EngineProfiling::OnFrameEnd();
-//    if(GameInput::IsPressed(GameInput::kKey_space))
-//    {
-//        EngineProfiling::CollectReport();
-//    }
+	EngineProfiling::OnFrameEnd();
+    if(GameInput::IsPressed(GameInput::kKey_space))
+    {
+        EngineProfiling::CollectReport();
+    }
 	//EngineProfiling::EndSessoin();
 
 }

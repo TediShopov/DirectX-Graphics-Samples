@@ -5,6 +5,9 @@
 #include "CameraController.h"
 //#include "imgui.h"
 #include "Imgui/imgui-master/imgui.h"
+#include "fstream"
+#include "GraphicsCore.h"
+
 enum class SeqState { Idle, Move, Dwell, Log };
 
 class CameraSequenceRunner : public CameraController
@@ -13,11 +16,30 @@ public:
     CameraSequenceRunner(Camera& camera) :CameraController(camera)
     {
 
+
             
     }
 
+    std::ofstream csvFileOutput;
+    
+    bool OpenCSVStream(std::string path)
+    {
+        //EngineProfiling::BeginSamplerSession();
+        csvFileOutput = std::ofstream(path);
+        if (!csvFileOutput.is_open())
+            return false;
+
+    }
+
+
     void Start() {
+
         paused = false;
+        //CSV Stream For Ouput
+        OpenCSVStream("metrics.csv");
+        //Starting The Sample Session
+        EngineProfiling::BeginSamplerSession();
+
         state = SeqState::Move;
     }
     void Pause() {
@@ -25,6 +47,7 @@ public:
     }
     void Resume() {
         paused = false;
+        csvFileOutput.close();
 
     }
     void Reset() {
@@ -61,6 +84,8 @@ public:
         stateTimer += deltaTime;
 
         SetCamera(m_targetCameraIndex);
+        //EngineProfiling::ConsumeSampler((std::ostream)csvFileOutput);
+        EngineProfiling::ConsumeSampler(csvFileOutput);
 
 		switch (state)
     {

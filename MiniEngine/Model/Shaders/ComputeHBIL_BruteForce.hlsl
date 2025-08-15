@@ -549,8 +549,8 @@ PS_OUT	main(PSInput input) {
 
 	// Write result
     PS_OUT Out;
-	//Out.irradiance = float4( sumIrradiance, 0 );
-    Out.irradiance = float4(averageAO, averageAO, averageAO, 1);
+	Out.irradiance = float4( sumIrradiance, 0 );
+    //Out.irradiance = float4(averageAO, averageAO, averageAO, 1);
     //Out.irradiance = float4(1-cosAverageConeAngle, 1-cosAverageConeAngle, 1-cosAverageConeAngle, 1);
     //Out.bentCone = float4(max(0.01, sqrt(cosAverageConeAngle)) * csAverageBentNormal, stdDeviation);
 

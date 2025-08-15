@@ -73,7 +73,7 @@ namespace GameCore
         PostEffects::Render();
         // ----- UI RELATED -----
 
-        EngineProfiling::OnFrameStart();
+        //EngineProfiling::OnFrameStart();
 
         GraphicsContext& UiContext = GraphicsContext::Begin(L"Render UI");
         EngineProfiling::BeginBlock(L"UI Block", &UiContext);
@@ -91,8 +91,8 @@ namespace GameCore
         //EngineTuning::Display( UiContext, 10.0f, 40.0f, 1900.0f, 1040.0f );
         EngineProfiling::EndBlock(&UiContext);
 
-        UiContext.Finish(true);
-        EngineProfiling::OnFrameEnd();
+        UiContext.Finish();
+        //EngineProfiling::OnFrameEnd();
 
 
         Display::Present();

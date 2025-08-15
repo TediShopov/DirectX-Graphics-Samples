@@ -156,7 +156,8 @@ void main(
 
 
 
-                    if (spawnChance > changeAgainst)
+                    //if (spawnChance > changeAgainst)
+                    if (changeAgainst > spawnChance)
                     {
                         //SurfelData newSurfel = SurfelPrototype(worldPos, depthRaw.x, sampledNormal, gResolution.xy);
                         //newSurfel.isSurfelCap = true;

@@ -218,7 +218,7 @@ float4	SampleIrradiance( float2 _ssCentralPosition, float2 _ssPosition, float2 _
 
 	// Filter outlier horizon values
 	//float2	bilateralWeights = BilateralFilter( _ssCentralPosition, _centralZ, _csCentralNormal, _ssPosition, Z, lcsCurrentNormal, _radius_meters, _maxCosTheta, cosTheta );
-    float2 bilateralWeights = float2(1, 1);
+    float2 bilateralWeights = float2(0.5f, 0.5f);
 
 	#if RUNNING_WEIGHT_DIM
 		_radianceSamplingWeight *= bilateralWeights.x;	// Cumulate fades so we can never sample radiance again after too many invalid samples are encountered
