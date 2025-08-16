@@ -35,6 +35,9 @@
 #include "NvPerfPeriodicSamplerD3D12.h"
 #include "NvPerfHudDataModel.h"
 
+#define RYML_SINGLE_HDR_DEFINE_NOW 
+#include "ryml_all.hpp"
+
 #include <locale>
 #include <codecvt>
 
@@ -437,19 +440,33 @@ NestedTimingTree* NestedTimingTree::sm_SelectedScope = &NestedTimingTree::sm_Roo
 bool NestedTimingTree::sm_CursorOnGraph = false;
 namespace EngineProfiling
 {
-	nv::perf::profiler::ReportGeneratorD3D12 m_nvperf;
+	using namespace nv::perf;
+	profiler::ReportGeneratorD3D12 m_nvperf;
 
-	nv::perf::sampler::PeriodicSamplerTimeHistoryD3D12 m_sampler;
-	nv::perf::hud::HudDataModel m_hudDataModel;
-//	nv::perf::hud::HudImPlotRenderer m_hudRenderer;
+	sampler::PeriodicSamplerTimeHistoryD3D12 m_sampler;
+	hud::HudDataModel m_hudDataModel;
+	MetricsEvaluator m_metricEvaluator;
+    CounterConfiguration m_counterConfiguration;
 
-    BoolVar DrawFrameRate("Display Frame Rate", true);
-    BoolVar DrawProfiler("Display Profiler", false);
-    //BoolVar DrawPerfGraph("Display Performance Graph", false);
-    const bool DrawPerfGraph = false;
-    
-    void Initialize()
-    {
+    std::vector<NVPW_MetricEvalRequest> m_metricEvalRequests; // This is used in both scheduling and subsequently evaluating the values.
+	//	hud::HudImPlotRenderer m_hudRenderer;
+
+	BoolVar DrawFrameRate("Display Frame Rate", true);
+	BoolVar DrawProfiler("Display Profiler", false);
+	//BoolVar DrawPerfGraph("Display Performance Graph", false);
+	const bool DrawPerfGraph = false;
+
+
+	void ThrowIfFalse(bool result, const char* pMessage)
+	{
+		if (!result)
+		{
+			NV_PERF_LOG_ERR(10, "%s\n", pMessage);
+			throw std::runtime_error(pMessage);
+		}
+	}
+	void Initialize()
+	{
 		//m_nvperf.additionalMetrics = { "crop__write_throughput" };
 		// Initialize
 		m_nvperf.InitializeReportGenerator(g_Device);
@@ -462,13 +479,52 @@ namespace EngineProfiling
 		//m_nvperf.SetNumNestingLevels(10); // heuristic default
 		m_nvperf.SetNumNestingLevels(10); // heuristic default
 		m_nvperf.SetMaxNumRanges(100); // heuristic default
-        //m_nvperf.outputOptions.directoryName = "D3D12Test";
+		//m_nvperf.outputOptions.directoryName = "D3D12Test";
 
+
+		const char* Metrics[] = {
+			"gpc__cycles_elapsed.avg.per_second",
+			"sys__cycles_elapsed.avg.per_second",
+			"lts__cycles_elapsed.avg.per_second",
+		};
 
 		//printf("NvPerf requires %u configuration passes\n", numPasses);
-        //nv::perf::SetLogVolumeLevel(nv::perf::LogSeverity::Inf,100);
-        // --- INITIALIZE THE PERIODIC SAMPLER ---
-        m_sampler.Initialize(0);
+		//SetLogVolumeLevel(LogSeverity::Inf,100);
+		// --- INITIALIZE THE PERIODIC SAMPLER ---
+		m_sampler.Initialize(Graphics::g_Device);
+		std::vector<uint8_t> metricsEvalScratchBuffer;
+		const DeviceIdentifiers devId = m_sampler.GetGpuDeviceIdentifiers();
+		NVPW_MetricsEvaluator* pMetricsEvaluator = sampler::DeviceCreateMetricsEvaluator(metricsEvalScratchBuffer, devId.pChipName);
+		m_metricEvaluator = MetricsEvaluator(pMetricsEvaluator, std::move(metricsEvalScratchBuffer)); // transfer ownership to m_metricsEvaluator
+		//m_metricEvaluator = MetricsEvaluator()
+
+	// Create the config builder, this is used to create a counter configuration
+		MetricsConfigBuilder configBuilder;
+		{
+			NVPW_RawCounterConfig* pRawCounterConfig = sampler::DeviceCreateRawCounterConfig(devId.pChipName);
+			ThrowIfFalse(pRawCounterConfig, "Failed to create the raw counter config.");
+			ThrowIfFalse(configBuilder.Initialize(m_metricEvaluator, pRawCounterConfig, devId.pChipName), "Failed to initialize the config builder."); // transfer pRawCounterConfig's ownership to configBuilder
+		}
+
+		// Add metrics into config builder
+		for (size_t ii = 0; ii < sizeof(Metrics) / sizeof(Metrics[0]); ++ii)
+		{
+			const char* const pMetric = Metrics[ii];
+			NVPW_MetricEvalRequest request{};
+			ThrowIfFalse(ToMetricEvalRequest(m_metricEvaluator, pMetric, request), "Failed to convert the metric to its NVPW_MetricEvalRequest.");
+			// By setting "keepInstances" to false, the counter data will only store GPU-level values, reducing its size and improving the performance of metric evaluation.
+			// However, this option has the drawback of making max/min submetrics non-evaluable.
+			const bool keepInstances = false;
+			ThrowIfFalse(configBuilder.AddMetrics(&request, 1, keepInstances), "Failed to add the metric into the config build.");
+			m_metricEvalRequests.emplace_back(std::move(request));
+		}
+
+		// Create the counter configuration out of the config builder.
+		ThrowIfFalse(CreateConfiguration(configBuilder, m_counterConfiguration), "Failed CreateConfiguration().");
+		// Periodic sampler supports only single-pass configurations, meaning that all scheduled metrics must be collectable in a single pass.
+		ThrowIfFalse(m_counterConfiguration.numPasses == 1u, "The scheduled config is not a single-pass configuration, so it is not compatible with the periodic sampler.");
+
+
 
 
 
@@ -477,200 +533,281 @@ namespace EngineProfiling
 		std::wstring_convert<convert_type, wchar_t> converter;
 		//use converter (.to_bytes: wstr->str, .from_bytes: str->wstr)
 
-        std::wstring string_to_convert = L"Assam";
+		std::wstring string_to_convert = L"Assam";
 		std::string converted_str = converter.to_bytes(string_to_convert);
 
 
 
-    }
-    bool BeginSamplerSession()
-    {
-        //start a session
-        uint32_t samplingFrequencyInHz = 60;
+	}
+	bool BeginSamplerSession()
+	{
+		//start a session
+		uint32_t samplingFrequencyInHz = 60;
 		uint32_t samplingIntervalInNs = 1000000000 / samplingFrequencyInHz;
 		uint32_t maxDecodeLatencyInNs = 1000000000;
 		uint32_t maxFrameLatency = 10;
 
 
-        m_sampler.BeginSession(
-            Graphics::g_CommandManager.GetGraphicsQueue().GetCommandQueue(),
-            samplingIntervalInNs,
-            maxDecodeLatencyInNs,
-            maxFrameLatency);
+		m_sampler.BeginSession(
+			Graphics::g_CommandManager.GetGraphicsQueue().GetCommandQueue(),
+			samplingIntervalInNs,
+			maxDecodeLatencyInNs,
+			maxFrameLatency);
 
-        nv::perf::hud::HudPresets hudPresets;
+		hud::HudPresets hudPresets;
 		auto deviceIdentifiers = m_sampler.GetGpuDeviceIdentifiers();
 		hudPresets.Initialize(deviceIdentifiers.pChipName);
-		m_hudDataModel.Load(hudPresets.GetPreset("Graphics General Triage"));
+		//m_hudDataModel.Load(hudPresets.GetPreset("Graphics General Triage"));
+		m_hudDataModel.Load(hudPresets.GetPreset("Graphics High Speed Triage"));
 
-        double plotTimeWidthInSeconds = 4.0;
-		m_hudDataModel.Initialize(1.0 / samplingFrequencyInHz,
-			plotTimeWidthInSeconds);
-
-		m_sampler.SetConfig(&m_hudDataModel.GetCounterConfiguration());
-		m_hudDataModel.PrepareSampleProcessing(m_sampler.GetCounterData());
-
-        return true;
+		//auto conifigs = m_hudDataModel.GetConfigurations();
 
 
-    }
-    bool ConsumeSampler(std::ostream& outStream)
-    {
+        m_sampler.SetConfig(&m_counterConfiguration);
+
+		ThrowIfFalse(MetricsEvaluatorSetDeviceAttributes(m_metricEvaluator, m_sampler.GetCounterData().data(), m_sampler.GetCounterData().size()), "Failed MetricsEvaluatorSetDeviceAttributes().");
+
+		double plotTimeWidthInSeconds = 4.0;
+		//m_hudDataModel.Initialize(1.0 / samplingFrequencyInHz,
+			//plotTimeWidthInSeconds);
+
+		//--- Attemp to create custom counter configuratoin 
+//        MetricsConfigBuilder configBuilder;
+//        configBuilder.AddMetric("");
+//
+//        CounterConfiguration customCounterConfiguration;
+//        customCounterConfiguration.
+
+//		m_sampler.SetConfig(&m_hudDataModel.GetCounterConfiguration());
+//		m_hudDataModel.PrepareSampleProcessing(m_sampler.GetCounterData());
+
+		return true;
+
+
+	}
+	bool ConsumeSampler(std::ostream& OutStream)
+	{
+
+
+		std::vector<double> metricValues(m_metricEvalRequests.size());
 		m_sampler.DecodeCounters();
+        auto frameDelims = m_sampler.GetFrameDelimiters();
 		m_sampler.ConsumeSamples([&](const uint8_t* pCounterDataImage,
 			size_t counterDataImageSize, uint32_t rangeIndex, bool& stop) {
 				stop = false;
+				sampler::SampleTimestamp timestamp{};
+				if (!CounterDataGetSampleTime(pCounterDataImage, rangeIndex, timestamp))
+				{
+					return false;
+				}
+
+
+				if (!EvaluateToGpuValues(
+					m_metricEvaluator,
+					pCounterDataImage,
+					counterDataImageSize,
+					rangeIndex,
+					m_metricEvalRequests.size(),
+					m_metricEvalRequests.data(),
+					metricValues.data()))
+				{
+					return false;
+				}
+                uint64_t frameIndex = 0;
+				// Scan delimiters in order and assign index
+				for (size_t i = 0; i < frameDelims.size(); ++i)
+				{
+					if (timestamp.end < frameDelims[i].frameEndTime)
+					{
+						frameIndex = i; // this is your frame number
+						break;
+					}
+				}
+
+				//OutStream << frameIndex << ", " << pPerfMarker << ", ";
+				//OutStream << "Frame: "<< frameIndex << ", " << "Perf Marker would go here" << ", ";
+                OutStream << "Frame: " << frameIndex << ", ";
+				OutStream << std::fixed << std::setprecision(0) << timestamp.start << ", " << timestamp.end << ", " << (timestamp.end - timestamp.start);
+				for (double metricValue : metricValues)
+				{
+					OutStream << ", " << metricValue;
+				}
+                OutStream << "\n";
+				//Some condition on when to stop iterating over markers
+				// Maybe if no markers are present we could stop immeidately ...
+//                if(true)
+//                    stop = true;
+
+
+				// THIS USES CPU MARKER COUNTER TO ASSOCIATE PASSES
+//				                {
+//				                    const size_t frameIndex = *markers.pUserData;
+//				                    const char* const pPerfMarker = markers.pBegin[markerIdx].pName;
+//				                    OutStream << frameIndex << ", " << pPerfMarker << ", ";
+//				                    OutStream << std::fixed << std::setprecision(0) << timestamp.start << ", " << timestamp.end << ", " << (timestamp.end - timestamp.start);
+//				                    for (double metricValue : metricValues)
+//				                    {
+//				                        OutStream << ", " << metricValue;
+//				                    }
+//				                    OutStream << "\n";
+//				                }
+//				                if (++markerIdx == markers.validMarkerCount)
+//				                {
+//				                    stop = true; // Inform counter data to stop iterating because all this frame's data has been consumed.
+//				                }
+				return true;
+
 				return m_hudDataModel.AddSample(pCounterDataImage,
 					counterDataImageSize, rangeIndex);
 			}
 		);
-		for (auto& frameDelimiter : m_sampler.GetFrameDelimiters())
+		//		for (auto& frameDelimiter : m_sampler.GetFrameDelimiters())
+		//		{
+		//			m_hudDataModel.AddFrameDelimiter(frameDelimiter.frameEndTime);
+		//		}
+		//        //Indent for a .csv file
+		//        m_hudDataModel.Print(outStream, ",");
+		return true;
+
+
+
+
+
+	}
+
+
+
+
+	void TestGpuDial()
+	{
+
+	}
+	void Update(void)
+	{
+		if (GameInput::IsFirstPressed(GameInput::kStartButton)
+			|| GameInput::IsFirstPressed(GameInput::kKey_space))
 		{
-			m_hudDataModel.AddFrameDelimiter(frameDelimiter.frameEndTime);
+			Paused = !Paused;
 		}
-        //Indent for a .csv file
-        m_hudDataModel.Print(outStream, ",");
-        return true;
+		NestedTimingTree::UpdateTimes();
+	}
 
-
-
-
-
-    }
-
-
-
-
-    void TestGpuDial()
-    {
-
-    }
-    void Update( void )
-    {
-        if (GameInput::IsFirstPressed( GameInput::kStartButton ) 
-            || GameInput::IsFirstPressed( GameInput::kKey_space ))
-        {
-            Paused = !Paused;
-        }
-        NestedTimingTree::UpdateTimes();
-    }
-
-    void BeginBlock(const wstring& name, CommandContext* Context)
-    {
+	void BeginBlock(const wstring& name, CommandContext* Context)
+	{
 		NestedTimingTree::PushProfilingMarker(name, Context);
 		std::wstring string_to_convert;
 
-        //OnFrameStart();
+		//OnFrameStart();
 		//setup converter
 		using convert_type = std::codecvt_utf8<wchar_t>;
 		std::wstring_convert<convert_type, wchar_t> converter;
 		//use converter (.to_bytes: wstr->str, .from_bytes: str->wstr)
 		std::string converted_str = converter.to_bytes(string_to_convert);
-        
 
-        if (Context != nullptr)
-        {
+
+		if (Context != nullptr)
+		{
 			m_nvperf.rangeCommands.PushRange(Context->GetCommandList(), converted_str.c_str());
-        }
-    }
+		}
+	}
 
-    void EndBlock(CommandContext* Context)
-    {
-        NestedTimingTree::PopProfilingMarker(Context);
-        if(Context != nullptr)
+	void EndBlock(CommandContext* Context)
+	{
+		NestedTimingTree::PopProfilingMarker(Context);
+		if (Context != nullptr)
 			m_nvperf.rangeCommands.PopRange(Context->GetCommandList());
 
-    }
+	}
 
-    bool IsPaused()
-    {
-        return Paused;
-    }
+	bool IsPaused()
+	{
+		return Paused;
+	}
 
-    void DisplayFrameRate( TextContext& Text )
-    {
-        if (!DrawFrameRate)
-            return;
-        
-        float cpuTime = NestedTimingTree::GetTotalCpuTime();
-        float gpuTime = NestedTimingTree::GetTotalGpuTime();
-        float frameRate = 1.0f / NestedTimingTree::GetFrameDelta();
+	void DisplayFrameRate(TextContext& Text)
+	{
+		if (!DrawFrameRate)
+			return;
 
-        Text.DrawFormattedString( "CPU %7.3f ms, GPU %7.3f ms, %3u Hz\n",
-            cpuTime, gpuTime, (uint32_t)(frameRate + 0.5f));
-    }
+		float cpuTime = NestedTimingTree::GetTotalCpuTime();
+		float gpuTime = NestedTimingTree::GetTotalGpuTime();
+		float frameRate = 1.0f / NestedTimingTree::GetFrameDelta();
 
-    void DisplayPerfGraph( GraphicsContext& Context )
-    {
-        if (DrawPerfGraph)
-            GraphRenderer::RenderGraphs(Context, GraphType::Global );
-    }
+		Text.DrawFormattedString("CPU %7.3f ms, GPU %7.3f ms, %3u Hz\n",
+			cpuTime, gpuTime, (uint32_t)(frameRate + 0.5f));
+	}
 
-    void Display( TextContext& Text, float x, float y, float /*w*/, float /*h*/ )
-    {
-        Text.ResetCursor(x, y);
+	void DisplayPerfGraph(GraphicsContext& Context)
+	{
+		if (DrawPerfGraph)
+			GraphRenderer::RenderGraphs(Context, GraphType::Global);
+	}
 
-        if (DrawProfiler)
-        {
-            //Text.GetCommandContext().SetScissor((uint32_t)Floor(x), (uint32_t)Floor(y), (uint32_t)Ceiling(w), (uint32_t)Ceiling(h));
+	void Display(TextContext& Text, float x, float y, float /*w*/, float /*h*/)
+	{
+		Text.ResetCursor(x, y);
 
-            NestedTimingTree::Update();
+		if (DrawProfiler)
+		{
+			//Text.GetCommandContext().SetScissor((uint32_t)Floor(x), (uint32_t)Floor(y), (uint32_t)Ceiling(w), (uint32_t)Ceiling(h));
 
-            Text.SetColor( Color(0.5f, 1.0f, 1.0f) );
-            Text.DrawString("Engine Profiling");
-            Text.SetColor(Color(0.8f, 0.8f, 0.8f));
-            Text.SetTextSize(20.0f);
-            Text.DrawString("           CPU    GPU");
-            Text.SetTextSize(24.0f);
-            Text.NewLine();
-            Text.SetTextSize(20.0f);
-            Text.SetColor( Color(1.0f, 1.0f, 1.0f) );
+			NestedTimingTree::Update();
 
-            NestedTimingTree::Display( Text, x );
-        }
+			Text.SetColor(Color(0.5f, 1.0f, 1.0f));
+			Text.DrawString("Engine Profiling");
+			Text.SetColor(Color(0.8f, 0.8f, 0.8f));
+			Text.SetTextSize(20.0f);
+			Text.DrawString("           CPU    GPU");
+			Text.SetTextSize(24.0f);
+			Text.NewLine();
+			Text.SetTextSize(20.0f);
+			Text.SetColor(Color(1.0f, 1.0f, 1.0f));
 
-        Text.GetCommandContext().SetScissor(0, 0, g_DisplayWidth, g_DisplayHeight);
-    }
-    void OnFrameEnd()
-    {
-        //m_nvperf.OnFrameStart
+			NestedTimingTree::Display(Text, x);
+		}
+
+		Text.GetCommandContext().SetScissor(0, 0, g_DisplayWidth, g_DisplayHeight);
+	}
+	void OnFrameEnd()
+	{
+		//m_nvperf.OnFrameStart
 
 		bool res = m_nvperf.OnFrameEnd();
-        m_sampler.OnFrameEnd();
-        //m_nvperf.Reset();
+		m_sampler.OnFrameEnd();
+		//m_nvperf.Reset();
 		//m_nvperf.StartCollectionOnNextFrame();
 
-    }
-    void BeginSession()
-    {
-        m_nvperf.BeginSession(Graphics::g_CommandManager.GetGraphicsQueue().GetCommandQueue());
-    }
-    void EndSessoin()
-    {
-        m_nvperf.Reset();
-    }
-    void CollectReport()
-    {
-        bool a = m_nvperf.StartCollectionOnNextFrame();
-    }
-//    void BeginBlockPerfSDK(const std::wstring& name, CommandContext* Context)
-//    {
-//        if (Context != nullptr)
-//        {
-//			m_nvperf.rangeCommands.PushRange(Context->GetCommandList(), converted_str.c_str());
-//			//m_nvperf.rangeCommands.PushRange(Context->GetCommandList(), "A");
-//
-//        }
-//    }
-//    void EndBlockPerfSDK(CommandContext* Context)
-//    {
-//		m_nvperf.rangeCommands.PopRange(Context->GetCommandList());
-//    }
-    void OnFrameStart()
-    {
+	}
+	void BeginSession()
+	{
+		m_nvperf.BeginSession(Graphics::g_CommandManager.GetGraphicsQueue().GetCommandQueue());
+	}
+	void EndSessoin()
+	{
+		m_nvperf.Reset();
+	}
+	void CollectReport()
+	{
+		bool a = m_nvperf.StartCollectionOnNextFrame();
+	}
+	//    void BeginBlockPerfSDK(const std::wstring& name, CommandContext* Context)
+	//    {
+	//        if (Context != nullptr)
+	//        {
+	//			m_nvperf.rangeCommands.PushRange(Context->GetCommandList(), converted_str.c_str());
+	//			//m_nvperf.rangeCommands.PushRange(Context->GetCommandList(), "A");
+	//
+	//        }
+	//    }
+	//    void EndBlockPerfSDK(CommandContext* Context)
+	//    {
+	//		m_nvperf.rangeCommands.PopRange(Context->GetCommandList());
+	//    }
+	void OnFrameStart()
+	{
 		bool res = m_nvperf.OnFrameStart(Graphics::g_CommandManager.GetGraphicsQueue().GetCommandQueue());
 		//bool res = m_nvperf.OnFrameStart(Graphics::g_CommandManager.GetCommandQueue());
-    }
+	}
 
 } // EngineProfiling
 

@@ -396,8 +396,16 @@ void ModelViewer::UpdateInput(float deltaT)
 
 	if (GameInput::IsFirstPressed(GameInput::kKey_space))
 	{
-		m_SequenceRunner->Start();
-		m_cameraUpdatesEnabled = !m_cameraUpdatesEnabled;
+		if (m_SequenceRunner->IsRunning() == false)
+		{
+			m_SequenceRunner->Start();
+		}
+		else {
+			m_SequenceRunner->Pause();
+
+		}
+
+			m_cameraUpdatesEnabled = !m_cameraUpdatesEnabled;
 	}
 
 
@@ -558,10 +566,10 @@ void ModelViewer::RenderScene( void )
 
     gfxContext.Finish(true);
 	EngineProfiling::OnFrameEnd();
-    if(GameInput::IsPressed(GameInput::kKey_space))
-    {
-        EngineProfiling::CollectReport();
-    }
+//    if(GameInput::IsPressed(GameInput::kKey_space))
+//    {
+//        EngineProfiling::CollectReport();
+//    }
 	//EngineProfiling::EndSessoin();
 
 }

@@ -15,6 +15,7 @@ class CameraSequenceRunner : public CameraController
 public:
     CameraSequenceRunner(Camera& camera) :CameraController(camera)
     {
+        paused = true;
 
 
             
@@ -43,11 +44,11 @@ public:
         state = SeqState::Move;
     }
     void Pause() {
+        csvFileOutput.close();
         paused = true;
     }
     void Resume() {
         paused = false;
-        csvFileOutput.close();
 
     }
     void Reset() {
@@ -75,6 +76,7 @@ public:
     }
 
     float timer = 0.0f;
+    int timeCounter = 0;
     void Update(float deltaTime) override {
 		//if (paused || state == SeqState::Idle) return;
 		if (paused ) return;
@@ -82,10 +84,15 @@ public:
             Reset();
         }
         stateTimer += deltaTime;
+        timeCounter++;
 
         SetCamera(m_targetCameraIndex);
         //EngineProfiling::ConsumeSampler((std::ostream)csvFileOutput);
+
         EngineProfiling::ConsumeSampler(csvFileOutput);
+//        if (timeCounter > 10)
+//            Pause();
+
 
 		switch (state)
     {
@@ -156,7 +163,9 @@ public:
         m_TargetCamera.Update();
 
     }
-    bool IsRunning() const;
+    bool IsRunning() const {
+        return paused == false;
+    }
 
     int m_targetCameraIndex=0;
 
