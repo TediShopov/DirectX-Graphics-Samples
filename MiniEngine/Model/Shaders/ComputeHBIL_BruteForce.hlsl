@@ -5,8 +5,8 @@
 #include "Global.hlsl"
 #include "HBIL.hlsl"
 
-#define MAX_ANGLES	16									// Amount of circle subdivisions per pixel
-#define MAX_SAMPLES	16									// Maximum amount of samples per circle subdivision
+#define MAX_ANGLES	8									// Amount of circle subdivisions per pixel
+#define MAX_SAMPLES	8									// Maximum amount of samples per circle subdivision
 
 Texture2D< float >	_tex_depth : register(t0);			// Depth or distance buffer (here we're given depth)
 Texture2D 	_tex_normal : register(t1);			// Camera-space normal vectors

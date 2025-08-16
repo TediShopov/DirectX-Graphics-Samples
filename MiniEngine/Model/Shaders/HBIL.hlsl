@@ -6,7 +6,7 @@
 //
 
 // !!SLIGHTLY LESS ACCURATE!!
-#define USE_FAST_ACOS 0			// Define this to use the "fast acos" function instead of true acos()
+#define USE_FAST_ACOS 1			// Define this to use the "fast acos" function instead of true acos()
 // !!SLIGHTLY LESS ACCURATE!!
 
 // !!MORE ACCURATE BUT ALSO MORE EXPENSIVE!!

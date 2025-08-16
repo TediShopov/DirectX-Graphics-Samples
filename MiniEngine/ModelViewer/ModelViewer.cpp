@@ -564,7 +564,7 @@ void ModelViewer::RenderScene( void )
 
     
 
-    gfxContext.Finish(true);
+    gfxContext.Finish();
 	EngineProfiling::OnFrameEnd();
 //    if(GameInput::IsPressed(GameInput::kKey_space))
 //    {
