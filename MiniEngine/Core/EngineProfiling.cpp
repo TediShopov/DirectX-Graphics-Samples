@@ -446,15 +446,21 @@ namespace EngineProfiling
 	sampler::PeriodicSamplerTimeHistoryD3D12 m_sampler;
 	hud::HudDataModel m_hudDataModel;
 	MetricsEvaluator m_metricEvaluator;
-    CounterConfiguration m_counterConfiguration;
+	CounterConfiguration m_counterConfiguration;
+	uint64_t frameIndex;
 
-    std::vector<NVPW_MetricEvalRequest> m_metricEvalRequests; // This is used in both scheduling and subsequently evaluating the values.
+	std::vector<NVPW_MetricEvalRequest> m_metricEvalRequests; // This is used in both scheduling and subsequently evaluating the values.
 	//	hud::HudImPlotRenderer m_hudRenderer;
 
 	BoolVar DrawFrameRate("Display Frame Rate", true);
 	BoolVar DrawProfiler("Display Profiler", false);
 	//BoolVar DrawPerfGraph("Display Performance Graph", false);
 	const bool DrawPerfGraph = false;
+	const char* Metrics[] = {
+		"gpc__cycles_elapsed.avg.per_second",
+		"sys__cycles_elapsed.avg.per_second",
+		"lts__cycles_elapsed.avg.per_second",
+	};
 
 
 	void ThrowIfFalse(bool result, const char* pMessage)
@@ -482,11 +488,6 @@ namespace EngineProfiling
 		//m_nvperf.outputOptions.directoryName = "D3D12Test";
 
 
-		const char* Metrics[] = {
-			"gpc__cycles_elapsed.avg.per_second",
-			"sys__cycles_elapsed.avg.per_second",
-			"lts__cycles_elapsed.avg.per_second",
-		};
 
 		//printf("NvPerf requires %u configuration passes\n", numPasses);
 		//SetLogVolumeLevel(LogSeverity::Inf,100);
@@ -546,6 +547,7 @@ namespace EngineProfiling
 		uint32_t samplingIntervalInNs = 1000000000 / samplingFrequencyInHz;
 		uint32_t maxDecodeLatencyInNs = 1000000000;
 		uint32_t maxFrameLatency = 10;
+        frameIndex = 0;
 
 
 		m_sampler.BeginSession(
@@ -563,7 +565,7 @@ namespace EngineProfiling
 		//auto conifigs = m_hudDataModel.GetConfigurations();
 
 
-        m_sampler.SetConfig(&m_counterConfiguration);
+		m_sampler.SetConfig(&m_counterConfiguration);
 
 		ThrowIfFalse(MetricsEvaluatorSetDeviceAttributes(m_metricEvaluator, m_sampler.GetCounterData().data(), m_sampler.GetCounterData().size()), "Failed MetricsEvaluatorSetDeviceAttributes().");
 
@@ -585,13 +587,30 @@ namespace EngineProfiling
 
 
 	}
+	bool OutputMetricsHeader(std::ostream& OutStream)
+	{
+        OutStream
+            << "Frame" << ", "
+            << "Frame Start" << ", "
+            << "Frame End" << ", "
+            << "Frame Duration" << ", ";
+
+        for (size_t ii = 0; ii < sizeof(Metrics) / sizeof(Metrics[0]); ++ii)
+        {
+            OutStream << Metrics[ii] << ", ";
+        }
+        OutStream << "\n";
+        return true;
+	}
+
 	bool ConsumeSampler(std::ostream& OutStream)
 	{
 
+        frameIndex++;
 
 		std::vector<double> metricValues(m_metricEvalRequests.size());
 		m_sampler.DecodeCounters();
-        auto frameDelims = m_sampler.GetFrameDelimiters();
+		auto frameDelims = m_sampler.GetFrameDelimiters();
 		m_sampler.ConsumeSamples([&](const uint8_t* pCounterDataImage,
 			size_t counterDataImageSize, uint32_t rangeIndex, bool& stop) {
 				stop = false;
@@ -613,26 +632,26 @@ namespace EngineProfiling
 				{
 					return false;
 				}
-                uint64_t frameIndex = 0;
+				uint64_t frameOffset = 0;
 				// Scan delimiters in order and assign index
 				for (size_t i = 0; i < frameDelims.size(); ++i)
 				{
 					if (timestamp.end < frameDelims[i].frameEndTime)
 					{
-						frameIndex = i; // this is your frame number
+						frameOffset = i; // this is your frame number
 						break;
 					}
 				}
 
 				//OutStream << frameIndex << ", " << pPerfMarker << ", ";
 				//OutStream << "Frame: "<< frameIndex << ", " << "Perf Marker would go here" << ", ";
-                OutStream << "Frame: " << frameIndex << ", ";
+				OutStream << frameIndex+frameOffset << ", ";
 				OutStream << std::fixed << std::setprecision(0) << timestamp.start << ", " << timestamp.end << ", " << (timestamp.end - timestamp.start);
 				for (double metricValue : metricValues)
 				{
 					OutStream << ", " << metricValue;
 				}
-                OutStream << "\n";
+				OutStream << "\n";
 				//Some condition on when to stop iterating over markers
 				// Maybe if no markers are present we could stop immeidately ...
 //                if(true)

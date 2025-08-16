@@ -29,7 +29,7 @@ public:
         csvFileOutput = std::ofstream(path);
         if (!csvFileOutput.is_open())
             return false;
-
+        EngineProfiling::OutputMetricsHeader(csvFileOutput);
     }
 
 

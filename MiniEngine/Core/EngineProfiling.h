@@ -32,6 +32,7 @@ namespace EngineProfiling
     bool IsPaused();
     bool BeginSamplerSession();
     bool ConsumeSampler(std::ostream& outStream);
+    bool OutputMetricsHeader(std::ostream& OutStream);
     
 
 
