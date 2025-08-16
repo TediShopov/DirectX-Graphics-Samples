@@ -156,12 +156,16 @@ void MyRaygenShader()
         float3 Li = payload.color; // returned radiance
         float cosTheta = saturate(dot(rayDir, surfelTemp.normal));
         //float3 radiance = Li * cosTheta * (2.0f * M_PI);
-        float3 radiance = Li * M_PI; accumulatedIrradiance += radiance;
+        //float3 radiance = Li * M_PI; 
+        float3 radiance = Li ; 
+        accumulatedIrradiance += radiance;
         
     }
     meanRayDir /= N;
     surfelsUAV[globalIndex].mean = float4(meanRayDir, 0);
-    accumulatedIrradiance /= surfelsUAV[globalIndex].raySamples.x;
+    //accumulatedIrradiance /= surfelsUAV[globalIndex].raySamples.x;
+    accumulatedIrradiance = (accumulatedIrradiance * M_PI) / (float) N;
+
 
     InterlockedAdd(surfelsUAV[globalIndex].raySamples.y, surfelsUAV[globalIndex].raySamples.x);
 
@@ -209,7 +213,6 @@ float3 calculateSurfelsContribution_Experimental(SurfelData surfel, float3 world
     return colorContribution;
         
 }
-
 [shader("closesthit")]
 void MyClosestHitShader(inout RayPayload payload, in MyAttributes attr)
 {
@@ -240,40 +243,39 @@ void MyClosestHitShader(inout RayPayload payload, in MyAttributes attr)
     float3 radiance = float3(0, 0, 0);
 
 
-    for (int i = surfelIdFrom; i < surfelIdTo; i++)
-    {
-        uint surfelIndex = surlfeListUAV[i];
-        SurfelData surfel = surfelsUAV[surfelIndex];
-        Ray ra;
-        ra.origin = WorldRayOrigin();
-        //ra.origin = float3(-100000, -100000, -10000);
-        //ra.dir = float3(0, 1, 0);
-        ra.dir = WorldRayDirection();
-        float t;
-
-        //Used for counting how many rays have been fired from surfel
-        if(surfel.raySamples.y <20)
-        {
-            continue;
-        }
-
-        if(IntersectRayWithSurfel(ra, surfel, t))
-        {
-            //FINISH CODE HERE
+//    for (int i = surfelIdFrom; i < surfelIdTo; i++)
+//    {
+//        uint surfelIndex = surlfeListUAV[i];
+//        SurfelData surfel = surfelsUAV[surfelIndex];
+//        Ray ra;
+//        ra.origin = WorldRayOrigin();
+//        //ra.origin = float3(-100000, -100000, -10000);
+//        //ra.dir = float3(0, 1, 0);
+//        ra.dir = WorldRayDirection();
+//        float t;
+//
+//        //Used for counting how many rays have been fired from surfel
+//        if(surfel.raySamples.y <20)
+//        {
+//            continue;
+//        }
+//
+//        if(IntersectRayWithSurfel(ra, surfel, t))
+//        {
 //            float3 albedo = float3(1, 1, 1); // or assume float3(1,1,1) if no albedo
 //            float3 irradiance = surfel.color.rgb; // surfel's accumulated irradiance
 //            float3 radiance = irradiance * albedo / M_PI;
-            float3 directionToRayOrigin = -WorldRayDirection();
-
-            
-            //float3 surfelRadiance = calculateSurfelsContribution_Experimental(surfel, WorldRayOrigin(), normalize(directionToRayOrigin));
-            float3 surfelRadiance = calculateSurfelsContribution_Experimental(surfel, WorldRayOrigin(), surfel.normal);
-            radiance += float4(radiance, 1.0);
-            uint outO;
-            InterlockedExchange(surfelsUAV[surfelIndex].contribution.y, frameIndex, outO);
-        }
-        
-    }
+//            float3 directionToRayOrigin = -WorldRayDirection();
+//
+//            
+//            //float3 surfelRadiance = calculateSurfelsContribution_Experimental(surfel, WorldRayOrigin(), normalize(directionToRayOrigin));
+//            float3 surfelRadiance = calculateSurfelsContribution_Experimental(surfel, WorldRayOrigin(), surfel.normal);
+//            radiance += float4(radiance, 1.0);
+//            uint outO;
+//            InterlockedExchange(surfelsUAV[surfelIndex].contribution.y, frameIndex, outO);
+//        }
+//        
+//    }
     //payload.color = float4(0, 0, 0, 1);
     
     float3 barycentrics = float3(1 - attr.barycentrics.x - attr.barycentrics.y, attr.barycentrics.x, attr.barycentrics.y);
@@ -304,13 +306,32 @@ void MyClosestHitShader(inout RayPayload payload, in MyAttributes attr)
         float3x3 tbn = float3x3(normalize(interpolated.tangent).xyz, normalize(interpolated.bitangent).xyz, normalize(interpolated.normal).xyz);
         normal = normalize(mul(normal, tbn));
     }
-    float3 specularAlbedo = float3( 0.56, 0.56, 0.56 );
+    float3 specularAlbedo = float3(0,0,0);
     float specularMask = specularColor;
 
     //This is not the viewiign direction toward the camera but 
     //Direction towards the surfel in worlds space
     float3 towardSurfel = -WorldRayDirection();
-    float3 dirColor = ApplyDirectionalLight(diffuseColor, float3(0, 0, 0), specularAlbedo, specularMask, normal,towardSurfel, sunDirection, sunColor);
+    //float3 dirColor = ApplyDirectionalLight(diffuseColor, float3(0, 0, 0), specularAlbedo, specularMask, normal,towardSurfel, sunDirection, sunColor);
+    //float3 dirColor = ApplyDirectionalLight(diffuseColor, float3(0, 0, 0), specularAlbedo, 0, normal,towardSurfel, sunDirection, sunColor);
+    //float3 dirColor = ApplyDirectionalLight(diffuseColor, float3(0, 0, 0), specularAlbedo, 0, normal,towardSurfel, sunDirection, sunColor);
+    float nDotL = saturate(dot(normal, normalize(sunDirection.xyz)));
+float3 dirColor = float3(0,0,0);
+
+if (nDotL > 0.0f)
+{
+    // Note: check shadow before adding sun contribution (see below)
+    dirColor = (diffuseColor / M_PI) * sunColor.xyz * nDotL;
+}
+    
+    
+    //float3 dirColor = ApplyDiffuseLight(diffuseColor,normal,towardSurfel,sunDirection);
+    //float3 dirColor = LambertTransfer(WorldRayOrigin(), originatingSurfelNormal, hitPos, normal, diffuseColor, sunDirection, sunColor);
+    
+
+
+    
+    
     radiance += dirColor;
 
     payload.color = float4(radiance, 1);
