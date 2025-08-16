@@ -74,6 +74,7 @@
     </Lib>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClInclude Include="AdditiveBlendPass.h" />
     <ClInclude Include="Animation.h" />
     <ClInclude Include="CameraSequencer.h" />
     <ClInclude Include="CameraSequenceRunner.h" />
@@ -113,6 +114,10 @@
     <ClInclude Include="SurfelSpawnChanceVisualization.h" />
     <ClInclude Include="SurfelSSRMIrradianceAccumulation.h" />
     <ClInclude Include="UniformGrid.h" />
+    <FxCompile Include="Shaders\BlendPS.hlsl">
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Pixel</ShaderType>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">6.3</ShaderModel>
+    </FxCompile>
     <FxCompile Include="Shaders\DownsampleCS.hlsli">
       <FileType>Document</FileType>
       <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">6.3</ShaderModel>
@@ -156,6 +161,7 @@
     <ClInclude Include="TextureConvert.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="AdditiveBlendPass.cpp" />
     <ClCompile Include="Animation.cpp" />
     <ClCompile Include="BuildH3D.cpp" />
     <ClCompile Include="CameraSequencer.cpp" />

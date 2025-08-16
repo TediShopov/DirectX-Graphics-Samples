@@ -199,32 +199,32 @@ void Graphics::Initialize(bool RequireDXRSupport)
 
     DWORD dxgiFactoryFlags = 0;
 
-//    if (useDebugLayers)
-//    {
-//        Microsoft::WRL::ComPtr<ID3D12Debug> debugInterface;
-//        if (SUCCEEDED(D3D12GetDebugInterface(MY_IID_PPV_ARGS(&debugInterface))))
-//        {
-//            debugInterface->EnableDebugLayer();
-//
-//            uint32_t useGPUBasedValidation = 0;
-//            CommandLineArgs::GetInteger(L"gpu_debug", useGPUBasedValidation);
-//
-//            if (useGPUBasedValidation)
-//            {
-//                Microsoft::WRL::ComPtr<ID3D12Debug1> debugInterface1;
-//                if (SUCCEEDED((debugInterface->QueryInterface(MY_IID_PPV_ARGS(&debugInterface1)))))
-//                {
-//                    debugInterface1->SetEnableGPUBasedValidation(true);
-//                }
-//            }
-//
-//
-//        }
-//        else
-//        {
-//            Utility::Print("WARNING:  Unable to enable D3D12 debug validation layer\n");
-//        }
-//
+    if (useDebugLayers)
+    {
+        Microsoft::WRL::ComPtr<ID3D12Debug> debugInterface;
+        if (SUCCEEDED(D3D12GetDebugInterface(MY_IID_PPV_ARGS(&debugInterface))))
+        {
+            debugInterface->EnableDebugLayer();
+
+            uint32_t useGPUBasedValidation = 0;
+            CommandLineArgs::GetInteger(L"gpu_debug", useGPUBasedValidation);
+
+            if (useGPUBasedValidation)
+            {
+                Microsoft::WRL::ComPtr<ID3D12Debug1> debugInterface1;
+                if (SUCCEEDED((debugInterface->QueryInterface(MY_IID_PPV_ARGS(&debugInterface1)))))
+                {
+                    debugInterface1->SetEnableGPUBasedValidation(true);
+                }
+            }
+
+
+        }
+        else
+        {
+            Utility::Print("WARNING:  Unable to enable D3D12 debug validation layer\n");
+        }
+
 #if _DEBUG
         ComPtr<IDXGIInfoQueue> dxgiInfoQueue;
         if (SUCCEEDED(DXGIGetDebugInterface1(0, IID_PPV_ARGS(dxgiInfoQueue.GetAddressOf()))))
@@ -244,7 +244,7 @@ void Graphics::Initialize(bool RequireDXRSupport)
             dxgiInfoQueue->AddStorageFilterEntries(DXGI_DEBUG_DXGI, &filter);
         }
 #endif
-	//}
+	}
 
     // Obtain the DXGI factory
     Microsoft::WRL::ComPtr<IDXGIFactory6> dxgiFactory;

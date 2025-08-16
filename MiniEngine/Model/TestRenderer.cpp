@@ -63,6 +63,7 @@
 #include "HBILInterleaved.h"
 #include "CameraSequencer.h"
 #include "CameraSequenceRunner.h"
+#include "AdditiveBlendPass.h"
 
 //#include "nvperf_host.h"
 //#include "nvperf_d3d12_host.h"
@@ -96,6 +97,7 @@ UINT TestRenderer::frameIndex = 0;
 	 SurfelSpawnChanceVisualization* TestRenderer::SurfelSpawnVisualization = nullptr;
 	 SurfelGIOnlyVisualization* TestRenderer::SurfelGIVisualization = nullptr;
 	 SurfelGIOnlyVisualization* TestRenderer::MaterialBindingDebug = nullptr;
+	 AdditiveBlendPass m_AdditiveBlendPass;
 	 HBIL* TestRenderer::m_HBIL = nullptr;
 	 HBILInterleaved* TestRenderer::m_HBILInterleaved = nullptr;
 	 GBufferDownsample* TestRenderer::m_GBufferDownsample = nullptr;
@@ -295,8 +297,8 @@ UINT TestRenderer::frameIndex = 0;
 		//m_Transform.setScale(50,50,50);
 		m_Transform.setScale(10, 10, 10);
 
-		m_sunData.ambientLightIntensity = 0.3f;
-		//m_sunData.ambientLightIntensity = 0;
+		//m_sunData.ambientLightIntensity = 0.3f;
+		m_sunData.ambientLightIntensity = 0;
 		m_sunData.sunInclination = 1.0f;
 		m_sunData.sunLightIntensity = 1.0f;
 
@@ -532,6 +534,12 @@ UINT TestRenderer::frameIndex = 0;
 		SurfelGIVisualization->Setup(
 			gbuffer,
 			&SurfelIllumination->m_OutputTexture
+		);
+		m_AdditiveBlendPass.Setup(
+			gbuffer,
+			&SurfelIllumination->m_OutputTexture,
+			g_pSimpleColorVS, sizeof(g_pSimpleColorVS),
+			g_pSimpleColorPS, sizeof(g_pSimpleColorPS)
 		);
 		MaterialBindingDebug->Setup(
 			gbuffer,
@@ -1759,6 +1767,7 @@ XMVECTOR VectorProjection(XMVECTOR u, XMVECTOR v, float* scalarOut)
 		 else if (m_debugOverlayMode == 3)
 		 {
 			 ScopedTimer _prof3(L"Material Binding Ouptut", gfxContext);
+
 			 gfxContext.TransitionResource(TestRaytracing::GetOutputBuffer(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 			 MaterialBindingDebug->SetupRenderStage(gfxContext, viewport, scissor,
 				 TestRaytracing::GetOutputBuffer(),
@@ -2054,6 +2063,17 @@ XMVECTOR VectorProjection(XMVECTOR u, XMVECTOR v, float* scalarOut)
 
 		//m_nvperf.rangeCommands.PopRange(gfxContext.GetCommandList());
 		m_prevStopSurfelUpdate = m_stopSurfelUpdate;
+
+
+		//Final pass apply the collected diffuse lighting as an ambient term
+		{
+			ScopedTimer _prof(L"Apply Diffuse Lighting", gfxContext);
+			m_AdditiveBlendPass.SetupRenderStage(gfxContext, viewport, scissor, SurfelIllumination->m_OutputTexture, Graphics::g_SceneColorBuffer);
+			RenderFullScreenQuad(gfxContext);
+		}
+
+
+
 
 		//EngineProfiling::EndBlock(&gfxContext);
 
