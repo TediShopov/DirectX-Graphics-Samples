@@ -1838,7 +1838,10 @@ XMVECTOR VectorProjection(XMVECTOR u, XMVECTOR v, float* scalarOut)
 		{
 			if (m_useSSRMonly == false)
 			{
+				cfx.InsertUAVBarrier(SurfelIllumination->m_SurfelData.m_GPUBuffer);
+				gfxContext.InsertUAVBarrier(SurfelIllumination->m_SurfelData.m_GPUBuffer);
 				SurfelIrradianceAccumulation::DoRaytracing(
+					cfx,
 					camera,
 					SurfelIllumination->descriptorHeap,
 					SurfelIllumination->m_SurfelGen.UniformGrid,

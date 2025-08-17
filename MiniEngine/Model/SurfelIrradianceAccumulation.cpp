@@ -843,8 +843,10 @@ namespace SurfelIrradianceAccumulation
 
 	UINT frameIndex;
 
-	void DoRaytracing(const Math::Camera& camera,DescriptorHeap surfelUAVHeap, UniformGrid grid,std::vector<SurfelData>& surfels)
+	void DoRaytracing(ComputeContext& cfx,const Math::Camera& camera,DescriptorHeap surfelUAVHeap, UniformGrid grid,std::vector<SurfelData>& surfels)
 	{
+
+		ScopedTimer _prof(L"Raytrace Surfels", cfx);
 
 		XMMATRIX viewMatrix = XMMatrixLookAtLH(camera.GetPosition(), camera.GetPosition() + camera.GetForwardVec(), camera.GetUpVec());
 		XMMATRIX projMatrix = XMMatrixPerspectiveFovLH(camera.GetFOV(), 1 / aspectRatio, camera.GetNearClip(), camera.GetFarClip());
@@ -856,8 +858,10 @@ namespace SurfelIrradianceAccumulation
 		m_rayGenCB.viewToWorld = XMMatrixTranspose(viewToWorld);
 
 		//m_TestCB.Create(L"Ray Tracing CBV", 1, static_cast<uint32_t>(sizeof(m_rayGenCB)), &m_rayGenCB);
+		
+		ComputeContext& gfxContext = cfx;
 
-		ComputeContext& gfxContext = ComputeContext::Begin(L"Surfel Irradiance Ray Tracing");
+		//ComputeContext& gfxContext = ComputeContext::Begin(L"Surfel Irradiance Ray Tracing");
 		ID3D12GraphicsCommandList4* pCmdList = static_cast<ID3D12GraphicsCommandList4*>(gfxContext.GetCommandList());
 		auto commandList = pCmdList;
 
@@ -903,6 +907,6 @@ namespace SurfelIrradianceAccumulation
 		gfxContext.SetDynamicConstantBufferView(3, sizeof(GridCB), &cb);
 		gfxContext.SetDynamicConstantBufferView(5, sizeof(SunDirectionalLight), &directionalLightData);
 		DispatchRays(commandList, m_dxrStateObject.Get(), &dispatchDesc);
-		gfxContext.Finish(true);
+		//gfxContext.Finish(true);
 	}
 }

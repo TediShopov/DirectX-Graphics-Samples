@@ -80,7 +80,7 @@ namespace SurfelIrradianceAccumulation
 	extern SunDirectionalLight directionalLightData;
 
 	void CreateOutputTextureUAV(ColorBuffer* color);
-	void DoRaytracing(const Math::Camera& camera,DescriptorHeap surfelUAVHeap, UniformGrid grid,std::vector<SurfelData>& surfels);
+	void DoRaytracing(ComputeContext& cfx,const Math::Camera& camera,DescriptorHeap surfelUAVHeap, UniformGrid grid,std::vector<SurfelData>& surfels);
 
 // Update the application state with the new resolution.
 	void UpdateCBForSizeChange(UINT width, UINT height);
