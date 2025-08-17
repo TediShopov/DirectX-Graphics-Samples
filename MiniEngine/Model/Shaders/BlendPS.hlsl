@@ -26,5 +26,6 @@ float4 main(PSInput input) : SV_TARGET
     float4 sampleAODiffuseLight = diffuseLightAO.Sample(defaultSampler, uv);
     float4 sampleAO = AO.Sample(defaultSampler, uv);
 
-    return lerp(sampleNonAODiffuseLight, lerp(sampleNonAODiffuseLight, sampleAODiffuseLight, 1 - sampleAO), lerpSBGItoInformedSBGI);
+    //return lerp(sampleNonAODiffuseLight, lerp(sampleNonAODiffuseLight, sampleAODiffuseLight, 1 - sampleAO), lerpSBGItoInformedSBGI);
+    return lerp(sampleNonAODiffuseLight, lerp(sampleNonAODiffuseLight, sampleAODiffuseLight, 0.5), lerpSBGItoInformedSBGI);
 }

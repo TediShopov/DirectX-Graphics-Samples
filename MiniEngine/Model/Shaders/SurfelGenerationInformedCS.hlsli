@@ -143,20 +143,8 @@ void main(
 
                 if (contribution < AOVariables.x)
                 {
-//                    float spawnChance = RemapFloat(radius, 0, AOVariables.z, 0, 1);
-//                    //Non-linearly transform
-//                    spawnChance = pow(spawnChance, 2);
-//                    //Spawn surfel cap
-//                    //float chanceSpawn = EstimateSpawnChance(coverage, depthRaw.x);
-//                    //float chanceSpawn = EstimateSurfelCapSurfaceAreaCoverage(uv, depthRaw);
-//                    //changeAgainst *= 0.3f;
                     float spawnChance = EstimateSpawnChance(coverage, depthRaw);
                     float changeAgainst = RandomFloat01(threadRandomnessSeed);
-
-
-
-
-                    //if (spawnChance > changeAgainst)
                     if (changeAgainst > spawnChance)
                     {
                         //SurfelData newSurfel = SurfelPrototype(worldPos, depthRaw.x, sampledNormal, gResolution.xy);
@@ -215,16 +203,16 @@ void main(
                 else
                 {
 //                    //Default Surfel Spawnign
-//                    float chanceSpawn = EstimateSpawnChance(coverage, depthRaw.x);
-//                    float changeAgainst = RandomFloat01(threadRandomnessSeed);
-//
-//
-//                    if (changeAgainst > chanceSpawn)
-//                    {
-//                        SurfelData newSurfel = SurfelPrototype(worldPos, depthRaw.x, sampledNormal, gResolution.xy);
-//                        AttemptSpawnSurfel(newSurfel);
-//                    }
-//            
+                    float chanceSpawn = EstimateSpawnChance(coverage, depthRaw.x);
+                    float changeAgainst = RandomFloat01(threadRandomnessSeed);
+
+
+                    if (changeAgainst > chanceSpawn)
+                    {
+                        SurfelData newSurfel = SurfelPrototype(worldPos, depthRaw.x, sampledNormal, gResolution.xy);
+                        AttemptSpawnSurfel(newSurfel);
+                    }
+            
                 }
 
             }

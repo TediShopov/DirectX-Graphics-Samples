@@ -160,6 +160,7 @@ UINT TestRenderer::frameIndex = 0;
 
 	 
 	 //bool m_useSSRMonly = false;
+	 bool m_enableBlending = true;
 	 bool m_useSSRMonly = false;
 	 bool m_drawPhysicalSurfelInstances = false;
 	 bool m_drawSSRTest = false;
@@ -1278,7 +1279,7 @@ UINT TestRenderer::frameIndex = 0;
 			bool pressedInclinatoinMinus = GameInput::IsFirstPressed(GameInput::kKey_k);
 			bool pressedOrientationPlus = GameInput::IsFirstPressed(GameInput::kKey_u);
 			bool pressedOriantationMinus = GameInput::IsFirstPressed(GameInput::kKey_i);
-			bool pressedToggleUseSSRMOnly = GameInput::IsFirstPressed(GameInput::kKey_n);
+			bool pressedToggleApplyBlend = GameInput::IsFirstPressed(GameInput::kKey_n);
 			bool pressedTogglePhysicalSurfels = GameInput::IsFirstPressed(GameInput::kKey_h);
 
 			bool pressedResetSurfels = GameInput::IsFirstPressed(GameInput::kKey_x);
@@ -1287,6 +1288,7 @@ UINT TestRenderer::frameIndex = 0;
 			bool pressedToggleDebugHBIL = GameInput::IsFirstPressed(GameInput::kKey_p);
 			//bool pressedToggleRenderAOOnScreen = GameInput::IsFirstPressed(GameInput::kKey_z);
 
+			//ImGui::Checkbox("Use Blending", &m_useBle);
 
 			if (pressedToggleDebugHBIL)
 			{
@@ -1317,8 +1319,8 @@ UINT TestRenderer::frameIndex = 0;
 
 			if (pressedTogglePhysicalSurfels)
 				m_drawPhysicalSurfelInstances = !m_drawPhysicalSurfelInstances;
-			if (pressedToggleUseSSRMOnly)
-				m_useSSRMonly = !m_useSSRMonly;
+			if (pressedToggleApplyBlend)
+				m_enableBlending = !m_enableBlending;
 
 
 			if (pressedToggleFillAccelerationStructure)
@@ -1367,6 +1369,7 @@ UINT TestRenderer::frameIndex = 0;
 		ImGui::Begin("Surfel Gen CB");
 
 		ImGui::DragFloat("Diffuse Light Application Blend", &m_AdditiveBlendPass.m_blendControlCB.lerpSBGItoInformedSBGI.x, 0.01f, 0, 1.0f);;
+		ImGui::DragFloat("Sun Ambient", &m_sunData.ambientLightIntensity, 0.01f, 0, 1.0f);
 
 		static bool spawnThresholdsCollapsingHeader = true;
 		if (ImGui::CollapsingHeader("Spawning Thresholds", &spawnThresholdsCollapsingHeader))
@@ -1430,7 +1433,7 @@ UINT TestRenderer::frameIndex = 0;
 		}
 
 
-		ImGui::Checkbox("Use Screen-Space Ray Marching Only ", &m_useSSRMonly);
+		//ImGui::Checkbox("Use Screen-Space Ray Marching Only ", &m_useSSRMonly);
 		ImGui::Checkbox("Draw Physical Surfel Objects", &m_drawPhysicalSurfelInstances);
 
 		ImGui::DragFloat("Bunny Scale", &bunnyScale,1.0,1,3000);
@@ -1998,13 +2001,14 @@ XMVECTOR VectorProjection(XMVECTOR u, XMVECTOR v, float* scalarOut)
 
 				RenderColor(gfxContext, camera, viewport, scissor, skipDiffusePass, skipShadowMap);
 
+				//                --- SKIP NORMAL CUTOUTS---
+				//gfxContext.SetPipelineState(m_CutoutModelPSO);
+				//RenderObjects( gfxContext, camera.GetViewProjMatrix(), camera.GetPosition(), TestRenderer::kCutout );
+
 				if (m_enableDebugOverlay)
 				{
 					RenderDebugOverlay(gfxContext, camera, viewport, scissor, skipDiffusePass, skipShadowMap);
 				}
-				//                --- SKIP NORMAL CUTOUTS---
-				//gfxContext.SetPipelineState(m_CutoutModelPSO);
-				//RenderObjects( gfxContext, camera.GetViewProjMatrix(), camera.GetPosition(), TestRenderer::kCutout );
 
 			}
 		}
@@ -2052,8 +2056,8 @@ XMVECTOR VectorProjection(XMVECTOR u, XMVECTOR v, float* scalarOut)
 
 		if (m_stopSurfelUpdate == false)
 		{
-			SurfelIllumination->SpawnSurfels(cfx, camera);
-			//SurfelIllumination->SpawnSurfelsInformed(cfx, camera);
+			//SurfelIllumination->SpawnSurfels(cfx, camera);
+			SurfelIllumination->SpawnSurfelsInformed(cfx, camera);
 
 		}
 
@@ -2072,9 +2076,13 @@ XMVECTOR VectorProjection(XMVECTOR u, XMVECTOR v, float* scalarOut)
 		m_prevStopSurfelUpdate = m_stopSurfelUpdate;
 		CopyColorAndDepthBuffers(gfxContext);
 		//Final pass apply the collected diffuse lighting as an ambient term
+		if(m_enableBlending)
 		{
 			ScopedTimer _prof(L"Apply Diffuse Lighting", gfxContext);
 			m_AdditiveBlendPass.SetupRenderStage(gfxContext, viewport, scissor, SurfelIllumination->m_OutputTexture, Graphics::g_SceneColorBuffer);
 			RenderFullScreenQuad(gfxContext);
 		}
+
+
+
 	}

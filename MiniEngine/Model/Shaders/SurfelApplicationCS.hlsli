@@ -148,11 +148,6 @@ float3 calculateSurfelsContribution_Experimental(SurfelData surfel, float3 world
 
 float3 computeRadianceForWorldPos(float3 worldPos, float3 worldNormal)
 {
-    
-  //Get all for now
-    //TODO make a bounding box around the surfel to only allow surfel in some range
-    //TODO make a raycast toward surfels position to see if it contributes
-    //uint3 index = ComputeGridIndex(worldPos, Grid.gridOrigin, Grid.cellSize);
     float3 colorE = float3(0, 0, 0);
     uint surfelNum = 0;
     uint surfelStride = 0;
@@ -164,16 +159,14 @@ float3 computeRadianceForWorldPos(float3 worldPos, float3 worldNormal)
     uint surfelListIndexFrom = surfelGridUAV[linearIndex];
     uint surfelListIndexTo = surfelGridUAV[linearIndex + 1];
 
-    
-
-    
-    
 
     for (uint i = surfelListIndexFrom; i < surfelListIndexTo; ++i)
     {
 
         uint index = surlfeListUAV[i];
         SurfelData surfel = surfelsUAV[index];
+//        if(surfel.isSurfelCap == false)
+//            continue;
         float3 d = worldPos - surfel.position;
         float3 colorContribution ;
         colorContribution = calculateSurfelsContribution_Experimental(surfel, worldPos, worldNormal);
