@@ -24,13 +24,25 @@ using namespace Math;
 
 class AdditiveBlendPass
 {
+
+private:
+	//Reference to the diffuse light buffer to be blended
+
+	ColorBuffer* m_diffuseLightNonAO;
+	ColorBuffer* m_diffuseLightAO;
+	ColorBuffer* m_AO;
 public:
 	GraphicsPSO m_PSO;
 	RootSignature m_RootSignature;
 	DescriptorHeap m_DescriptorHear;
 	GBufferPtrs m_GBuffer;
 
-	void Setup(GBufferPtrs gbuffer, ColorBuffer* rayTracingOutColor,
+
+	void Setup(
+		GBufferPtrs gbuffer, 
+		ColorBuffer* diffuseLightNonAO,
+		ColorBuffer* diffuseLightAO,
+		ColorBuffer* AO,
 		const unsigned char* VS, UINT sizeVS,
 		const unsigned char* PS , UINT sizePS
 	
@@ -40,11 +52,13 @@ public:
 		DXGI_FORMAT NormalFormat = m_GBuffer.g_Normal->GetFormat();
 		DXGI_FORMAT DepthFormat = m_GBuffer.g_Depth->GetFormat();
 		DXGI_FORMAT formats[2] = { ColorFormat, NormalFormat };
+		this->m_diffuseLightNonAO = diffuseLightNonAO;
+		this->m_diffuseLightAO = diffuseLightAO;
+		this->m_AO = AO;
 
 		InitializeRootSignature();
 		InitializePSO(VS,sizeVS,PS,sizePS);
 		InitializeDescriptorHeap(
-			rayTracingOutColor
 		);
 
 	}
@@ -129,17 +143,19 @@ protected:
 		m_RootSignature.InitStaticSampler(12, CubeMapSamplerDesc);
 
 		m_RootSignature[0].InitAsConstantBuffer(0);
-		m_RootSignature[1].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 1);
+		m_RootSignature[1].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 3);
 		m_RootSignature.Finalize(L"Diffuse Light Blending Pass", D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
 	}
 
-	void InitializeDescriptorHeap(ColorBuffer* blendTexture) 
+	void InitializeDescriptorHeap() 
 	{
-		m_DescriptorHear.Create(L"Uniform Hash Grid Descriptor", D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 2);
+		m_DescriptorHear.Create(L"Uniform Hash Grid Descriptor", D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 3);
 		ExtendedUtility::CopyDescriptorsToHeap(
 			m_DescriptorHear,
 			{
-				blendTexture->GetSRV()
+				m_diffuseLightNonAO->GetSRV(),
+				m_diffuseLightAO->GetSRV(),
+				m_AO->GetSRV(),
 			},
 			D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV
 		);

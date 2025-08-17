@@ -160,8 +160,8 @@ UINT TestRenderer::frameIndex = 0;
 
 	 
 	 //bool m_useSSRMonly = false;
-	 bool m_useSSRMonly = true;
-	 bool m_drawPhysicalSurfelInstances = true;
+	 bool m_useSSRMonly = false;
+	 bool m_drawPhysicalSurfelInstances = false;
 	 bool m_drawSSRTest = false;
 
 
@@ -523,6 +523,24 @@ UINT TestRenderer::frameIndex = 0;
 			&TestRaytracing::GetOutputBuffer()
 
 		);
+
+		m_HBIL = new HBIL();
+		//m_HBILInterleaved = new HBILInterleaved();
+		m_GBufferDownsample = new GBufferDownsample();
+		//m_GBufferSlice = new GBufferSlice();
+		m_GBufferDownsample->Setup(gbuffer, GridVisualization->m_TestPSO);
+		//m_GBufferSlice->Setup(m_GBufferDownsample->GetDownsampledBufferPtr(), GridVisualization->m_TestPSO);
+
+		m_HBIL->Setup(
+			gbuffer,
+			m_GBufferDownsample->GetDownsampledBufferPtr(),
+			GridVisualization->m_TestPSO
+		);
+//		m_HBILInterleaved->Setup(
+//			gbuffer,
+//			m_GBufferSlice->GetOuptutBuffer(),
+//			GridVisualization->m_TestPSO
+//		);
 		GridMSMEVisualization->Setup(
 			gbuffer,
 			&TestRaytracing::GetOutputBuffer()
@@ -538,6 +556,8 @@ UINT TestRenderer::frameIndex = 0;
 		m_AdditiveBlendPass.Setup(
 			gbuffer,
 			&SurfelIllumination->m_OutputTexture,
+			&m_HBIL->m_OutputIrradiance,
+			&Graphics::g_SSAOFullScreen,
 			g_pSimpleColorVS, sizeof(g_pSimpleColorVS),
 			g_pSimpleColorPS, sizeof(g_pSimpleColorPS)
 		);
@@ -546,23 +566,6 @@ UINT TestRenderer::frameIndex = 0;
 			&TestRaytracing::GetOutputBuffer()
 		);
 
-		m_HBIL = new HBIL();
-		m_HBILInterleaved = new HBILInterleaved();
-		m_GBufferDownsample = new GBufferDownsample();
-		m_GBufferSlice = new GBufferSlice();
-		m_GBufferDownsample->Setup(gbuffer, GridVisualization->m_TestPSO);
-		m_GBufferSlice->Setup(m_GBufferDownsample->GetDownsampledBufferPtr(), GridVisualization->m_TestPSO);
-
-		m_HBIL->Setup(
-			gbuffer,
-			m_GBufferDownsample->GetDownsampledBufferPtr(),
-			GridVisualization->m_TestPSO
-		);
-		m_HBILInterleaved->Setup(
-			gbuffer,
-			m_GBufferSlice->GetOuptutBuffer(),
-			GridVisualization->m_TestPSO
-		);
 
 		//SurfelIllumination->SetupInformed(&m_HBIL->m_OutputBentCone,&m_HBIL->m_OutputIrradiance);
 		SurfelIllumination->SetupInformed(&m_HBIL->m_OutputBentCone, &Graphics::g_SSAOFullScreen);
@@ -1537,7 +1540,8 @@ XMVECTOR VectorProjection(XMVECTOR u, XMVECTOR v, float* scalarOut)
 				 gfxContext.SetViewportAndScissor(viewport, scissor);
 			 }
 			 RenderObjects(gfxContext, camera.GetViewProjMatrix(), camera.GetPosition(), TestRenderer::kOpaque);
-			 CopyColorAndDepthBuffers(gfxContext);
+			 //Diffuse only from the scene rended pass
+			 //CopyColorAndDepthBuffers(gfxContext);
 
 			 gfxContext.TransitionResource(g_SceneColorBuffer, D3D12_RESOURCE_STATE_RENDER_TARGET);
 			 gfxContext.TransitionResource(g_SceneDepthBuffer, D3D12_RESOURCE_STATE_DEPTH_READ);
@@ -1680,7 +1684,7 @@ XMVECTOR VectorProjection(XMVECTOR u, XMVECTOR v, float* scalarOut)
 				 gfxContext.SetRootSignature(m_ModelSSRPSO.GetRootSignature());
 				 gfxContext.SetDescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, SSRHeap.GetHeapPointer());
 
-				 CopyColorAndDepthBuffers(gfxContext);
+				 //CopyColorAndDepthBuffers(gfxContext);
 				 //PIXEL SHADER RESOURCE 
 				 gfxContext.TransitionResource(colorCopyBuffer, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 				 gfxContext.TransitionResource(depthCopyBuffer, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
@@ -2005,8 +2009,7 @@ XMVECTOR VectorProjection(XMVECTOR u, XMVECTOR v, float* scalarOut)
 
 
 		m_GBufferDownsample->Dispatch(cfx, camera);
-		m_GBufferSlice->Dispatch(cfx, camera);
-		//m_HBIL->ComputeDownsampledTexture(cfx,camera);
+		//m_GBufferSlice->Dispatch(cfx, camera);
 		{
 
 			ScopedTimer _prof(L"Render HBIL Tri", gfxContext);
@@ -2064,21 +2067,12 @@ XMVECTOR VectorProjection(XMVECTOR u, XMVECTOR v, float* scalarOut)
 		if (m_stopSurfelUpdate == false)
 			SurfelIllumination->RecycleSurfels(cfx, camera);
 
-		//m_nvperf.rangeCommands.PopRange(gfxContext.GetCommandList());
 		m_prevStopSurfelUpdate = m_stopSurfelUpdate;
-
-
+		CopyColorAndDepthBuffers(gfxContext);
 		//Final pass apply the collected diffuse lighting as an ambient term
 		{
 			ScopedTimer _prof(L"Apply Diffuse Lighting", gfxContext);
 			m_AdditiveBlendPass.SetupRenderStage(gfxContext, viewport, scissor, SurfelIllumination->m_OutputTexture, Graphics::g_SceneColorBuffer);
 			RenderFullScreenQuad(gfxContext);
 		}
-
-
-
-
-		//EngineProfiling::EndBlock(&gfxContext);
-
-
 	}

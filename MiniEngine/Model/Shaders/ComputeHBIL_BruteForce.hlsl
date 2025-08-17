@@ -323,7 +323,7 @@ PS_OUT	main(PSInput input) {
     float noise = (wang_hash(input.position.y * _resolution.x + input.position.x)
 						^ wang_hash(uint(_jitterPosition)))
 						* 2.3283064365386963e-10;
-    noise = 0;
+    //noise = 0;
 
 	// Setup camera ray
     float3 csView = BuildCameraRay(UV);
@@ -385,18 +385,10 @@ PS_OUT	main(PSInput input) {
     float3 csAverageBentNormal = 0.0;
     float averageAO = 0.0;
     float varianceAO = 0.0;
-//	float	phiNoise = Bayer1D_16( _framesCount ) / 16.0f;
     float phiNoise = 2.6457513110645905905016157536393 * _framesCount;
-
     float4 wsSampleAverage = float4(0, 0, 0, 0);
     float wsAcceptedSamples = 0;
 	
-	
-	
-        phiNoise = 0.0;
-//phiNoise = noise;
-//noise = 0.0;
-
 #if MAX_ANGLES > 1
 	[loop]
     for (uint angleIndex = 0; angleIndex < MAX_ANGLES; angleIndex++)

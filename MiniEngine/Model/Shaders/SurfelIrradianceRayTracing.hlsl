@@ -243,41 +243,41 @@ void MyClosestHitShader(inout RayPayload payload, in MyAttributes attr)
     float3 radiance = float3(0, 0, 0);
 
 
-    for (int i = surfelIdFrom; i < surfelIdTo; i++)
-    {
-        uint surfelIndex = surlfeListUAV[i];
-        SurfelData surfel = surfelsUAV[surfelIndex];
-        Ray ra;
-        ra.origin = WorldRayOrigin();
-        //ra.origin = float3(-100000, -100000, -10000);
-        //ra.dir = float3(0, 1, 0);
-        ra.dir = WorldRayDirection();
-        float t;
-
-        //Used for counting how many rays have been fired from surfel
-//        if(surfel.raySamples.y <20)
+//    for (int i = surfelIdFrom; i < surfelIdTo; i++)
+//    {
+//        uint surfelIndex = surlfeListUAV[i];
+//        SurfelData surfel = surfelsUAV[surfelIndex];
+//        Ray ra;
+//        ra.origin = WorldRayOrigin();
+//        //ra.origin = float3(-100000, -100000, -10000);
+//        //ra.dir = float3(0, 1, 0);
+//        ra.dir = WorldRayDirection();
+//        float t;
+//
+//        //Used for counting how many rays have been fired from surfel
+////        if(surfel.raySamples.y <20)
+////        {
+////            continue;
+////        }
+//
+//        if(IntersectRayWithSurfel(ra, surfel, t))
 //        {
-//            continue;
+//            //float3 albedo = float3(1, 1, 1); // or assume float3(1,1,1) if no albedo
+//            //float3 irradiance = surfel.color.rgb; // surfel's accumulated irradiance
+//            //float3 surfelRadiance = irradiance / M_PI;
+//            ////float3 radiance = float3(1.0, 0, 0);
+//            //float3 directionToRayOrigin = -WorldRayDirection();
+//
+//            //float3 surfelRadiance = float3(100.0f, 0.0f, 0.0f);
+//            
+//            //float3 surfelRadiance = calculateSurfelsContribution_Experimental(surfel, WorldRayOrigin(), normalize(directionToRayOrigin));
+//            //float3 surfelRadiance = calculateSurfelsContribution_Experimental(surfel, WorldRayOrigin(), surfel.normal);
+//            //radiance +=surfelRadiance;
+//            //uint outO;
+//            //InterlockedExchange(surfelsUAV[surfelIndex].contribution.y, frameIndex, outO);
 //        }
-
-        if(IntersectRayWithSurfel(ra, surfel, t))
-        {
-            //float3 albedo = float3(1, 1, 1); // or assume float3(1,1,1) if no albedo
-            //float3 irradiance = surfel.color.rgb; // surfel's accumulated irradiance
-            //float3 surfelRadiance = irradiance / M_PI;
-            ////float3 radiance = float3(1.0, 0, 0);
-            //float3 directionToRayOrigin = -WorldRayDirection();
-
-            //float3 surfelRadiance = float3(100.0f, 0.0f, 0.0f);
-            
-            //float3 surfelRadiance = calculateSurfelsContribution_Experimental(surfel, WorldRayOrigin(), normalize(directionToRayOrigin));
-            //float3 surfelRadiance = calculateSurfelsContribution_Experimental(surfel, WorldRayOrigin(), surfel.normal);
-            //radiance +=surfelRadiance;
-            //uint outO;
-            //InterlockedExchange(surfelsUAV[surfelIndex].contribution.y, frameIndex, outO);
-        }
-        
-    }
+//        
+//    }
     //payload.color = float4(0, 0, 0, 1);
     
     float3 barycentrics = float3(1 - attr.barycentrics.x - attr.barycentrics.y, attr.barycentrics.x, attr.barycentrics.y);

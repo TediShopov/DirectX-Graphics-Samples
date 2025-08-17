@@ -124,7 +124,8 @@ __declspec(align(16)) struct DownsampleData {
 			cfx.SetPipelineState(m_DownsamplePSO);
 			cfx.SetRootSignature(m_DownsampleRS);
 
-			cfx.TransitionResource(*m_GBuffer.g_Diffuse, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+			cfx.TransitionResource(*m_GBuffer.g_Color, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+			//cfx.TransitionResource(*m_GBuffer.g_Diffuse, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
 			cfx.TransitionResource(*m_GBuffer.g_Depth, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
 			cfx.TransitionResource(*m_GBuffer.g_Normal, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
 
