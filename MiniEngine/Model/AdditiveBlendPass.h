@@ -21,6 +21,10 @@
 #include "CompiledShaders/BlendPS.h"
 using namespace DirectX;
 using namespace Math;
+_declspec(align(16)) struct BlendControlCB
+{
+	XMFLOAT4 lerpSBGItoInformedSBGI;
+};
 
 class AdditiveBlendPass
 {
@@ -32,6 +36,7 @@ private:
 	ColorBuffer* m_diffuseLightAO;
 	ColorBuffer* m_AO;
 public:
+	BlendControlCB m_blendControlCB;
 	GraphicsPSO m_PSO;
 	RootSignature m_RootSignature;
 	DescriptorHeap m_DescriptorHear;
@@ -47,6 +52,7 @@ public:
 		const unsigned char* PS , UINT sizePS
 	
 	) {
+		m_blendControlCB.lerpSBGItoInformedSBGI.x = 0.0f;
 		m_GBuffer = gbuffer;
 		DXGI_FORMAT ColorFormat = m_GBuffer.g_Color->GetFormat();
 		DXGI_FORMAT NormalFormat = m_GBuffer.g_Normal->GetFormat();
@@ -81,6 +87,8 @@ public:
 		gfxContext.SetRenderTargets(ARRAYSIZE(rtvs), rtvs);
 		gfxContext.SetViewportAndScissor(viewport, scissor);
 		gfxContext.SetDescriptorTable(1, m_DescriptorHear[0]);
+		gfxContext.SetDynamicConstantBufferView(
+			0,sizeof(BlendControlCB),&m_blendControlCB);
 
 		//RenderTriangleObject(gfxContext, camera.GetViewProjMatrix(), camera.GetPosition(), TestRenderer::kOpaque);
 

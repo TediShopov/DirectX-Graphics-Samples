@@ -1,5 +1,11 @@
 
 #include "Common.hlsli"
+cbuffer CB_BlendControl : register(b0)
+{
+    float lerpSBGItoInformedSBGI;
+    
+    
+}
 
 Texture2D diffuseLightNonAO : register(t0);
 Texture2D diffuseLightAO : register(t1);
@@ -19,5 +25,6 @@ float4 main(PSInput input) : SV_TARGET
     float4 sampleNonAODiffuseLight = diffuseLightNonAO.Sample(defaultSampler, uv);
     float4 sampleAODiffuseLight = diffuseLightAO.Sample(defaultSampler, uv);
     float4 sampleAO = AO.Sample(defaultSampler, uv);
-    return lerp( sampleNonAODiffuseLight,sampleAODiffuseLight, 1-sampleAO);
+
+    return lerp(sampleNonAODiffuseLight, lerp(sampleNonAODiffuseLight, sampleAODiffuseLight, 1 - sampleAO), lerpSBGItoInformedSBGI);
 }
