@@ -83,6 +83,7 @@ public:
 		m_config.logMetrics = j.value("logMetrics", true);
 		m_config.captureScreenshots = j.value("captureScreenshots", true);
 		m_config.testSamples = j.value("testSamples", m_config.testSamples);
+		
 
 		return true;
 	}
@@ -152,7 +153,7 @@ public:
 		{
 			int a = 3;
 		}
-		m_targetPath = TestFolder + m_targetName;
+		m_targetPath = TestFolder + m_targetName + ".json";
 
 		std::ostringstream displayNameSection;
 		displayNameSection << "Camera Sequence: " << m_targetPath;
@@ -204,6 +205,7 @@ public:
 	}
 
 	SequenceConfig& GetMutableConfig() { return m_config; }
+	std::string GetName() { return m_targetName; }
 
 
 };

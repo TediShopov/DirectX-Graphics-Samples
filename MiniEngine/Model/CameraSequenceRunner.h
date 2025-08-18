@@ -77,7 +77,8 @@ public:
 		state = SeqState::Move;
 
 		//OpenCSVStream("metrics.csv");
-		OpenCSVStream("metrics.csv");
+		std::string ouputFilename = "Tests/" + name + ".csv";
+		OpenCSVStream(ouputFilename);
 
 		EngineProfiling::BeginSamplerSession();
 	}
@@ -238,9 +239,10 @@ public:
 
 		ImGui::End();
 	}
-	void SetSequence(SequenceConfig* scfg)
+	void SetSequence(SequenceConfig* scfg, std::string testName)
 	{
 		this->sequence = scfg;
+		this->name = testName;
 	}
 private:
 	SeqState state = SeqState::Idle;
@@ -250,6 +252,7 @@ private:
 	bool paused = false;
 
 	SequenceConfig* sequence = nullptr; // loaded config
+	std::string name; // loaded config
 	std::ofstream csvFileOutput;
 	std::vector<std::vector<StageStamp>> stampRingBuffer;
 	int stampRingBufferSize;

@@ -645,7 +645,7 @@ void ModelViewer::RenderUI(GraphicsContext& gfx)
 	ImGui::NewFrame();
 
 	m_CameraSequence.RenderImGui();
-	m_SequenceRunner->SetSequence(&m_CameraSequence.GetMutableConfig());
+	m_SequenceRunner->SetSequence(&m_CameraSequence.GetMutableConfig(),m_CameraSequence.GetName());
 	m_SequenceRunner->RenderImGui();
 	TestRenderer::RenderImGuiUI(gfx);
 
