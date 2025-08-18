@@ -116,6 +116,7 @@ public:
 				if (this->hasWrittenHeader == false)
 				{
 					WriteCSVHeader(csvFileOutput, stamps);
+		//if (paused || state == SeqState::Idle) return;
 					this->hasWrittenHeader = true;
 				}
 				WriteCSVPerStageValues(csvFileOutput, stamps, testFrameCounter);
@@ -124,7 +125,7 @@ public:
 	}
 
 	void Update(float deltaTime) override {
-		//if (paused || state == SeqState::Idle) return;
+
 		if (paused) return;
 		if (InRange(m_targetCameraIndex) == false) {
 			Reset();

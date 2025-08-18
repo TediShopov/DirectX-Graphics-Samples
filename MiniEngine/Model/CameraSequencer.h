@@ -17,8 +17,11 @@ struct CameraStop
     float dwellTime;
 };
 
+
+
 struct SequenceConfig
 {
+	int	testSamples;
     std::vector<CameraStop> cameraStops;
     bool logMetrics = true;
     bool captureScreenshots = true;
@@ -39,7 +42,10 @@ private:
 
 class CameraSequencer
 {
-
+private:
+	SequenceConfig m_config;
+	bool m_expanded = true;
+	bool m_save, m_load, m_reset;
 public:
 	const std::string TestFolder = "Tests/";
 	bool m_pathLoaded = false;
@@ -72,6 +78,7 @@ public:
 		}
 		m_config.logMetrics = j.value("logMetrics", true);
 		m_config.captureScreenshots = j.value("captureScreenshots", true);
+		m_config.testSamples = j.value("testSamples", true);
 
 		return true;
 	}
@@ -79,6 +86,7 @@ public:
 	{
 
 		nlohmann::json j;
+		j["testSamples"] = m_config.testSamples;
 		j["logMetrics"] = m_config.logMetrics;
 		j["captureScreenshots"] = m_config.captureScreenshots;
 		j["cameraStops"] = nlohmann::json::array();
@@ -129,9 +137,6 @@ public:
 		m_config.captureScreenshots= false;
 	}
 
-	bool m_expanded = true;
-
-	bool m_save, m_load, m_reset;
 	void RenderImGui()
 	{
 
@@ -194,8 +199,6 @@ public:
 	}
 
 	SequenceConfig& GetMutableConfig() { return m_config; }
-private:
-	SequenceConfig m_config;
 
 
 };

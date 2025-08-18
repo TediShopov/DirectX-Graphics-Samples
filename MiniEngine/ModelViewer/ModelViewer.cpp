@@ -389,7 +389,8 @@ void ModelViewer::UpdateInput(float deltaT)
 
 	EngineProfiling::SetPaused(m_SequenceRunner->IsRunning() == false);
 
-	if (GameInput::IsFirstPressed(GameInput::kKey_space))
+	//Swithc the state of the test runner by pressing T
+	if (GameInput::IsFirstPressed(GameInput::kKey_t))
 	{
 		if (m_SequenceRunner->IsRunning() == false)
 		{
@@ -399,12 +400,17 @@ void ModelViewer::UpdateInput(float deltaT)
 			m_SequenceRunner->Pause();
 
 		}
-
-			m_cameraUpdatesEnabled = !m_cameraUpdatesEnabled;
+	}
+	if (GameInput::IsFirstPressed(GameInput::kKey_space))
+	{
+		m_cameraUpdatesEnabled = !m_cameraUpdatesEnabled;
 	}
 
-
-	if (m_cameraUpdatesEnabled)
+	if (m_SequenceRunner->IsRunning())
+	{
+		m_SequenceRunner->Update(deltaT);
+	}
+	else if(m_cameraUpdatesEnabled)
 	{
 		if (ImGui::GetIO().WantCaptureKeyboard == false)
 		{
@@ -413,14 +419,9 @@ void ModelViewer::UpdateInput(float deltaT)
 		}
 
 	}
-    else
-    {
-		if (ImGui::GetIO().WantCaptureKeyboard == false)
-		{
-			m_SequenceRunner->Update(deltaT);
-		}
-            
-    }
+
+
+
 
 
 
