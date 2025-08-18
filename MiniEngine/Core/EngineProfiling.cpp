@@ -778,18 +778,15 @@ static void CollectPerStageStamps(uint32_t frameIndex,
 	}
 	void Update(void)
 	{
-		if (GameInput::IsFirstPressed(GameInput::kStartButton)
-			|| GameInput::IsFirstPressed(GameInput::kKey_space))
-		{
-			Paused = !Paused;
-		}
 		NestedTimingTree::UpdateTimes();
-		{
+        if (Paused == false)
+        {
+
 			frameStageStampsCollected = (uint32_t)Graphics::GetFrameCount();
             stageStamps.clear();
 			CollectPerStageStamps(frameStageStampsCollected, &NestedTimingTree::sm_RootScope, stageStamps);
 
-		}
+        }
 
 	}
 
@@ -832,6 +829,10 @@ static void CollectPerStageStamps(uint32_t frameIndex,
 	bool IsPaused()
 	{
 		return Paused;
+	}
+	void SetPaused(bool b )
+	{
+        Paused = b;
 	}
 
 	void DisplayFrameRate(TextContext& Text)

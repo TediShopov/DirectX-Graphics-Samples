@@ -387,7 +387,7 @@ void ModelViewer::UpdateInput(float deltaT)
 	}
 
 
-
+	EngineProfiling::SetPaused(m_SequenceRunner->IsRunning() == false);
 
 	if (GameInput::IsFirstPressed(GameInput::kKey_space))
 	{

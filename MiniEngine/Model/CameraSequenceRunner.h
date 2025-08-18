@@ -8,256 +8,237 @@
 #include "fstream"
 #include "GraphicsCore.h"
 
-enum class SeqState { Idle, Move, Dwell, Log };
+enum class SeqState { Idle, Move, Dwell, Finalize };
 
 class CameraSequenceRunner : public CameraController
 {
-public:
-    CameraSequenceRunner(Camera& camera) :CameraController(camera)
-    {
-        paused = true;
+protected:
+	bool InRange(int index)
+	{
+		return index >= 0 && index < sequence->cameraStops.size();
+	}
 
-
-            
-    }
-
-    std::ofstream csvFileOutput;
-    bool hasWrittenHeader = false;
-    
-    bool OpenCSVStream(std::string path)
-    {
-        //EngineProfiling::BeginSamplerSession();
-        csvFileOutput = std::ofstream(path);
-        if (!csvFileOutput.is_open())
-            return false;
-
-    }
-
-
-    void Start() {
-
-        paused = false;
-        //CSV Stream For Ouput
-        OpenCSVStream("metrics.csv");
-        //EngineProfiling::OutputMetricsHeader(csvFileOutput);
-        //Starting The Sample Session
-        EngineProfiling::BeginSamplerSession();
-
-        state = SeqState::Move;
-    }
-    void Pause() {
-        csvFileOutput.close();
-        paused = true;
-    }
-    void Resume() {
-        paused = false;
-
-    }
-    void Reset() {
-        csvFileOutput.close();
-		m_targetCameraIndex = 0;
-		paused = true;
-        hasWrittenHeader = false;
-		state = SeqState::Idle;
-
-
-    }
-    bool InRange(int index)
-    {
-        return index >= 0 && index < sequence->cameraStops.size();
-
-    }
-
-    void SetCamera(int index) 
-    {
-        if (InRange(index))
-        {
-            auto camStop = sequence->cameraStops[index];
+	void SetCamera(int index)
+	{
+		if (InRange(index))
+		{
+			auto camStop = sequence->cameraStops[index];
 
 			m_TargetCamera.SetPosition(camStop.position);
 			m_TargetCamera.SetRotation(camStop.rotation);
-        }
-    }
+		}
+	}
 
-    float timer = 0.0f;
-    int timeCounter = 0;
-
-    void WriteCSVHeader(std::ostream& outStream,std::vector<StageStamp>& stamps)
-    {
+	void WriteCSVHeader(std::ostream& outStream, std::vector<StageStamp>& stamps)
+	{
 		outStream << "Frame" << ", ";
-        for each (StageStamp s in stamps)
-        {
-            outStream << s.name << "_CPU" << ", ";
-        }
-        for each (StageStamp s in stamps)
-        {
-            outStream << s.name << "_GPU" << ", ";
-        }
-        outStream << "\n";
-
-    }
-    void WriteCSVPerStageValues(std::ostream& outStream, std::vector<StageStamp> stamps, uint32_t frameIndex)
-    {
+		for each (StageStamp s in stamps)
+		{
+			outStream << s.name << "_CPU" << ", ";
+		}
+		for each (StageStamp s in stamps)
+		{
+			outStream << s.name << "_GPU" << ", ";
+		}
+		outStream << "\n";
+	}
+	void WriteCSVPerStageValues(std::ostream& outStream, std::vector<StageStamp> stamps, uint32_t frameIndex)
+	{
 		outStream << frameIndex << ", ";
-        for each (StageStamp s in stamps)
-        {
-            outStream << s.cpuMs << ", ";
-        }
-        for each (StageStamp s in stamps)
-        {
-            outStream << s.gpuMs << ", ";
-        }
-        outStream << "\n";
+		for each (StageStamp s in stamps)
+		{
+			outStream << s.cpuMs << ", ";
+		}
+		for each (StageStamp s in stamps)
+		{
+			outStream << s.gpuMs << ", ";
+		}
+		outStream << "\n";
+	}
 
+public:
+	CameraSequenceRunner(Camera& camera) :CameraController(camera)
+	{
+		paused = true;
+		stampRingBufferSize = 5;
+	}
 
-    }
+	bool OpenCSVStream(std::string path)
+	{
+		//EngineProfiling::BeginSamplerSession();
+		csvFileOutput = std::ofstream(path);
+		if (!csvFileOutput.is_open())
+			return false;
+	}
 
-
-
-    void Update(float deltaTime) override {
-		//if (paused || state == SeqState::Idle) return;
-		if (paused ) return;
-        if (InRange(m_targetCameraIndex) == false) {
-            Reset();
-        }
-        stateTimer += deltaTime;
-        timeCounter++;
-
-        SetCamera(m_targetCameraIndex);
-        //EngineProfiling::ConsumeSampler((std::ostream)csvFileOutput);
-
-        
-        //EngineProfiling::ConsumeSampler(csvFileOutput);
-        //Output per-stage nested timestamps
-        auto frameIndex = EngineProfiling::GetFrameStampCollected();
-        auto stamps = EngineProfiling::GetStageStamps();
-        if (this->hasWrittenHeader == false)
-        {
-            WriteCSVHeader(csvFileOutput,stamps);
-            this->hasWrittenHeader = true;
-        }
-        else
-        {
-            WriteCSVPerStageValues(csvFileOutput, stamps, frameIndex);
-        }
-
-        
-//        if (timeCounter > 10)
-//            Pause();
-
-
-		switch (state)
-    {
-    case SeqState::Move:
-
-        {
-        //TODO implement lerping between positions
-            //float t = (float)(stateTimer / moveDuration);
-		    //float t = (float)(stateTimer / 1.0f);
-            //Clamp
-//            if (t < 0.0f)
-//                t = 0.0f;
-//            if (t > 1.0f)
-//                t = 1.0f;
-//
-//            auto pos = Lerp(startPos, targetPos, t);
-//            auto rot = Slerp(startRot, targetRot, t); // or slerp quaternion
-//            m_TargetCamera.SetPosition(pos);
-//            m_TargetCamera.SetRotation(rot);
-
-        float t = 2.0f;
-
-            if (t >= 1.0f)
-            {
-                state = SeqState::Dwell;
-                stateTimer = 0.0;
-            }
-        }
-        break;
-
-	case SeqState::Dwell:
-        if (stateTimer >= sequence->cameraStops[m_targetCameraIndex].dwellTime)
-        {
-            state = SeqState::Log;
-            stateTimer = 0.0;
-        }
-        break;
-
-	case SeqState::Log:
-        {
-		//if (sequence->GetConfig().logMetrics)
-		//    logger->Log(currentIndex, GetCameraPos(), GetCameraRot(), CollectMetrics());
-
-		//if (sequence->GetConfig().captureScreenshots)
-		//    CaptureSwapChainScreenshot(currentIndex);
-
-		//currentIndex++;
-		//if (currentIndex >= sequence->GetConfig().cameraStops.size())
-		//    state = SeqState::Idle;
-		//else
-		//{
-		//    startPos = GetCameraPos();
-		//    startRot = GetCameraRot();
-		//    targetPos = sequence->GetConfig().cameraStops[currentIndex].position;
-		//    targetRot = sequence->GetConfig().cameraStops[currentIndex].rotationDeg;
-		//    state = SeqState::Move;
-		//    stateTimer = 0.0;
-		//}
-		m_targetCameraIndex++;
-        if (m_targetCameraIndex >= sequence->cameraStops.size())
-            Reset();
+	void Start() {
+		paused = false;
 
 		state = SeqState::Move;
-		stateTimer = 0.0;
-        }
-        break;
-    }
-        m_TargetCamera.Update();
 
-    }
-    bool IsRunning() const {
-        return paused == false;
-    }
+		OpenCSVStream("metrics.csv");
 
-    int m_targetCameraIndex=0;
+		EngineProfiling::BeginSamplerSession();
+	}
+	void Pause() {
+		csvFileOutput.close();
+		paused = true;
+	}
+	void Resume() {
+		paused = false;
+	}
+	void Reset() {
+		paused = true;
+		hasWrittenHeader = false;
+
+		m_targetCameraIndex = 0;
+
+		csvFileOutput.close();
+
+		state = SeqState::Idle;
+	}
+	float timer = 0.0f;
+	int testFrameCounter = 0;
+
+	void WriteRingBufferToCSV(std::ostream& outStrea)
+	{
+		int maxStampCount = 0;
+		for each (auto stamps in stampRingBuffer)
+		{
+			if (stamps.size() > maxStampCount)
+				maxStampCount = stamps.size();
+		}
+
+		for each (auto stamps in stampRingBuffer)
+		{
+			if (stamps.size() == maxStampCount)
+			{
+				if (this->hasWrittenHeader == false)
+				{
+					WriteCSVHeader(csvFileOutput, stamps);
+					this->hasWrittenHeader = true;
+				}
+				WriteCSVPerStageValues(csvFileOutput, stamps, testFrameCounter);
+			}
+		}
+	}
+
+	void Update(float deltaTime) override {
+		//if (paused || state == SeqState::Idle) return;
+		if (paused) return;
+		if (InRange(m_targetCameraIndex) == false) {
+			Reset();
+		}
+		stateTimer += deltaTime;
+
+		//Output per-stage nested timestamps
+		auto frameIndex = EngineProfiling::GetFrameStampCollected();
+		auto stamps = EngineProfiling::GetStageStamps();
+
+		//Collected stamps
+		if (stampRingBuffer.size() < stampRingBufferSize)
+		{
+			//Keep addiing to the buffer
+			stampRingBuffer.push_back(stamps);
+		}
+		else
+		{
+			//Once ring buffer filled ouptput values to csv
+			//It is possible that one of the stamp buffers has less stamps -- ignore it and write the rest
+
+			int ringBufferIndex = (testFrameCounter % stampRingBufferSize);
+			if (ringBufferIndex == 0)
+			{
+				WriteRingBufferToCSV(csvFileOutput);
+			}
+			stampRingBuffer[ringBufferIndex] = stamps;
+		}
+
+		//Consume stamp buffer
+
+		switch (state)
+		{
+		case SeqState::Move:
+
+		{
+			//For now simply set the camera state
+			SetCamera(m_targetCameraIndex);
+			//And go to Dwell stage
+			state = SeqState::Dwell;
+			stateTimer = 0.0;
+		}
+		break;
+
+		case SeqState::Dwell:
+			//Wait for the specific time
+			if (stateTimer >= sequence->cameraStops[m_targetCameraIndex].dwellTime)
+			{
+				state = SeqState::Finalize;
+				stateTimer = 0.0;
+			}
+			break;
+		case SeqState::Finalize:
+		{
+			//Increment the camera state to be used
+			m_targetCameraIndex++;
+			//Reset if the cameras states are exhaused
+			if (m_targetCameraIndex >= sequence->cameraStops.size())
+				Reset();
+
+			state = SeqState::Move;
+			stateTimer = 0.0;
+		}
+		break;
+		}
+		m_TargetCamera.Update();
+		testFrameCounter++;
+	}
+	bool IsRunning() const {
+		return paused == false;
+	}
 
 	void RenderImGui()
 	{
-
 		// Your ImGui UI code here
 		ImGui::Begin("Sequence Runner");
-        
 
-        ImGui::DragInt("CameraPosition", &m_targetCameraIndex, 0.2f,0, sequence->cameraStops.size());
+		ImGui::DragInt("CameraPosition", &m_targetCameraIndex, 0.2f, 0, sequence->cameraStops.size());
 
-
-        bool go = false;
+		bool go = false;
 		if (ImGui::Checkbox("Go To Camera", &go))
 		{
-            SetCamera(m_targetCameraIndex);
-
+			SetCamera(m_targetCameraIndex);
 		}
-        std::string debugStateTimer = "State Timere" + std::to_string(stateTimer);
-        
-        ImGui::Text(debugStateTimer.c_str());
+		std::string debugStateTimer = "State Timere" + std::to_string(stateTimer);
+
+		ImGui::Text(debugStateTimer.c_str());
+		if (this->IsRunning())
+			ImGui::Text("Running");
+		else
+			ImGui::Text("Paused");
+		if (EngineProfiling::IsPaused())
+			ImGui::Text("Not Profiling");
+		else
+			ImGui::Text("Profiling");
+
 		ImGui::End();
-
 	}
-    void SetSequence(SequenceConfig* scfg)
-    {
-        this->sequence = scfg;
-
-    }
+	void SetSequence(SequenceConfig* scfg)
+	{
+		this->sequence = scfg;
+	}
 private:
-    SeqState state = SeqState::Idle;
-    //size_t currentIndex = 0;
-    double stateTimer = 0.0;
-    Vector3 startPos, targetPos;
-    Quaternion startRot, targetRot;
-    bool paused = false;
+	SeqState state = SeqState::Idle;
+	double stateTimer = 0.0;
+	Vector3 startPos, targetPos;
+	Quaternion startRot, targetRot;
+	bool paused = false;
 
-    SequenceConfig* sequence = nullptr; // loaded config
-    //MetricsLogger* logger = nullptr;
+	SequenceConfig* sequence = nullptr; // loaded config
+	std::ofstream csvFileOutput;
+	std::vector<std::vector<StageStamp>> stampRingBuffer;
+	int stampRingBufferSize;
+	bool hasWrittenHeader = false;
+	int m_targetCameraIndex = 0;
+	//MetricsLogger* logger = nullptr;
 };
-
-
