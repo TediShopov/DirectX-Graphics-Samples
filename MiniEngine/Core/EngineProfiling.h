@@ -18,6 +18,13 @@
 
 class CommandContext;
 
+    struct StageStamp {
+    std::string name;
+    float gpuMs = 0.0f;
+    float cpuMs = 0.0f;
+    uint64_t tickStart  = 0;
+    uint64_t tickEnd  = 0;
+};
 namespace EngineProfiling
 {
     void Initialize();
@@ -33,6 +40,14 @@ namespace EngineProfiling
     bool BeginSamplerSession();
     bool ConsumeSampler(std::ostream& outStream);
     bool OutputMetricsHeader(std::ostream& OutStream);
+    //Retrieves the frame index of the frame last stage stamp were collected
+    uint32_t GetFrameStampCollected();
+    std::vector<StageStamp> GetStageStamps();
+
+
+    bool SetCaptureFrame(bool a);
+    bool GetCaptureFrame();
+    bool CaptureRenderTarget(ID3D12Resource* tex);
     
 
 

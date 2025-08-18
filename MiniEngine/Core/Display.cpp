@@ -394,7 +394,14 @@ void Graphics::PreparePresentHDR(void)
         CompositeOverlays(Context);
     }
 
+    if (EngineProfiling::GetCaptureFrame())
+    {
+        EngineProfiling::CaptureRenderTarget(*g_DisplayPlane[g_CurrentBuffer].GetAddressOf());
+
+    }
+
     Context.TransitionResource(g_DisplayPlane[g_CurrentBuffer], D3D12_RESOURCE_STATE_PRESENT);
+
 
     // Close the final context to be executed before frame present.
     Context.Finish();
@@ -468,9 +475,16 @@ void Graphics::PreparePresentSDR(void)
             Context.Draw(3);
         }
 
+
+
         CompositeOverlays(Context);
     }
 
+    if (EngineProfiling::GetCaptureFrame())
+    {
+		EngineProfiling::CaptureRenderTarget(*g_DisplayPlane[g_CurrentBuffer].GetAddressOf());
+
+    }
 
     Context.TransitionResource(g_DisplayPlane[g_CurrentBuffer], D3D12_RESOURCE_STATE_PRESENT);
 

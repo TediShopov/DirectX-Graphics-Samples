@@ -118,6 +118,7 @@
     <ClInclude Include="ReadbackBuffer.h" />
     <ClInclude Include="RootSignature.h" />
     <ClInclude Include="SamplerManager.h" />
+    <ClInclude Include="ScreenGrab12.h" />
     <ClInclude Include="ShadowBuffer.h" />
     <ClInclude Include="ShadowCamera.h" />
     <ClInclude Include="SSAO.h" />
@@ -178,6 +179,7 @@
     <ClCompile Include="ReadbackBuffer.cpp" />
     <ClCompile Include="RootSignature.cpp" />
     <ClCompile Include="SamplerManager.cpp" />
+    <ClCompile Include="ScreenGrab12.cpp" />
     <ClCompile Include="ShadowBuffer.cpp" />
     <ClCompile Include="ShadowCamera.cpp" />
     <ClCompile Include="SSAO.cpp" />

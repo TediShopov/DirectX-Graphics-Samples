@@ -387,11 +387,6 @@ void ModelViewer::UpdateInput(float deltaT)
 	}
 
 
-    if (GameInput::IsFirstPressed(GameInput::kKey_space))
-    {
-        //EngineProfiling::CollectReport();
-        //EngineProfiling::EndSessoin();
-    }
 
 
 	if (GameInput::IsFirstPressed(GameInput::kKey_space))

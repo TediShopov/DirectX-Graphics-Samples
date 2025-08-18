@@ -94,6 +94,14 @@ namespace GameCore
         UiContext.Finish();
         //EngineProfiling::OnFrameEnd();
 
+		if (GameInput::IsFirstPressed(GameInput::DigitalInput::kKey_q))
+		{
+			//EngineProfiling::CaptureRenderTarget(*Graphics::g_SceneColorBuffer.GetAddressOf());
+			//EngineProfiling::CaptureRenderTarget(*Graphics::g_OverlayBuffer.GetAddressOf());
+			//EngineProfiling::CaptureRenderTarget(*Graphics::g_SceneNormalBuffer.GetAddressOf());
+			EngineProfiling::SetCaptureFrame(true);
+
+		}
 
         Display::Present();
 

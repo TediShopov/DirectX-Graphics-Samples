@@ -1845,23 +1845,14 @@ XMVECTOR VectorProjection(XMVECTOR u, XMVECTOR v, float* scalarOut)
 
 		if (m_stopSurfelUpdate == false)
 		{
-			if (m_useSSRMonly == false)
-			{
-				cfx.InsertUAVBarrier(SurfelIllumination->m_SurfelData.m_GPUBuffer);
-				gfxContext.InsertUAVBarrier(SurfelIllumination->m_SurfelData.m_GPUBuffer);
-				SurfelIrradianceAccumulation::DoRaytracing(
-					cfx,
-					camera,
-					SurfelIllumination->descriptorHeap,
-					SurfelIllumination->m_SurfelGen.UniformGrid,
-					SurfelIllumination->m_SurfelData.m_Actual);
-			}
-			else
-			{
-				cfx.InsertUAVBarrier(SurfelIllumination->m_SurfelData.m_GPUBuffer);
-				SSRMIrradianceAccumulation.Dispatch(cfx, camera, &SurfelIllumination->m_SurfelGen);
-			}
-
+			cfx.InsertUAVBarrier(SurfelIllumination->m_SurfelData.m_GPUBuffer);
+			gfxContext.InsertUAVBarrier(SurfelIllumination->m_SurfelData.m_GPUBuffer);
+			SurfelIrradianceAccumulation::DoRaytracing(
+				cfx,
+				camera,
+				SurfelIllumination->descriptorHeap,
+				SurfelIllumination->m_SurfelGen.UniformGrid,
+				SurfelIllumination->m_SurfelData.m_Actual);
 		}
 
 

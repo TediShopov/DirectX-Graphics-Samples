@@ -18,7 +18,7 @@
 #include "TextRenderer.h"
 #include "GraphRenderer.h"
 #include "GameInput.h"
-#include "GpuTimeManager.h"
+#include "GpuTimeManager.h" 
 #include "CommandContext.h"
 #include <vector>
 #include <unordered_map>
@@ -40,6 +40,9 @@
 
 #include <locale>
 #include <codecvt>
+
+#include <wincodec.h>
+#include "ScreenGrab12.h"
 
 using namespace Graphics;
 using namespace GraphRenderer;
@@ -340,6 +343,10 @@ public:
         for (auto node : m_Children)
             node->GatherTimes(FrameIndex);
 
+        m_PrevStartTick = m_StartTick;
+        m_PrevEndTick = m_EndTick;
+
+
         m_StartTick = 0;
         m_EndTick = 0;
     }
@@ -397,6 +404,20 @@ public:
     }
     bool IsGraphed(){ return m_IsGraphed;}
 
+    StatHistory m_CpuTime;
+    StatHistory m_GpuTime;
+    static StatHistory s_TotalCpuTime;
+    static StatHistory s_TotalGpuTime;
+    static StatHistory s_FrameDelta;
+    static NestedTimingTree sm_RootScope;
+
+    // In NestedTimingTree (public):
+	 const std::wstring& GetName() const  { return m_Name; }
+	 float GetGpuHistoryValueAt(uint32_t frameIndex) const { return m_GpuTime.GetLast(); }
+	 float GetCpuHistoryValueAt(uint32_t frameIndex) const { return m_CpuTime.GetLast(); }
+	 float GetLastStartTick() const { return m_PrevStartTick; }
+	 float GetLastEndTick() const { return m_PrevEndTick; }
+	 const std::vector<NestedTimingTree*>& GetChildren() const  { return m_Children; }
 private:
 
     void DisplayNode( TextContext& Text, float x, float indent );
@@ -414,20 +435,21 @@ private:
     unordered_map<wstring, NestedTimingTree*> m_LUT;
     int64_t m_StartTick;
     int64_t m_EndTick;
-    StatHistory m_CpuTime;
-    StatHistory m_GpuTime;
+
+    //Updated after gather times
+    int64_t m_PrevStartTick;
+    int64_t m_PrevEndTick;
+
     bool m_IsExpanded;
     GpuTimer m_GpuTimer;
     bool m_IsGraphed;
     GraphHandle m_GraphHandle;
-    static StatHistory s_TotalCpuTime;
-    static StatHistory s_TotalGpuTime;
-    static StatHistory s_FrameDelta;
-    static NestedTimingTree sm_RootScope;
     static NestedTimingTree* sm_CurrentNode;
     static NestedTimingTree* sm_SelectedScope;
 
     static bool sm_CursorOnGraph;
+
+
 
 };
 
@@ -438,8 +460,10 @@ NestedTimingTree NestedTimingTree::sm_RootScope(L"");
 NestedTimingTree* NestedTimingTree::sm_CurrentNode = &NestedTimingTree::sm_RootScope;
 NestedTimingTree* NestedTimingTree::sm_SelectedScope = &NestedTimingTree::sm_RootScope;
 bool NestedTimingTree::sm_CursorOnGraph = false;
+
 namespace EngineProfiling
 {
+    bool captureFrame =false;
 	using namespace nv::perf;
 	profiler::ReportGeneratorD3D12 m_nvperf;
 
@@ -448,6 +472,13 @@ namespace EngineProfiling
 	MetricsEvaluator m_metricEvaluator;
 	CounterConfiguration m_counterConfiguration;
 	uint64_t frameIndex;
+
+	uint32_t frameStageStampsCollected;
+	std::vector<StageStamp> stageStamps;
+
+	using convert_type = std::codecvt_utf8<wchar_t>;
+	std::wstring_convert<convert_type, wchar_t> converter;
+    
 
 	std::vector<NVPW_MetricEvalRequest> m_metricEvalRequests; // This is used in both scheduling and subsequently evaluating the values.
 	//	hud::HudImPlotRenderer m_hudRenderer;
@@ -471,6 +502,30 @@ namespace EngineProfiling
 			throw std::runtime_error(pMessage);
 		}
 	}
+
+    bool SetCaptureFrame(bool a ) {
+
+        captureFrame = a;
+        return a;
+
+    }
+    bool GetCaptureFrame() {
+        return captureFrame;
+
+    }
+    bool CaptureRenderTarget(ID3D12Resource* tex) {
+
+        HRESULT res = SaveWICTextureToFile(
+            Graphics::g_CommandManager.GetGraphicsQueue().GetCommandQueue(),
+            tex,
+            GUID_ContainerFormatPng,
+            L"screenshot.png",
+            D3D12_RESOURCE_STATE_RENDER_TARGET,
+            D3D12_RESOURCE_STATE_RENDER_TARGET);
+        captureFrame = false;
+        return true;
+
+    }
 	void Initialize()
 	{
 		//m_nvperf.additionalMetrics = { "crop__write_throughput" };
@@ -530,8 +585,6 @@ namespace EngineProfiling
 
 
 
-		using convert_type = std::codecvt_utf8<wchar_t>;
-		std::wstring_convert<convert_type, wchar_t> converter;
 		//use converter (.to_bytes: wstr->str, .from_bytes: str->wstr)
 
 		std::wstring string_to_convert = L"Assam";
@@ -603,6 +656,28 @@ namespace EngineProfiling
         return true;
 	}
 
+// Depth-first traversal skipping the root’s empty label
+static void CollectPerStageStamps(uint32_t frameIndex,
+                                  const NestedTimingTree* node,
+                                  std::vector<StageStamp>& out)
+{
+	if (!node) return;
+
+	if (!node->GetName().empty()) {
+		StageStamp s;
+
+		std::wstring string_to_convert = node->GetName();
+		std::string converted_str = converter.to_bytes(string_to_convert);
+		s.name = converted_str;
+		s.gpuMs = node->GetGpuHistoryValueAt(frameIndex);
+		s.cpuMs = node->GetCpuHistoryValueAt(frameIndex);
+		s.tickStart = node->GetLastStartTick();
+		s.tickEnd = node->GetLastEndTick();
+		out.emplace_back(std::move(s));
+	}
+	for (auto* c : node->GetChildren())
+		CollectPerStageStamps(frameIndex, c, out);
+}
 	bool ConsumeSampler(std::ostream& OutStream)
 	{
 
@@ -709,7 +784,23 @@ namespace EngineProfiling
 			Paused = !Paused;
 		}
 		NestedTimingTree::UpdateTimes();
+		{
+			frameStageStampsCollected = (uint32_t)Graphics::GetFrameCount();
+            stageStamps.clear();
+			CollectPerStageStamps(frameStageStampsCollected, &NestedTimingTree::sm_RootScope, stageStamps);
+
+		}
+
 	}
+
+    uint32_t GetFrameStampCollected() 
+    {
+        return frameStageStampsCollected;
+    }
+    std::vector<StageStamp> GetStageStamps() {
+        return stageStamps;
+
+    }
 
 	void BeginBlock(const wstring& name, CommandContext* Context)
 	{

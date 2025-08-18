@@ -22,6 +22,7 @@ public:
     }
 
     std::ofstream csvFileOutput;
+    bool hasWrittenHeader = false;
     
     bool OpenCSVStream(std::string path)
     {
@@ -29,7 +30,7 @@ public:
         csvFileOutput = std::ofstream(path);
         if (!csvFileOutput.is_open())
             return false;
-        EngineProfiling::OutputMetricsHeader(csvFileOutput);
+
     }
 
 
@@ -38,6 +39,7 @@ public:
         paused = false;
         //CSV Stream For Ouput
         OpenCSVStream("metrics.csv");
+        //EngineProfiling::OutputMetricsHeader(csvFileOutput);
         //Starting The Sample Session
         EngineProfiling::BeginSamplerSession();
 
@@ -52,8 +54,10 @@ public:
 
     }
     void Reset() {
+        csvFileOutput.close();
 		m_targetCameraIndex = 0;
 		paused = true;
+        hasWrittenHeader = false;
 		state = SeqState::Idle;
 
 
@@ -77,6 +81,39 @@ public:
 
     float timer = 0.0f;
     int timeCounter = 0;
+
+    void WriteCSVHeader(std::ostream& outStream,std::vector<StageStamp>& stamps)
+    {
+		outStream << "Frame" << ", ";
+        for each (StageStamp s in stamps)
+        {
+            outStream << s.name << "_CPU" << ", ";
+        }
+        for each (StageStamp s in stamps)
+        {
+            outStream << s.name << "_GPU" << ", ";
+        }
+        outStream << "\n";
+
+    }
+    void WriteCSVPerStageValues(std::ostream& outStream, std::vector<StageStamp> stamps, uint32_t frameIndex)
+    {
+		outStream << frameIndex << ", ";
+        for each (StageStamp s in stamps)
+        {
+            outStream << s.cpuMs << ", ";
+        }
+        for each (StageStamp s in stamps)
+        {
+            outStream << s.gpuMs << ", ";
+        }
+        outStream << "\n";
+
+
+    }
+
+
+
     void Update(float deltaTime) override {
 		//if (paused || state == SeqState::Idle) return;
 		if (paused ) return;
@@ -89,7 +126,22 @@ public:
         SetCamera(m_targetCameraIndex);
         //EngineProfiling::ConsumeSampler((std::ostream)csvFileOutput);
 
-        EngineProfiling::ConsumeSampler(csvFileOutput);
+        
+        //EngineProfiling::ConsumeSampler(csvFileOutput);
+        //Output per-stage nested timestamps
+        auto frameIndex = EngineProfiling::GetFrameStampCollected();
+        auto stamps = EngineProfiling::GetStageStamps();
+        if (this->hasWrittenHeader == false)
+        {
+            WriteCSVHeader(csvFileOutput,stamps);
+            this->hasWrittenHeader = true;
+        }
+        else
+        {
+            WriteCSVPerStageValues(csvFileOutput, stamps, frameIndex);
+        }
+
+        
 //        if (timeCounter > 10)
 //            Pause();
 
