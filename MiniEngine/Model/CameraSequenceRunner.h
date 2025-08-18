@@ -32,6 +32,7 @@ protected:
 	void WriteCSVHeader(std::ostream& outStream, std::vector<StageStamp>& stamps)
 	{
 		outStream << "Frame" << ", ";
+		outStream << "CameraIndex" << ", ";
 		for each (StageStamp s in stamps)
 		{
 			outStream << s.name << "_CPU" << ", ";
@@ -45,6 +46,7 @@ protected:
 	void WriteCSVPerStageValues(std::ostream& outStream, std::vector<StageStamp> stamps, uint32_t frameIndex)
 	{
 		outStream << frameIndex << ", ";
+		outStream << m_targetCameraIndex << ", ";
 		for each (StageStamp s in stamps)
 		{
 			outStream << s.cpuMs << ", ";
@@ -94,6 +96,7 @@ public:
 		hasWrittenHeader = false;
 
 		m_targetCameraIndex = 0;
+		m_targetRunIndex = 0;
 
 		csvFileOutput.close();
 
@@ -101,6 +104,7 @@ public:
 	}
 	float timer = 0.0f;
 	int testFrameCounter = 0;
+	int stateFrameCounter = 0;
 
 	void WriteRingBufferToCSV(std::ostream& outStrea)
 	{
@@ -169,15 +173,17 @@ public:
 			//And go to Dwell stage
 			state = SeqState::Dwell;
 			stateTimer = 0.0;
+			stateFrameCounter = 0.0;
 		}
 		break;
 
 		case SeqState::Dwell:
 			//Wait for the specific time
-			if (stateTimer >= sequence->cameraStops[m_targetCameraIndex].dwellTime)
+			//if (stateTimer >= sequence->cameraStops[m_targetCameraIndex].dwellTime)
+			if (stateFrameCounter >= sequence->cameraStops[m_targetCameraIndex].dwellTime)
 			{
 				state = SeqState::Finalize;
-				stateTimer = 0.0;
+				stateFrameCounter = 0.0;
 			}
 			break;
 		case SeqState::Finalize:
@@ -202,11 +208,13 @@ public:
 
 			state = SeqState::Move;
 			stateTimer = 0.0;
+			stateFrameCounter = 0.0;
 		}
 		break;
 		}
 		m_TargetCamera.Update();
 		testFrameCounter++;
+		stateFrameCounter++;
 	}
 	bool IsRunning() const {
 		return paused == false;

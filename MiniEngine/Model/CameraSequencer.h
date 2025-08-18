@@ -14,7 +14,7 @@ struct CameraStop
 {
 	Vector3 position;
 	Quaternion rotation;
-    float dwellTime;
+    int dwellTime;
 };
 
 
@@ -123,7 +123,7 @@ public:
 
 
 	}
-	void AddStop(const Math::Camera& Camera, float dwell = 2.0f) {
+	void AddStop(const Math::Camera& Camera, int dwell = 60) {
 		CameraStop stop;
 		stop.position = Camera.GetPosition();
 		stop.rotation = Camera.GetRotation();
