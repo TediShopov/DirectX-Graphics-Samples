@@ -45,6 +45,7 @@
 #include "Imgui/imgui-master/backends/imgui_impl_win32.h"
 #include "Imgui/imgui-master/backends/imgui_impl_dx12.h"
 #include "ExtendedUtility.h"
+#include "SurfelGI.h"
 
 #define LEGACY_RENDERER
 
@@ -291,7 +292,7 @@ void ModelViewer::Startup( void )
     if (CommandLineArgs::GetString(L"model", gltfFileName) == false)
     {
 #ifdef LEGACY_RENDERER
-        TestRenderer::Startup(m_Camera,g_hWnd);
+        TestRenderer::Startup(m_Camera,m_CameraSequence.m_parametersBlocks,g_hWnd);
         //Sponza::Startup(m_Camera);
 #else
         m_ModelInst = Renderer::LoadModel(L"Sponza/PBR/sponza2.gltf", forceRebuild);

@@ -7,6 +7,7 @@
 #include <sstream>
 #include "json.hpp"
 #include <fstream>
+#include "IParameterBlock.h"
 
 using namespace Math;
 
@@ -45,12 +46,16 @@ class CameraSequencer
 private:
 	SequenceConfig m_config;
 	bool m_expanded = true;
+	bool m_parameterSection = true;
 	bool m_save, m_load, m_reset;
 public:
 	const std::string TestFolder = "Tests/";
 	bool m_pathLoaded = false;
 	std::string m_targetName = "NONE";			// The path visualized in the ImGui that will Save/Load from
 	std::string m_targetPath = "NONE";			// The path visualized in the ImGui that will Save/Load from
+
+	std::vector<IParameterBlock*> m_parametersBlocks;
+	
 	CameraSequencer()
 	{
 		m_config.captureScreenshots = false;
@@ -83,6 +88,9 @@ public:
 		m_config.logMetrics = j.value("logMetrics", true);
 		m_config.captureScreenshots = j.value("captureScreenshots", true);
 		m_config.testSamples = j.value("testSamples", m_config.testSamples);
+
+		for each (auto paramBlock in m_parametersBlocks)
+			paramBlock->FromJson(j);
 		
 
 		return true;
@@ -95,6 +103,7 @@ public:
 		j["logMetrics"] = m_config.logMetrics;
 		j["captureScreenshots"] = m_config.captureScreenshots;
 		j["cameraStops"] = nlohmann::json::array();
+
 
 		XMFLOAT3 pos;
 		XMFLOAT4 rot;
@@ -110,6 +119,9 @@ public:
 
 			j["cameraStops"].push_back(stop);
 		}
+
+		for each (auto paramBlock in m_parametersBlocks)
+			paramBlock->ToJson(j);
 
 		std::ofstream f(path);
 		if (!f.is_open()) return false;
@@ -149,17 +161,30 @@ public:
 		ImGui::Begin("Camera Sequence Debug View");
 
 
-		if(ImGui::InputText("Target Test File",X(m_targetName),X::len()))
+		if (ImGui::InputText("Target Test File", X(m_targetName), X::len()))
 		{
 			int a = 3;
 		}
 		m_targetPath = TestFolder + m_targetName + ".json";
+
+		for each (auto paramBlock in m_parametersBlocks)
+		{
+			paramBlock->RenderImGui();
+		}
+
 
 		std::ostringstream displayNameSection;
 		displayNameSection << "Camera Sequence: " << m_targetPath;
 
 		ImGui::DragInt("Test Samples", &m_config.testSamples, 0.2, 0, 100);
 
+		if (ImGui::CollapsingHeader("TestParamtere", &m_parameterSection))
+		{
+			//Surfel GI Parameters
+
+
+
+		}
 		if (ImGui::CollapsingHeader(displayNameSection.str().c_str(), &m_expanded))
 		{
 			std::ostringstream debugStringCameraStops;
@@ -192,7 +217,7 @@ public:
 				LoadConfig(m_targetPath);
 				m_load = false;
 			}
-			if (ImGui::Checkbox("Reset", &m_reset)) 
+			if (ImGui::Checkbox("Reset", &m_reset))
 			{
 				Reset();
 				m_reset = false;

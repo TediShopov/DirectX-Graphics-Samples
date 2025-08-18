@@ -256,7 +256,7 @@ UINT TestRenderer::frameIndex = 0;
 
 	}
 	///--- INTIIALIZATION ---
-	void TestRenderer::Startup(Math::Camera& camera, HWND hwnd)
+	void TestRenderer::Startup(Math::Camera& camera,std::vector<IParameterBlock*>& parameters, HWND hwnd)
 	{
 		//		DragonModel.Load(L"OBJ/Dragon.obj");
 		//		DragonModel.Load(L"D:/MScSurfelBasedGI/DirectX-Graphics-Samples/MiniEngine/Model/OBJ/Dragon.obj");
@@ -284,6 +284,7 @@ UINT TestRenderer::frameIndex = 0;
 		//m_SequenceRunner = new CameraSequenceRunner(&camera);
 		//m_CameraSequence.LoadConfig("DebugConfigPath.json");
 
+		parameters.push_back(SurfelIllumination);
 
 		m_Sphere = nullptr;
 		m_Disc = nullptr;
@@ -1175,7 +1176,7 @@ UINT TestRenderer::frameIndex = 0;
 			Matrix4 cameraWorldMatrix;
 			Matrix4 inverseViewMatrix;
 			Matrix4 inverseProjMatrix;
-			Vector3 cameraPosition;
+			Vector3 CameraPosition;
 		};
 		__declspec(align(16)) struct SSRParameters
 		{
@@ -1203,7 +1204,7 @@ UINT TestRenderer::frameIndex = 0;
 
 		commonSSR.cameraData.inverseProjMatrix = Matrix4(XMMatrixInverse(nullptr,camera.GetProjMatrix()));
 		commonSSR.cameraData.inverseViewMatrix = Matrix4(XMMatrixInverse(nullptr,camera.GetViewMatrix()));
-		commonSSR.cameraData.cameraPosition = camera.GetPosition();
+		commonSSR.cameraData.CameraPosition = camera.GetPosition();
 
 		//Transpose all matrices if necessary
 		commonSSR.cameraData.cameraProjMatrix = Matrix4(XMMatrixTranspose(commonSSR.cameraData.cameraProjMatrix));
@@ -1375,17 +1376,17 @@ UINT TestRenderer::frameIndex = 0;
 		if (ImGui::CollapsingHeader("Spawning Thresholds", &spawnThresholdsCollapsingHeader))
 		{
 
-			ImGui::DragInt("Per Cell Surfel Limit", &SurfelIllumination->m_SurfelGen.kPerCellSurfelLimit);
-			ImGui::DragFloat("Placement Threshold", &SurfelIllumination->m_SurfelGen.gPlacementThreshold,0.1f,0.0f,10.0f);
-			ImGui::DragFloat("Removal Threshold", &SurfelIllumination->m_SurfelGen.gRemovalThreshold,0.1f,0.0f,10.0f);
+			ImGui::DragInt("Per Cell Surfel Limit", & SurfelIllumination->m_SurfelGen.SurfelCellLimit);
+			ImGui::DragFloat("Placement Threshold", &SurfelIllumination->m_SurfelGen.PlacementThreshold,0.1f,0.0f,10.0f);
+			ImGui::DragFloat("Removal Threshold", &SurfelIllumination->m_SurfelGen.RemovalTreshold,0.1f,0.0f,10.0f);
 		}
 
 		static bool spawnChancesCollapsingHeader = true;
 		if(ImGui::CollapsingHeader("Spawn Chances", &spawnChancesCollapsingHeader))
 		{
 			//Used for altering the 0-1 range chance
-			ImGui::DragFloat("Chance Power", &SurfelIllumination->m_SurfelGen.gChancePower,0.01f,0.01f,1.2f);
-			ImGui::DragFloat("Chance Mulitply", &SurfelIllumination->m_SurfelGen.gChanceMultiply,1,1,150);
+			ImGui::DragFloat("Chance Power", &SurfelIllumination->m_SurfelGen.SpawnChancePower,0.01f,0.01f,1.2f);
+			ImGui::DragFloat("Chance Mulitply", &SurfelIllumination->m_SurfelGen.SpawnChanceMultiplier,1,1,150);
 			ImGui::DragFloat("AO Threhold", &SurfelIllumination->m_SurfelGen.AOVariables.x, 0.01f, 0.0f, 1.0f);
 			ImGui::DragFloat("Surfel Cap Min Radius", &SurfelIllumination->m_SurfelGen.AOVariables.y, 1.0f, 1.0f, 300.0f);
 			ImGui::DragFloat("Surlfe Cap Max Radius", &SurfelIllumination->m_SurfelGen.AOVariables.z, 1.0f, 1.0f, 300.0f);

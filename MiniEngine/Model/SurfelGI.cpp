@@ -26,7 +26,7 @@
 
   void SurfelGI::UpdateProjection(const Camera& camera)
 {
-	m_SurfelGen.cameraPosition = camera.GetPosition();
+	m_SurfelGen.CameraPosition = camera.GetPosition();
 	Matrix4 invViewProj = Invert(camera.GetViewProjMatrix());
 	Vector3 mathPos = camera.GetPosition();
 
@@ -353,21 +353,21 @@
 	  m_SurfelGen.DepthThreshold = 0.1;
 	  m_SurfelGen.FrameIndex = 0;
 	  m_SurfelGen.MaxSurfels = _SURFEL_MAX_COUNT_;
-	  m_SurfelGen.CurrentSurfelCount = 0;
+	  m_SurfelGen.SurfelCount = 0;
 	  m_SurfelGen.NormalThreshold = 0.5;
-	  m_SurfelGen.kPerCellSurfelLimit = _SURFEL_PER_CELL;
-	  m_SurfelGen.minRadius = 15;
-	  m_SurfelGen.maxRadius = 90;
+	  m_SurfelGen.SurfelCellLimit = _SURFEL_PER_CELL;
+	  m_SurfelGen.MinRadius = 15;
+	  m_SurfelGen.MaxRadius = 90;
 
 	  m_SurfelGen.AOVariables.x = 0.5f;
 	  m_SurfelGen.AOVariables.y = 6;
 	  m_SurfelGen.AOVariables.z = 200;
 	  m_SurfelGen.AOVariables.w = 0.5f;
 
-	  m_SurfelGen.gPlacementThreshold = 1;
-	  m_SurfelGen.gRemovalThreshold = 3;
-	  m_SurfelGen.gChancePower = 0.5f;
-	  m_SurfelGen.gChanceMultiply = 10.0f;
+	  m_SurfelGen.PlacementThreshold = 1;
+	  m_SurfelGen.RemovalTreshold = 3;
+	  m_SurfelGen.SpawnChancePower = 0.5f;
+	  m_SurfelGen.SpawnChanceMultiplier = 10.0f;
 
 	  m_SurfelGen.UniformGrid.cellSize = Vector4(100, 100, 100, 100);
 	  m_SurfelGen.UniformGrid.gridOrigin = Vector4(-2000, -2000, -2000, -2000);

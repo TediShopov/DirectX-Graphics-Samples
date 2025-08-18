@@ -120,6 +120,7 @@
     <ClCompile Include="CameraSequenceRunner.cpp" />
     <ClCompile Include="PerfSdkMinimal.cpp" />
     <ClCompile Include="AdditiveBlendPass.cpp" />
+    <ClCompile Include="IParameterBlock.cpp" />
   </ItemGroup>
   <ItemGroup>
     <Filter Include="Source Files">
@@ -248,6 +249,7 @@
     <ClInclude Include="CameraSequenceRunner.h" />
     <ClInclude Include="PerfSdkMinimal.h" />
     <ClInclude Include="AdditiveBlendPass.h" />
+    <ClInclude Include="IParameterBlock.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="Shaders\Common.hlsli">

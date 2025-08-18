@@ -26,7 +26,7 @@ class SurfelSSRMIrradianceAccumulation
 		Matrix4 cameraWorldMatrix;
 		Matrix4 inverseViewMatrix;
 		Matrix4 inverseProjMatrix;
-		Vector3 cameraPosition;
+		Vector3 CameraPosition;
 	};
 	__declspec(align(16)) struct SSRParameters
 	{

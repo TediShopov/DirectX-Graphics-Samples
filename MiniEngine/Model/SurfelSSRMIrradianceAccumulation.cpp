@@ -85,7 +85,7 @@
 
 	 commonSSR.cameraData.inverseProjMatrix = Matrix4(XMMatrixInverse(nullptr, camera.GetProjMatrix()));
 	 commonSSR.cameraData.inverseViewMatrix = Matrix4(XMMatrixInverse(nullptr, camera.GetViewMatrix()));
-	 commonSSR.cameraData.cameraPosition = camera.GetPosition();
+	 commonSSR.cameraData.CameraPosition = camera.GetPosition();
 
 	 //Transpose all matrices if necessary
 	 commonSSR.cameraData.cameraProjMatrix = Matrix4(XMMatrixTranspose(commonSSR.cameraData.cameraProjMatrix));

@@ -98,6 +98,7 @@
     <ClInclude Include="HBILInterleaved.h" />
     <ClInclude Include="Imgui\imgui-master\imgui.h" />
     <ClInclude Include="IndexOptimizePostTransform.h" />
+    <ClInclude Include="IParameterBlock.h" />
     <ClInclude Include="json.hpp" />
     <ClInclude Include="LightManager.h" />
     <ClInclude Include="MeshConvert.h" />
@@ -207,6 +208,7 @@
     <ClCompile Include="Imgui\imgui-master\imgui_tables.cpp" />
     <ClCompile Include="Imgui\imgui-master\imgui_widgets.cpp" />
     <ClCompile Include="IndexOptimizePostTransform.cpp" />
+    <ClCompile Include="IParameterBlock.cpp" />
     <ClCompile Include="LightManager.cpp" />
     <ClCompile Include="MeshConvert.cpp" />
     <ClCompile Include="Model.cpp" />

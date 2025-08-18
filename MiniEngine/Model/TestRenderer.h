@@ -5,6 +5,7 @@
 #include "Geometry/SphereMesh.h"
 #include "Geometry/DiscMesh.h"
 #include "Geometry/Transform.h"
+#include "IParameterBlock.h"
 
 
 class GraphicsContext;
@@ -29,7 +30,7 @@ class GBufferSlice;
 using namespace Math;
 
 //namespace TestRenderer
-class TestRenderer
+class TestRenderer 
 {
 public:
 	//--- DEFINES ---
@@ -71,7 +72,7 @@ public:
 	 static Math::Camera lastUsedCamera;
 
 	//--- INITTIALIZATOIN ---
-	static void Startup(Math::Camera& camera, HWND hwnd);
+	static void Startup(Math::Camera& camera,std::vector<IParameterBlock*>& parameters, HWND hwnd);
 	static  void SetupScene();
 
 	//--- CLEANUP ---
