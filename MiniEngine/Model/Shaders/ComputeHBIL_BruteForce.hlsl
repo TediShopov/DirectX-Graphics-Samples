@@ -5,8 +5,6 @@
 #include "Global.hlsl"
 #include "HBIL.hlsl"
 
-#define MAX_ANGLES	8									// Amount of circle subdivisions per pixel
-#define MAX_SAMPLES	8									// Maximum amount of samples per circle subdivision
 
 Texture2D< float >	_tex_depth : register(t0);			// Depth or distance buffer (here we're given depth)
 Texture2D 	_tex_normal : register(t1);			// Camera-space normal vectors
@@ -42,6 +40,8 @@ cbuffer CB_HBIL : register( b3 ) {
 	float	_gatherSphereMaxRadius_m;		// Radius of the sphere that will gather our irradiance samples (in meters)
 	float	_gatherSphereMaxRadius_p;		// Radius of the sphere that will gather our irradiance samples (in pixels)
 	float	_temporalAttenuationFactor;		// Attenuation factor of radiance from previous frame
+    int _maxAngles;
+    int _maxSamples;
 };
 
 #define VIEW_RIGHT 0
@@ -91,7 +91,7 @@ float3	FetchRadiance( float2 _pixelPosition, float _mipLevel ) {
 // This clearly doesn't work: nasty silhouettes show up around objects
 float	ComputeMipLevel_Depth( float _radius_pixels, float _stepSize_pixels ) {
 //return _debugMipIndex;
-	float	pixelArea = PI / (2.0 * MAX_ANGLES) * 2.0 * _radius_pixels * _stepSize_pixels;
+	float	pixelArea = PI / (2.0 * _maxAngles) * 2.0 * _radius_pixels * _stepSize_pixels;
 	return 0.5 * log2( pixelArea ) * _bilateralValues.y;
 //	return 0.5 * log2( pixelArea ) * float2( 0, 2 );	// Unfortunately, sampling lower mips for depth gives very nasty halos! Maybe use max depth? Meh. Not conclusive either...
 //	return 1.5 * 0.5 * log2( pixelArea );
@@ -101,7 +101,7 @@ float	ComputeMipLevel_Depth( float _radius_pixels, float _stepSize_pixels ) {
 float	ComputeMipLevel_Radiance( float2 _ssPosition, float _centralZ, float _currentZ, float _radius_meters ) {
 	float	deltaZ = _centralZ - _currentZ;
 	float	distance = sqrt( _radius_meters*_radius_meters + deltaZ*deltaZ );	// Distance from origin
-	float	sphereRadius_meters = (0.5 * PI / MAX_ANGLES) * distance;			// Radius of the sphere (in meters) that will serve as footprint for mip computation
+	float	sphereRadius_meters = (0.5 * PI / _maxAngles) * distance;			// Radius of the sphere (in meters) that will serve as footprint for mip computation
 
 	// Estimate how many pixels a disc
 	float	screenSize_m = 2.0 * TAN_HALF_FOV * _currentZ;						// Size (in meters) covered by the entire screen at current Z
@@ -373,8 +373,8 @@ PS_OUT	main(PSInput input) {
     float meter2Pixel = _resolution.y / screenSize_m; // Gives us the conversion factor to go from meters to pixels
     float sphereRadius_pixels = meter2Pixel * _gatherSphereMaxRadius_m;
     sphereRadius_pixels = min(_gatherSphereMaxRadius_p, sphereRadius_pixels); // Prevent it to grow larger than our fixed limit
-    float radiusStepSize_pixels = max(1.0, sphereRadius_pixels / MAX_SAMPLES); // This gives us our radial step size in pixels
-    uint samplesCount = clamp(uint(ceil(sphereRadius_pixels / radiusStepSize_pixels)), 1, MAX_SAMPLES); // Reduce samples count if possible
+    float radiusStepSize_pixels = max(1.0, sphereRadius_pixels / _maxSamples); // This gives us our radial step size in pixels
+    uint samplesCount = clamp(uint(ceil(sphereRadius_pixels / radiusStepSize_pixels)), 1, _maxSamples); // Reduce samples count if possible
 //	float	radiusStepSize_meters = sphereRadius_pixels / (samplesCount * meter2Pixel);								// This gives us our radial step size in meters
     float radiusStepSize_meters = radiusStepSize_pixels / (csView.z * meter2Pixel); // This gives us our radial step size in meters
 
@@ -389,14 +389,10 @@ PS_OUT	main(PSInput input) {
     float4 wsSampleAverage = float4(0, 0, 0, 0);
     float wsAcceptedSamples = 0;
 	
-#if MAX_ANGLES > 1
 	[loop]
-    for (uint angleIndex = 0; angleIndex < MAX_ANGLES; angleIndex++)
-#else
-	uint	angleIndex = 0;
-#endif
+    for (uint angleIndex = 0; angleIndex < _maxAngles; angleIndex++)
     {
-        float phi = (angleIndex + phiNoise) * PI / MAX_ANGLES;
+        float phi = (angleIndex + phiNoise) * PI / _maxAngles;
 
 		// Build camera-space and screen-space walk directions
         float2 csDirection;
@@ -492,22 +488,19 @@ PS_OUT	main(PSInput input) {
 
 	// Use AO to compute cone angle
 #if USE_NORMAL_INFLUENCE_FOR_AO
-    sumAO /= MAX_ANGLES; // Normalize
+    sumAO /= _maxAngles; // Normalize
 #else
-		sumAO /= 2.0 * MAX_ANGLES;	// Normalize (remember here that the returned AO is in [0,2] range for each slice)
+		sumAO /= 2.0 * _maxAngles;	// Normalize (remember here that the returned AO is in [0,2] range for each slice)
 #endif
 
     float cosAverageConeAngle = 1.0 - sumAO;
 
-#if MAX_ANGLES > 1
-    varianceAO /= MAX_ANGLES;
-#endif
+    varianceAO /= _maxAngles;
     float stdDeviation = 0.5 * sqrt(varianceAO); // Now AO standard deviation in [0,1]
 
-    //wsSampleAverage.xyz /= 2 * (float) MAX_ANGLES;
     wsSampleAverage.xyz /= wsAcceptedSamples;
 	// Finalize irradiance
-    sumIrradiance *= PI / MAX_ANGLES;
+    sumIrradiance *= PI / _maxAngles;
     sumIrradiance = max(0.0, sumIrradiance);
 
     if (abs(UV.x - debugUv.x) < eps && abs(UV.y - debugUv.y) < eps)

@@ -89,6 +89,7 @@ __declspec(align(16)) struct SurfelGenCB
 	Vector3 CameraPosition; // Vector3 still occupy 16 bytes
 	XMFLOAT4 AOVariables; //Threshold and padding
 
+	Vector4 Resolution; 
 	UniformGrid UniformGrid;
 };
 __declspec(align(16)) struct SurfelDebugData
@@ -179,7 +180,7 @@ public:
 
 	UINT _CELL_COUNT_;
 	static const int _SURFEL_MAX_COUNT_ = 100000;
-	static const int _SURFEL_PER_CELL = 300;
+	static const int _SURFEL_PER_CELL = 250;
 	//static const int _SURFEL_PER_CELL = 500;
 	//static const int _SURFEL_PER_CELL = 1;
 

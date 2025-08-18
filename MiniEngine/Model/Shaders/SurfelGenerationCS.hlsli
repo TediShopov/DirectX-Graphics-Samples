@@ -25,23 +25,16 @@ void main(
     //surfleStackUAV[0] = 0;
 
     GroupMemoryBarrierWithGroupSync();
-
-
-    float3 gResolution;
-    gDepth.GetDimensions(0, gResolution.x, gResolution.y, gResolution.z);
-    if (dispatchThreadId.x >= gResolution.x || dispatchThreadId.y >= gResolution.y)
+    if (dispatchThreadId.x >= resolution.x || dispatchThreadId.y >= resolution.y)
         return;
-//    if (dispatchThreadId.x <= 0 || dispatchThreadId.y <= 0)
-//        return;
 
     uint2 tilePos = groupdId.xy;
     uint2 pixelPos = dispatchThreadId.xy;
 
     uint threadRandomnessSeed = GetThreadTemporalSeed(dispatchThreadId,FrameIndex);
 
-    int index = pixelPos.x * gResolution.x + pixelPos.y;
-    //float2 uv = float2(dispatchThreadId.xy) / float2(gResolution.x - 1, gResolution.y - 1);
-    float2 uv = float2(dispatchThreadId.xy) / float2(gResolution.x , gResolution.y );
+    int index = pixelPos.x * resolution.x + pixelPos.y;
+    float2 uv = float2(dispatchThreadId.xy) / float2(resolution.x , resolution.y );
     float4 sampledNormal = gNormal.SampleLevel(defaultSampler, uv, 0);
 
     //Create a random "state" 
@@ -104,7 +97,7 @@ void main(
                 float changeAgainst = RandomFloat01(threadRandomnessSeed);
 
                 if (changeAgainst < chanceSpawn) {
-                    SurfelData newSurfel = SurfelPrototype(worldPos,depthRaw.x, sampledNormal, gResolution.xy);
+                    SurfelData newSurfel = SurfelPrototype(worldPos,depthRaw.x, sampledNormal, resolution.xy);
 
                     AttemptSpawnSurfel(newSurfel);
                 }

@@ -59,6 +59,11 @@ protected:
 	}
 
 public:
+	bool m_NeedResetAlgorithm = false;
+	bool UseAugmentedAlgorithm()
+	{
+		return sequence->m_useAugmentedAlgorithm;
+	}
 	CameraSequenceRunner(Camera& camera) :CameraController(camera)
 	{
 		paused = true;
@@ -74,6 +79,7 @@ public:
 	}
 
 	void Start() {
+		m_NeedResetAlgorithm = true;
 		paused = false;
 
 		state = SeqState::Move;
@@ -92,6 +98,7 @@ public:
 		paused = false;
 	}
 	void Reset() {
+		m_NeedResetAlgorithm = true;
 		paused = true;
 		hasWrittenHeader = false;
 
@@ -195,6 +202,7 @@ public:
 			{
 				m_targetRunIndex++;
 				m_targetCameraIndex = 0;
+				m_NeedResetAlgorithm = true;
 				//Require that header is written every new run
 				hasWrittenHeader = false;
 				if (m_targetRunIndex >= sequence->testSamples)

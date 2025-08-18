@@ -23,6 +23,9 @@ cbuffer SurfelGenCB : register(b0)
     
     float4 cameraPosition;
     float4 AOVariables;
+
+    float2 resolution;
+    float2 padding;
     
     
     

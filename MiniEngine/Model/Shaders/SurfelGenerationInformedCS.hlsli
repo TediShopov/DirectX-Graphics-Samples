@@ -32,23 +32,17 @@ void main(
     //surfleStackUAV[0] = 0;
 
     GroupMemoryBarrierWithGroupSync();
-
-
-    float3 gResolution;
-    gDepth.GetDimensions(0, gResolution.x, gResolution.y, gResolution.z);
-    if (dispatchThreadId.x >= gResolution.x || dispatchThreadId.y >= gResolution.y)
+    if (dispatchThreadId.x >= resolution.x || dispatchThreadId.y >= resolution.y)
         return;
-//    if (dispatchThreadId.x <= 0 || dispatchThreadId.y <= 0)
-//        return;
 
     uint2 tilePos = groupdId.xy;
     uint2 pixelPos = dispatchThreadId.xy;
 
     uint threadRandomnessSeed = GetThreadTemporalSeed(dispatchThreadId,FrameIndex);
 
-    int index = pixelPos.x * gResolution.x + pixelPos.y;
-    //float2 uv = float2(dispatchThreadId.xy) / float2(gResolution.x - 1, gResolution.y - 1);
-    float2 uv = float2(dispatchThreadId.xy) / float2(gResolution.x , gResolution.y );
+    int index = pixelPos.x * resolution.x + pixelPos.y;
+    //float2 uv = float2(dispatchThreadId.xy) / float2(resolution.x - 1, resolution.y - 1);
+    float2 uv = float2(dispatchThreadId.xy) / float2(resolution.x , resolution.y );
     float4 sampledNormal = gNormal.SampleLevel(defaultSampler, uv, 0);
 
     //Create a random "state" 
@@ -147,13 +141,13 @@ void main(
                     float changeAgainst = RandomFloat01(threadRandomnessSeed);
                     if (changeAgainst > spawnChance)
                     {
-                        //SurfelData newSurfel = SurfelPrototype(worldPos, depthRaw.x, sampledNormal, gResolution.xy);
+                        //SurfelData newSurfel = SurfelPrototype(worldPos, depthRaw.x, sampledNormal, resolution.xy);
                         //newSurfel.isSurfelCap = true;
                         //newSurfel.height = 15;
                         SurfelData newSurfel;
                         float v = linearDepth;
-                        float calcProjArea = calcProjectArea(10, 250, fovY, gResolution.xy);
-                        float varRadius = clamp(calcSurfelRadius(v, fovY, gResolution.xy, calcProjArea, 100000), minRadius, maxRadius);
+                        float calcProjArea = calcProjectArea(10, 250, fovY, resolution.xy);
+                        float varRadius = clamp(calcSurfelRadius(v, fovY, resolution.xy, calcProjArea, 100000), minRadius, maxRadius);
 
                         // --- STATEGY FOR GENERATION SURFEL NearFar Sphere (Surfel NF)
                         //The position used for the sphere (used for contribution and coverage) would the sampled world position
@@ -209,7 +203,7 @@ void main(
 
                     if (changeAgainst > chanceSpawn)
                     {
-                        SurfelData newSurfel = SurfelPrototype(worldPos, depthRaw.x, sampledNormal, gResolution.xy);
+                        SurfelData newSurfel = SurfelPrototype(worldPos, depthRaw.x, sampledNormal, resolution.xy);
                         AttemptSpawnSurfel(newSurfel);
                     }
             

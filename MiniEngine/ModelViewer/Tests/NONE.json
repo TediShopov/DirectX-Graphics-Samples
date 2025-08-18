@@ -1,17 +1,49 @@
 {
-    "cameraStops": [],
+    "cameraStops": [
+        {
+            "dwellTime": 60,
+            "position": [
+                -1011.0760498046875,
+                215.062744140625,
+                -55.29166793823242
+            ],
+            "rotation": [
+                -0.06032761186361313,
+                0.698557436466217,
+                0.059310633689165115,
+                0.7105352878570557
+            ]
+        },
+        {
+            "dwellTime": 60,
+            "position": [
+                -345.96099853515625,
+                193.36570739746094,
+                -87.08251190185547
+            ],
+            "rotation": [
+                -0.018100490793585777,
+                -0.6984163522720337,
+                -0.017674626782536507,
+                0.7152444124221802
+            ]
+        }
+    ],
     "captureScreenshots": false,
     "logMetrics": false,
-    "m_HBILExtraCB._gatherSphereMaxRadius_m": 2415.10595703125,
+    "m_HBILExtraCB._gatherSphereMaxRadius_m": 50.0,
     "m_HBILExtraCB._gatherSphereMaxRadius_p": 80.0,
-    "m_SurfelGen.AOVariables": 1.0,
-    "m_SurfelGen.AOVariables.w": 1.0,
-    "m_SurfelGen.AOVariables.y": 216.0,
-    "m_SurfelGen.AOVariables.z": 300.0,
+    "m_HBILExtraCB._maxAngles": 4,
+    "m_HBILExtraCB._maxSamples": 8,
+    "m_SurfelGen.AOVariables": 0.5,
+    "m_SurfelGen.AOVariables.w": 0.5,
+    "m_SurfelGen.AOVariables.y": 6.0,
+    "m_SurfelGen.AOVariables.z": 200.0,
     "m_SurfelGen.PlacementThreshold": 1.0,
     "m_SurfelGen.RemovalTreshold": 3.0,
-    "m_SurfelGen.SpawnChanceMultiplier": 150.0,
-    "m_SurfelGen.SpawnChancePower": 1.2000000476837158,
-    "m_SurfelGen.SurfelCellLimit": 300,
-    "testSamples": 10
+    "m_SurfelGen.SpawnChanceMultiplier": 10.0,
+    "m_SurfelGen.SpawnChancePower": 0.5,
+    "m_SurfelGen.SurfelCellLimit": 120,
+    "testSamples": 10,
+    "useAugmented": true
 }

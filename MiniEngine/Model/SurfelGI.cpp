@@ -382,6 +382,8 @@
 
 	_CELL_COUNT_ = grdCells[0] * grdCells[1] * grdCells[2];
 	_CELL_COUNT_ = GetVectorizedSize(_CELL_COUNT_, 4) * 4;
+	m_SurfelGen.Resolution.SetX(1920);
+	m_SurfelGen.Resolution.SetY(1080);
 
   }
 
@@ -875,8 +877,8 @@ void SurfelGI::SpawnSurfelsInformed(ComputeContext& gfxContext, const Camera& ca
 	const UINT TEX_SIZE_X = m_GBuffer.g_Normal->GetWidth();
 	const UINT TEX_SIZE_Y = m_GBuffer.g_Normal->GetHeight();
 
-	const UINT THREAD_GROUP_X = 32;
-	const UINT THREAD_GROUP_Y = 32;
+	const UINT THREAD_GROUP_X = 16;
+	const UINT THREAD_GROUP_Y = 16;
 	//Mini Engine Internally uses ceilign division to supply enoug threads
 	gfxContext.Dispatch2D(TEX_SIZE_X,TEX_SIZE_Y,THREAD_GROUP_X,THREAD_GROUP_Y);
 

@@ -22,6 +22,7 @@ struct CameraStop
 
 struct SequenceConfig
 {
+	bool m_useAugmentedAlgorithm = false;
 	int	testSamples;
     std::vector<CameraStop> cameraStops;
     bool logMetrics = true;
@@ -88,6 +89,7 @@ public:
 		m_config.logMetrics = j.value("logMetrics", true);
 		m_config.captureScreenshots = j.value("captureScreenshots", true);
 		m_config.testSamples = j.value("testSamples", m_config.testSamples);
+		m_config.m_useAugmentedAlgorithm = j.value("useAugmented", m_config.m_useAugmentedAlgorithm);
 
 		for each (auto paramBlock in m_parametersBlocks)
 			paramBlock->FromJson(j);
@@ -102,6 +104,7 @@ public:
 		j["testSamples"] = m_config.testSamples;
 		j["logMetrics"] = m_config.logMetrics;
 		j["captureScreenshots"] = m_config.captureScreenshots;
+		j["useAugmented"] = m_config.m_useAugmentedAlgorithm;
 		j["cameraStops"] = nlohmann::json::array();
 
 
@@ -177,6 +180,7 @@ public:
 		displayNameSection << "Camera Sequence: " << m_targetPath;
 
 		ImGui::DragInt("Test Samples", &m_config.testSamples, 0.2, 0, 100);
+		ImGui::Checkbox("SSGI+HBIL OR SBGI", &m_config.m_useAugmentedAlgorithm);
 
 		if (ImGui::CollapsingHeader("TestParamtere", &m_parameterSection))
 		{

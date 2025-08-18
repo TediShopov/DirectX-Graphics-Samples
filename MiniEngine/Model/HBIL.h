@@ -76,6 +76,10 @@ __declspec(align(16)) struct CB_HBIL {
 	float	_gatherSphereMaxRadius_m;		// Radius of the sphere that will gather our irradiance samples (in meters)
 	float	_gatherSphereMaxRadius_p;		// Radius of the sphere that will gather our irradiance samples (in pixels)
 	float	_temporalAttenuationFactor;		// Attenuation factor of radiance from previous frame
+	int		_maxAngles;
+
+	int		_maxSamples;
+	XMFLOAT3 _padding;
 };
 
 	//All the data would be collected for a point at the exact center of the screen
@@ -169,6 +173,8 @@ public:
 
 		 ImGui::SliderFloat("Gathre Sphere Max Radius Meters", &m_HBILExtraCB._gatherSphereMaxRadius_m, 100, 4000);
 		 ImGui::SliderFloat("Garher Spherre Max Radius Pixels", &m_HBILExtraCB._gatherSphereMaxRadius_p, 0, 1500);
+		 ImGui::SliderInt("Angles Count", &m_HBILExtraCB._maxAngles,0,32);
+		 ImGui::SliderInt("Samples Count", &m_HBILExtraCB._maxSamples, 0, 32);
 
 
 	}
@@ -178,6 +184,8 @@ public:
 	{
 		 outJson["m_HBILExtraCB._gatherSphereMaxRadius_m"] = m_HBILExtraCB._gatherSphereMaxRadius_m ;
 		 outJson["m_HBILExtraCB._gatherSphereMaxRadius_p"] = m_HBILExtraCB._gatherSphereMaxRadius_p ;
+		 outJson["m_HBILExtraCB._maxAngles"] = m_HBILExtraCB._maxAngles ;
+		 outJson["m_HBILExtraCB._maxSamples"] = m_HBILExtraCB._maxSamples ;
 	}
 
     // Loads parameter data from a JSON object
@@ -186,6 +194,8 @@ public:
 
 		 m_HBILExtraCB._gatherSphereMaxRadius_m = inJson.value("m_HBILExtraCB._gatherSphereMaxRadius_m", 100);
 		 m_HBILExtraCB._gatherSphereMaxRadius_p = inJson.value("m_HBILExtraCB._gatherSphereMaxRadius_p", 100);
+		 m_HBILExtraCB._maxAngles = inJson.value("m_HBILExtraCB._maxAngles", 100);
+		 m_HBILExtraCB._maxSamples = inJson.value("m_HBILExtraCB._maxSamples", 100);
 
 	}
 

@@ -143,8 +143,8 @@ UINT TestRenderer::frameIndex = 0;
 	NumVar ShadowDimZ= NumVar("Sponza/Lighting/Shadow Dim Z", 3000, 1000, 10000, 100);
 
 	 bool m_enableDebugOverlay = true;
-	 bool m_stopSurfelUpdate = true;
-	 bool m_prevStopSurfelUpdate = false;
+	 bool m_stopSurfelUpdate = false;
+	 bool m_prevStopSurfelUpdate = true;
 	 bool m_renderOnlyCurrentCellSurfels = false;
 	 bool m_useSimpleAlgorithm = true;
 
@@ -293,6 +293,8 @@ UINT TestRenderer::frameIndex = 0;
 		DXGI_FORMAT NormalFormat = g_SceneNormalBuffer.GetFormat();
 		DXGI_FORMAT DepthFormat = g_SceneDepthBuffer.GetFormat();
 		DXGI_FORMAT ShadowFormat = g_ShadowBuffer.GetFormat();
+		//DXGI_FORMAT AlbedoFormat = DXGI_FORMAT_B8G8R8A8_UNORM;
+		
 
 
 		//m_Transform.setScale(50,50,50);
@@ -355,6 +357,7 @@ UINT TestRenderer::frameIndex = 0;
 		m_CutoutShadowPSO.Finalize();
 
 		DXGI_FORMAT formats[2] = { ColorFormat, NormalFormat };
+		DXGI_FORMAT formatsWithAlbedo[2] = { ColorFormat, NormalFormat };
 
 		//--- CONTAINS ONLY A SINGLE COLOR PASS FOR NOW ---
 		// Full color pass
@@ -451,28 +454,6 @@ UINT TestRenderer::frameIndex = 0;
 
 		uint32_t SourceCounts[] = { 1, 1, 1, 1, 1, 1, 1, 1,1 };
 
-		TestRaytracing::CreateOutputTextureUAV(&g_SceneColorBuffer);
-		SurfelIrradianceAccumulation::CreateOutputTextureUAV(&g_SceneColorBuffer);
-
-		D3D12_CPU_DESCRIPTOR_HANDLE SourceTextures[] =
-		{
-			GetDefaultTexture(kBlackCubeMap),
-			GetDefaultTexture(kBlackCubeMap),
-			g_SSAOFullScreen.GetSRV(),
-			g_ShadowBuffer.GetSRV(),
-			Lighting::m_LightBuffer.GetSRV(),
-			Lighting::m_LightShadowArray.GetSRV(),
-			Lighting::m_LightGrid.GetSRV(),
-			Lighting::m_LightGridBitMask.GetSRV(),
-			TestRaytracing::GetOutputBuffer().GetSRV()
-
-		};
-		//       TestRaytracing::GetOutputBuffer().GetSRV()
-		g_Device->CopyDescriptors(1, &Renderer::m_CommonTextures, &DestCount, DestCount, SourceTextures, SourceCounts, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
-
-
-		//CopyColorAndDepthBuffers(gfxContext);
-
 		GBufferPtrs gbuffer{
 			&g_SceneColorBuffer,
 			&colorCopyBuffer,
@@ -482,6 +463,8 @@ UINT TestRenderer::frameIndex = 0;
 
 		};
 
+		TestRaytracing::CreateOutputTextureUAV(&g_SceneColorBuffer);
+		SurfelIrradianceAccumulation::CreateOutputTextureUAV(&g_SceneColorBuffer);
 
 		SurfelIllumination->Setup(
 			gbuffer
@@ -502,6 +485,32 @@ UINT TestRenderer::frameIndex = 0;
 			//SurfelIllumination->srvHeap
 
 		);
+
+
+		D3D12_CPU_DESCRIPTOR_HANDLE SourceTextures[] =
+		{
+			GetDefaultTexture(kBlackCubeMap),
+			GetDefaultTexture(kBlackCubeMap),
+			g_SSAOFullScreen.GetSRV(),
+			g_ShadowBuffer.GetSRV(),
+			Lighting::m_LightBuffer.GetSRV(),
+			Lighting::m_LightShadowArray.GetSRV(),
+			Lighting::m_LightGrid.GetSRV(),
+			Lighting::m_LightGridBitMask.GetSRV(),
+
+			SurfelIllumination->m_OutputTexture.GetSRV()
+			
+			//TestRaytracing::GetOutputBuffer().GetSRV()
+
+		};
+		//       TestRaytracing::GetOutputBuffer().GetSRV()
+		g_Device->CopyDescriptors(1, &Renderer::m_CommonTextures, &DestCount, DestCount, SourceTextures, SourceCounts, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+		//ExtendedUtility::CopyDescriptorsToHeap(Renderer::m_CommonTextures,)
+
+
+		//CopyColorAndDepthBuffers(gfxContext);
+
+
 
 		SSRHeap.Create(L"SSR Heap", D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 2);
 		colorCopyBuffer.Create(L"Color Copy Buffer", g_SceneColorBuffer.GetWidth(), g_SceneColorBuffer.GetHeight(), 1, ColorFormat);
@@ -577,6 +586,14 @@ UINT TestRenderer::frameIndex = 0;
 		parameters.push_back(m_HBIL);
 
 
+	}
+
+	bool m_useSurfelInformedSBGI = true;
+	bool m_resetSurfelNextFrame = true;
+	 void TestRenderer::SetSurfelIlluminationAlgorithm(bool isHbilInformedSBGI) 
+	{
+		m_useSurfelInformedSBGI = isHbilInformedSBGI;
+		m_resetSurfelNextFrame = true;
 	}
 	void TestRenderer::InitQuadModel()
 	{
@@ -1372,31 +1389,18 @@ UINT TestRenderer::frameIndex = 0;
 
 		ImGui::DragFloat("Diffuse Light Application Blend", &m_AdditiveBlendPass.m_blendControlCB.lerpSBGItoInformedSBGI.x, 0.01f, 0, 1.0f);;
 		ImGui::DragFloat("Sun Ambient", &m_sunData.ambientLightIntensity, 0.01f, 0, 1.0f);
+		ImGui::Checkbox("Use Augmented", &m_useSurfelInformedSBGI);
 
 		SurfelIllumination->RenderImGui();
-		static bool spawnThresholdsCollapsingHeader = true;
-		if (ImGui::CollapsingHeader("Spawning Thresholds", &spawnThresholdsCollapsingHeader))
-		{
+//		static bool spawnThresholdsCollapsingHeader = true;
+//		if (ImGui::CollapsingHeader("Spawning Thresholds", &spawnThresholdsCollapsingHeader))
+//		{
+//
+//			ImGui::DragInt("Per Cell Surfel Limit", & SurfelIllumination->m_SurfelGen.SurfelCellLimit);
+//			ImGui::DragFloat("Placement Threshold", &SurfelIllumination->m_SurfelGen.PlacementThreshold,0.1f,0.0f,10.0f);
+//			ImGui::DragFloat("Removal Threshold", &SurfelIllumination->m_SurfelGen.RemovalTreshold,0.1f,0.0f,10.0f);
+//		}
 
-			ImGui::DragInt("Per Cell Surfel Limit", & SurfelIllumination->m_SurfelGen.SurfelCellLimit);
-			ImGui::DragFloat("Placement Threshold", &SurfelIllumination->m_SurfelGen.PlacementThreshold,0.1f,0.0f,10.0f);
-			ImGui::DragFloat("Removal Threshold", &SurfelIllumination->m_SurfelGen.RemovalTreshold,0.1f,0.0f,10.0f);
-		}
-
-		static bool spawnChancesCollapsingHeader = true;
-		if(ImGui::CollapsingHeader("Spawn Chances", &spawnChancesCollapsingHeader))
-		{
-			//Used for altering the 0-1 range chance
-			ImGui::DragFloat("Chance Power", &SurfelIllumination->m_SurfelGen.SpawnChancePower,0.01f,0.01f,1.2f);
-			ImGui::DragFloat("Chance Mulitply", &SurfelIllumination->m_SurfelGen.SpawnChanceMultiplier,1,1,150);
-			ImGui::DragFloat("AO Threhold", &SurfelIllumination->m_SurfelGen.AOVariables.x, 0.01f, 0.0f, 1.0f);
-			ImGui::DragFloat("Surfel Cap Min Radius", &SurfelIllumination->m_SurfelGen.AOVariables.y, 1.0f, 1.0f, 300.0f);
-			ImGui::DragFloat("Surlfe Cap Max Radius", &SurfelIllumination->m_SurfelGen.AOVariables.z, 1.0f, 1.0f, 300.0f);
-			ImGui::DragFloat("Lerp ", &SurfelIllumination->m_SurfelGen.AOVariables.w, 0.01f, 0.0f, 1.0f);
-
-
-
-		}
 
 		static bool debugCollapsingHeader = true;
 		if(ImGui::CollapsingHeader("Debug", &debugCollapsingHeader))
@@ -1818,10 +1822,16 @@ XMVECTOR VectorProjection(XMVECTOR u, XMVECTOR v, float* scalarOut)
 	 }
 	void TestRenderer::RenderScene(RENDER_SCENE_PARAMS)
 	{
-		//m_nvperf.OnFrameStart(Graphics::g_CommandManager.GetGraphicsQueue().GetCommandQueue());
-		//m_nvperf.rangeCommands.PushRange(gfxContext.GetCommandList(), "Testing");
-		//EngineProfiling::BeginBlock(L"Testing", &gfxContext);
+		if (m_useSurfelInformedSBGI)
+			m_AdditiveBlendPass.m_blendControlCB.lerpSBGItoInformedSBGI.x = 1;
+		else
+			m_AdditiveBlendPass.m_blendControlCB.lerpSBGItoInformedSBGI.x = 0;
 
+		if (m_resetSurfelNextFrame == true)
+		{
+			SurfelIllumination->ResetSurfels(gfxContext);
+			m_resetSurfelNextFrame = false;
+		}
 
 		ComputeContext& cfx = reinterpret_cast<ComputeContext&>(gfxContext);
 
@@ -1830,21 +1840,13 @@ XMVECTOR VectorProjection(XMVECTOR u, XMVECTOR v, float* scalarOut)
 		{
 			SurfelIllumination->FillAccelerationStructuresReduceThenScan(cfx);
 		}
-
-
-		//SurfelIllumination->FillAccelerationStructures(cfx);
-
 		//Control GPU Readback
-		SurfelIllumination->ReadbakcSurfelDebugData(gfxContext);
-		//SurfelIllumination->ReadbackSurfelAccelerationStructure(gfxContext);
-		//SurfelIllumination->ReadbackSurfelData(gfxContext);
+		//SurfelIllumination->ReadbakcSurfelDebugData(gfxContext);
 		if (m_stopSurfelUpdate == true && m_stopSurfelUpdate != m_prevStopSurfelUpdate)
 		{
 			SurfelIllumination->ReadbackSurfelAccelerationStructure(gfxContext);
 			SurfelIllumination->ReadbackSurfelData(gfxContext);
 		}
-
-
 
 		if (m_stopSurfelUpdate == false)
 		{
@@ -2008,40 +2010,28 @@ XMVECTOR VectorProjection(XMVECTOR u, XMVECTOR v, float* scalarOut)
 		}
 
 
-		m_GBufferDownsample->Dispatch(cfx, camera);
-		//m_GBufferSlice->Dispatch(cfx, camera);
+		if (m_useSurfelInformedSBGI)
 		{
-
-			ScopedTimer _prof(L"Render HBIL Tri", gfxContext);
-			if (m_hbil_render)
+			m_GBufferDownsample->Dispatch(cfx, camera);
 			{
-				//Change to HBIL Interleaved
-				//m_HBILInterleaved->RenderHBIL(gfxContext,camera);
+				ScopedTimer _prof(L"Render HBIL Tri", gfxContext);
+				if (m_hbil_render)
+				{
+					ImVec2 mousePos = ImGui::GetMousePos();
+					float verticalFovRad = camera.GetFOV();
+					float TAN_HALF_FOV = tan(verticalFovRad * 0.5);
+					m_HBIL->SetMousePos(mousePos.x, mousePos.y);
+					m_HBIL->RenderHBIL(gfxContext, camera);
+					RenderFullScreenQuad(gfxContext);
+					last_camera_data = camera;
+				}
+				if (m_hbil_updateDebug)
+				{
+					m_HBIL->ReadDebugHBIL(gfxContext, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, true);
 
-				//m_HBIL->m_renderAtColorBuffer = true;
-				ImVec2 mousePos = ImGui::GetMousePos();
-
-				//Calculate correct TAN_HALF_FOV
-				float verticalFovRad = camera.GetFOV();
-
-				// Calculate the tangent of half the vertical FOV
-				float TAN_HALF_FOV = tan(verticalFovRad * 0.5);
-
-
-				m_HBIL->SetMousePos(mousePos.x, mousePos.y);
-				m_HBIL->RenderHBIL(gfxContext, camera);
-				RenderFullScreenQuad(gfxContext);
-
-				//m_hbil_cameraLastPos = camera.GetPosition();
-				last_camera_data = camera;
-			}
-			if (m_hbil_updateDebug)
-			{
-				m_HBIL->ReadDebugHBIL(gfxContext, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, true);
-
+				}
 			}
 		}
-
 
 		// --- SURFEL PASS
 		frameIndex++;
@@ -2050,17 +2040,16 @@ XMVECTOR VectorProjection(XMVECTOR u, XMVECTOR v, float* scalarOut)
 
 		if (m_stopSurfelUpdate == false)
 		{
-			//SurfelIllumination->SpawnSurfels(cfx, camera);
-			SurfelIllumination->SpawnSurfelsInformed(cfx, camera);
-
+			if(m_useSurfelInformedSBGI)
+				SurfelIllumination->SpawnSurfelsInformed(cfx, camera);
+			else
+				SurfelIllumination->SpawnSurfels(cfx, camera);
 		}
 
 		if (m_drawPhysicalSurfelInstances)
 		{
 			SurfelIllumination->ReadbackSurfelData(gfxContext);
-
 		}
-
 
 		SurfelIllumination->ApplySurfels(cfx, camera);
 
@@ -2070,12 +2059,12 @@ XMVECTOR VectorProjection(XMVECTOR u, XMVECTOR v, float* scalarOut)
 		m_prevStopSurfelUpdate = m_stopSurfelUpdate;
 		CopyColorAndDepthBuffers(gfxContext);
 		//Final pass apply the collected diffuse lighting as an ambient term
-		if(m_enableBlending)
-		{
-			ScopedTimer _prof(L"Apply Diffuse Lighting", gfxContext);
-			m_AdditiveBlendPass.SetupRenderStage(gfxContext, viewport, scissor, SurfelIllumination->m_OutputTexture, Graphics::g_SceneColorBuffer);
-			RenderFullScreenQuad(gfxContext);
-		}
+//		if(m_enableBlending)
+//		{
+//			ScopedTimer _prof(L"Apply Diffuse Lighting", gfxContext);
+//			m_AdditiveBlendPass.SetupRenderStage(gfxContext, viewport, scissor, SurfelIllumination->m_OutputTexture, Graphics::g_SceneColorBuffer);
+//			RenderFullScreenQuad(gfxContext);
+//		}
 
 
 

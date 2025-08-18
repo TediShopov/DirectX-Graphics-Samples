@@ -14,6 +14,7 @@ Texture2D<float3> texNormal			: register(t3);
 //Texture2D<float4> texReflection	: register(t5);
 Texture2D<float> texSSAO			: register(t12);
 Texture2D<float> texShadow			: register(t13);
+Texture2D indirrectDiffuseIrradiance: register(t18);
 
 
 struct VSOutput
@@ -33,6 +34,8 @@ struct MRT
 	float3 Color : SV_Target0;
 	float3 Normal : SV_Target1;
 };
+
+static const float M_PI = 3.14159265359;
 
 [RootSignature(Renderer_RootSig)]
 MRT main(VSOutput vsOutput)
@@ -74,6 +77,7 @@ MRT main(VSOutput vsOutput)
     float3 specularAlbedo = float3( 0.56, 0.56, 0.56 );
     float specularMask = SAMPLE_TEX(texSpecular).r;
     float3 viewDir = normalize(vsOutput.viewDir);
+
     colorSum += ApplyDirectionalLight( diffuseAlbedo, specularAlbedo, specularMask, gloss, normal, viewDir, SunDirection, SunColor, vsOutput.shadowCoord, texShadow );
 
 	ShadeLights(colorSum, pixelPos,
@@ -87,7 +91,14 @@ MRT main(VSOutput vsOutput)
 		);
 
 	mrt.Normal = normal;
+
+    float2 screenSpaceUV = vsOutput.position.xy / float2(1920, 1080);
+    float4 E_ind = indirrectDiffuseIrradiance.Sample(defaultSampler, screenSpaceUV);
+    colorSum += (diffuseAlbedo * E_ind) / M_PI;
+    
+    
 	mrt.Color = colorSum;
+    //mrt.Color = lerp(colorSum, irradiance,0.5);
 	//DEBUG UV 
     //mrt.Color = float4(vsOutput.uv, 1, 1);
     //mrt.Color = float4(normal,  1);

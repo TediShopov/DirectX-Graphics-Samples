@@ -73,6 +73,8 @@ public:
 
 	//--- INITTIALIZATOIN ---
 	static void Startup(Math::Camera& camera,std::vector<IParameterBlock*>& parameters, HWND hwnd);
+	static void SetSurfelIlluminationAlgorithm(bool isHbilInformedSBGI);
+
 	static  void SetupScene();
 
 	//--- CLEANUP ---

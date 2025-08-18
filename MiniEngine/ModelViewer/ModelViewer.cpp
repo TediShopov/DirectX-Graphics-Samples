@@ -390,6 +390,7 @@ void ModelViewer::UpdateInput(float deltaT)
 
 	EngineProfiling::SetPaused(m_SequenceRunner->IsRunning() == false);
 
+
 	//Swithc the state of the test runner by pressing T
 	if (GameInput::IsFirstPressed(GameInput::kKey_t))
 	{
@@ -421,6 +422,11 @@ void ModelViewer::UpdateInput(float deltaT)
 
 	}
 
+	if (m_SequenceRunner->m_NeedResetAlgorithm)
+	{
+		TestRenderer::SetSurfelIlluminationAlgorithm(m_SequenceRunner->UseAugmentedAlgorithm());
+		m_SequenceRunner->m_NeedResetAlgorithm = false;
+	}
 
 
 
@@ -663,4 +669,7 @@ void ModelViewer::RenderUI(GraphicsContext& gfx)
 
 
 
-}
+}//
+ //
+ //
+ //

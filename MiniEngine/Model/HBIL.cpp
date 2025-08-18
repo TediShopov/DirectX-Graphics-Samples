@@ -5,6 +5,8 @@
 {
 	m_HBILExtraCB._gatherSphereMaxRadius_m = 50;
 	m_HBILExtraCB._gatherSphereMaxRadius_p = 80;
+	m_HBILExtraCB._maxAngles = 4;
+	m_HBILExtraCB._maxSamples = 8;
 
 
 }
