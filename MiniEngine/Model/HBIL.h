@@ -19,6 +19,7 @@
 #include "ExtendedUtility.h"
 
 #include "ModelH3D.h"
+#include "IParameterBlock.h"
 
 #include "CompiledShaders/ComputeHBIL_BruteForce.h"
 
@@ -104,7 +105,7 @@ __declspec(align(16)) struct CB_HBIL {
 	};
 
 
-class HBIL
+class HBIL : public IParameterBlock
 {
 protected:
 	bool m_debugReadingEnabled = true;
@@ -161,6 +162,32 @@ public:
 		m_MainHBILCB._mouseX = x;
 		m_MainHBILCB._mouseY = y;
 	 }
+
+    // Renders UI using ImGui and allows editing parameters
+	 void RenderImGui() override
+	{
+
+		 ImGui::SliderFloat("Gathre Sphere Max Radius Meters", &m_HBILExtraCB._gatherSphereMaxRadius_m, 100, 4000);
+		 ImGui::SliderFloat("Garher Spherre Max Radius Pixels", &m_HBILExtraCB._gatherSphereMaxRadius_p, 0, 1500);
+
+
+	}
+
+    // Populates a JSON object with parameter data
+	 void ToJson(nlohmann::json& outJson) const override 
+	{
+		 outJson["m_HBILExtraCB._gatherSphereMaxRadius_m"] = m_HBILExtraCB._gatherSphereMaxRadius_m ;
+		 outJson["m_HBILExtraCB._gatherSphereMaxRadius_p"] = m_HBILExtraCB._gatherSphereMaxRadius_p ;
+	}
+
+    // Loads parameter data from a JSON object
+	 void FromJson(const nlohmann::json& inJson) override
+	{
+
+		 m_HBILExtraCB._gatherSphereMaxRadius_m = inJson.value("m_HBILExtraCB._gatherSphereMaxRadius_m", 100);
+		 m_HBILExtraCB._gatherSphereMaxRadius_p = inJson.value("m_HBILExtraCB._gatherSphereMaxRadius_p", 100);
+
+	}
 
 #pragma region Initialization
 	virtual void Setup(GBufferPtrs gbuffer,ColorBuffer* downsampledGBuffers,GraphicsPSO quadPSO);

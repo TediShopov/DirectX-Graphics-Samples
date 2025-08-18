@@ -307,6 +307,58 @@ public:
 	void ResetSurfels(GraphicsContext& gfx);
 	void ResetSurfelsIrradiance(GraphicsContext& gfx);
 
+	void RenderImGui() override {
+		static bool spawnThresholdsCollapsingHeader = true;
+		if (ImGui::CollapsingHeader("Spawning Thresholds", &spawnThresholdsCollapsingHeader))
+		{
+			ImGui::DragInt("Per Cell Surfel Limit", &m_SurfelGen.SurfelCellLimit);
+			ImGui::DragFloat("Placement Threshold", &m_SurfelGen.PlacementThreshold,0.1f,0.0f,10.0f);
+			ImGui::DragFloat("Removal Threshold", &m_SurfelGen.RemovalTreshold,0.1f,0.0f,10.0f);
+		}
+
+		static bool spawnChancesCollapsingHeader = true;
+		if(ImGui::CollapsingHeader("Spawn Chances", &spawnChancesCollapsingHeader))
+		{
+			//Used for altering the 0-1 range chance
+			ImGui::DragFloat("Chance Power", &m_SurfelGen.SpawnChancePower,0.01f,0.01f,1.2f);
+			ImGui::DragFloat("Chance Mulitply", &m_SurfelGen.SpawnChanceMultiplier,1,1,150);
+			ImGui::DragFloat("AO Threhold", &m_SurfelGen.AOVariables.x, 0.01f, 0.0f, 1.0f);
+			ImGui::DragFloat("Surfel Cap Min Radius", &m_SurfelGen.AOVariables.y, 1.0f, 1.0f, 300.0f);
+			ImGui::DragFloat("Surlfe Cap Max Radius", &m_SurfelGen.AOVariables.z, 1.0f, 1.0f, 300.0f);
+			ImGui::DragFloat("Lerp ", &m_SurfelGen.AOVariables.w, 0.01f, 0.0f, 1.0f);
+		}
+	}
+
+    // Populates a JSON object with parameter data
+	void ToJson(nlohmann::json& outJson) const {
+		outJson["m_SurfelGen.SurfelCellLimit"] = m_SurfelGen.SurfelCellLimit;
+		outJson["m_SurfelGen.PlacementThreshold"] = m_SurfelGen.PlacementThreshold;
+		outJson["m_SurfelGen.RemovalTreshold"] = m_SurfelGen.RemovalTreshold;
+
+		outJson["m_SurfelGen.SpawnChancePower"] = m_SurfelGen.SpawnChancePower;
+		outJson["m_SurfelGen.SpawnChanceMultiplier"] = m_SurfelGen.SpawnChanceMultiplier;
+		outJson["m_SurfelGen.AOVariables"] = m_SurfelGen.AOVariables.x ;
+		outJson["m_SurfelGen.AOVariables.y"] = m_SurfelGen.AOVariables.y ;
+		outJson["m_SurfelGen.AOVariables.z"] = m_SurfelGen.AOVariables.z ;
+		outJson["m_SurfelGen.AOVariables.w"] = m_SurfelGen.AOVariables.w ;
+	}
+
+    // Loads parameter data from a JSON object
+	void FromJson(const nlohmann::json& inJson) {
+		 m_SurfelGen.SurfelCellLimit = inJson.value("m_SurfelGen.SurfelCellLimit",150);
+		 m_SurfelGen.PlacementThreshold = inJson.value("m_SurfelGen.PlacementThreshold",1);
+		 m_SurfelGen.RemovalTreshold = inJson.value("m_SurfelGen.RemovalTreshold",3);
+
+		 m_SurfelGen.SpawnChancePower = inJson.value("m_SurfelGen.SpawnChancePower", 0.5);
+		 m_SurfelGen.SpawnChanceMultiplier = inJson.value("m_SurfelGen.SpawnChanceMultiplier",2);
+		 m_SurfelGen.AOVariables.x  = inJson.value("m_SurfelGen.AOVariables.x",0.5);
+		 m_SurfelGen.AOVariables.y  = inJson.value("m_SurfelGen.AOVariables.y",20);
+		 m_SurfelGen.AOVariables.z  = inJson.value("m_SurfelGen.AOVariables.z",30);
+		 m_SurfelGen.AOVariables.w  = inJson.value("m_SurfelGen.AOVariables.w",0);
+
+
+	}
+
 protected:
 	template<typename T>
 	void CopyReadbackBuffer(GraphicsContext& gfx, ReadbackBuffer& dstReadbackBuffer, StructuredBuffer& srcBuffer, T& outData)
@@ -334,30 +386,6 @@ protected:
 	void FillCPUContainers();
 	void CreateOutputTexture(ColorBuffer* ouputBuffer);
 
-	void RenderImGui() override {
-		static bool spawnThresholdsCollapsingHeader = true;
-		if (ImGui::CollapsingHeader("Spawning Thresholds", &spawnThresholdsCollapsingHeader))
-		{
-			ImGui::DragInt("Per Cell Surfel Limit", &m_SurfelGen.SurfelCellLimit);
-			ImGui::DragFloat("Placement Threshold", &m_SurfelGen.PlacementThreshold,0.1f,0.0f,10.0f);
-			ImGui::DragFloat("Removal Threshold", &m_SurfelGen.RemovalTreshold,0.1f,0.0f,10.0f);
-		}
-	}
-
-    // Populates a JSON object with parameter data
-	void ToJson(nlohmann::json& outJson) const {
-		outJson["m_SurfelGen.SurfelCellLimit"] = m_SurfelGen.SurfelCellLimit;
-		outJson["m_SurfelGen.PlacementThreshold"] = m_SurfelGen.PlacementThreshold;
-		outJson["m_SurfelGen.RemovalTreshold"] = m_SurfelGen.RemovalTreshold;
-	}
-
-    // Loads parameter data from a JSON object
-	void FromJson(const nlohmann::json& inJson) {
-		 m_SurfelGen.SurfelCellLimit = inJson.value("m_SurfelGen.SurfelCellLimit",150);
-		 m_SurfelGen.PlacementThreshold = inJson.value("m_SurfelGen.PlacementThreshold",1);
-		 m_SurfelGen.RemovalTreshold = inJson.value("m_SurfelGen.RemovalTreshold",3);
-
-	}
 
 	UINT GetVectorizedSize(UINT origSize, UINT vectorLen = 4)
 	{

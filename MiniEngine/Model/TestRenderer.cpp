@@ -284,7 +284,6 @@ UINT TestRenderer::frameIndex = 0;
 		//m_SequenceRunner = new CameraSequenceRunner(&camera);
 		//m_CameraSequence.LoadConfig("DebugConfigPath.json");
 
-		parameters.push_back(SurfelIllumination);
 
 		m_Sphere = nullptr;
 		m_Disc = nullptr;
@@ -574,6 +573,8 @@ UINT TestRenderer::frameIndex = 0;
 
 
 
+		parameters.push_back(SurfelIllumination);
+		parameters.push_back(m_HBIL);
 
 
 	}
@@ -1372,6 +1373,7 @@ UINT TestRenderer::frameIndex = 0;
 		ImGui::DragFloat("Diffuse Light Application Blend", &m_AdditiveBlendPass.m_blendControlCB.lerpSBGItoInformedSBGI.x, 0.01f, 0, 1.0f);;
 		ImGui::DragFloat("Sun Ambient", &m_sunData.ambientLightIntensity, 0.01f, 0, 1.0f);
 
+		SurfelIllumination->RenderImGui();
 		static bool spawnThresholdsCollapsingHeader = true;
 		if (ImGui::CollapsingHeader("Spawning Thresholds", &spawnThresholdsCollapsingHeader))
 		{
