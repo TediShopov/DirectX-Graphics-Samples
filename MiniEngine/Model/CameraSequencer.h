@@ -55,6 +55,10 @@ public:
 	{
 		m_config.captureScreenshots = false;
 		m_config.logMetrics = false;
+		m_config.testSamples = 10;
+		m_save = false;
+		m_load = false;
+		m_reset = false;
 	}
 
 	bool LoadConfig(const std::string& path) {
@@ -78,7 +82,7 @@ public:
 		}
 		m_config.logMetrics = j.value("logMetrics", true);
 		m_config.captureScreenshots = j.value("captureScreenshots", true);
-		m_config.testSamples = j.value("testSamples", true);
+		m_config.testSamples = j.value("testSamples", m_config.testSamples);
 
 		return true;
 	}
@@ -153,6 +157,7 @@ public:
 		std::ostringstream displayNameSection;
 		displayNameSection << "Camera Sequence: " << m_targetPath;
 
+		ImGui::DragInt("Test Samples", &m_config.testSamples, 0.2, 0, 100);
 
 		if (ImGui::CollapsingHeader(displayNameSection.str().c_str(), &m_expanded))
 		{

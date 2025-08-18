@@ -76,6 +76,7 @@ public:
 
 		state = SeqState::Move;
 
+		//OpenCSVStream("metrics.csv");
 		OpenCSVStream("metrics.csv");
 
 		EngineProfiling::BeginSamplerSession();
@@ -184,7 +185,19 @@ public:
 			m_targetCameraIndex++;
 			//Reset if the cameras states are exhaused
 			if (m_targetCameraIndex >= sequence->cameraStops.size())
-				Reset();
+			{
+				m_targetRunIndex++;
+				m_targetCameraIndex = 0;
+				//Require that header is written every new run
+				hasWrittenHeader = false;
+				if (m_targetRunIndex >= sequence->testSamples)
+				{
+					Reset();
+
+				}
+			}
+
+
 
 			state = SeqState::Move;
 			stateTimer = 0.0;
@@ -203,6 +216,7 @@ public:
 		// Your ImGui UI code here
 		ImGui::Begin("Sequence Runner");
 
+		ImGui::DragInt("Run Index", &m_targetRunIndex, 0.2f, 0,sequence->testSamples);
 		ImGui::DragInt("CameraPosition", &m_targetCameraIndex, 0.2f, 0, sequence->cameraStops.size());
 
 		bool go = false;
@@ -241,5 +255,6 @@ private:
 	int stampRingBufferSize;
 	bool hasWrittenHeader = false;
 	int m_targetCameraIndex = 0;
+	int m_targetRunIndex = 0;
 	//MetricsLogger* logger = nullptr;
 };
