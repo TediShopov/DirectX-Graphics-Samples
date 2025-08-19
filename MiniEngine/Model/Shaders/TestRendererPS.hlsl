@@ -8,13 +8,11 @@
 
 
 Texture2D<float3> texDiffuse		: register(t0); Texture2D<float3> texSpecular		: register(t1);
-//Texture2D<float4> texEmissive		: register(t2);
 Texture2D<float3> texNormal			: register(t3);
-//Texture2D<float4> texLightmap		: register(t4);
-//Texture2D<float4> texReflection	: register(t5);
 Texture2D<float> texSSAO			: register(t12);
 Texture2D<float> texShadow			: register(t13);
-Texture2D indirrectDiffuseIrradiance: register(t18);
+Texture2D indirrectDiffuseIrradianceSBGI: register(t18);
+Texture2D indirrectDiffuseIrradianceHBIL: register(t19);
 
 
 struct VSOutput
@@ -93,8 +91,12 @@ MRT main(VSOutput vsOutput)
 	mrt.Normal = normal;
 
     float2 screenSpaceUV = vsOutput.position.xy / float2(1920, 1080);
-    float4 E_ind = indirrectDiffuseIrradiance.Sample(defaultSampler, screenSpaceUV);
-    colorSum += (diffuseAlbedo * E_ind) / M_PI;
+
+    float confidenceWeight = 1-texSSAO[pixelPos];
+    
+    
+    float4 resultIrradiance = lerp(indirrectDiffuseIrradianceSBGI[pixelPos],indirrectDiffuseIrradianceHBIL[pixelPos],confidenceWeight);
+    colorSum += (diffuseAlbedo * resultIrradiance) / M_PI;
     
     
 	mrt.Color = colorSum;

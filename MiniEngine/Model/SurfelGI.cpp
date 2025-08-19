@@ -488,7 +488,7 @@ void SurfelGI::FillCPUContainers()
 
 void SurfelGI::CreateOutputTexture(ColorBuffer* outputBuffer)
 {
-	m_OutputTexture.Create(L"RayTracingOutput", outputBuffer->GetWidth(), outputBuffer->GetHeight(), 1, DXGI_FORMAT_R8G8B8A8_UNORM);
+	m_OutputTexture.Create(L"RayTracingOutput", outputBuffer->GetWidth(), outputBuffer->GetHeight(), 1, DXGI_FORMAT_R11G11B10_FLOAT);
 }
 
 
@@ -678,15 +678,16 @@ void SurfelGI::SpawnSurfelsInformed(ComputeContext& gfxContext, const Camera& ca
 	  //Reset surfel grid buffer
 	  SendParameters(gfxContext);
 
+	  gfxContext.InsertUAVBarrier(m_SurfelGrid.m_GPUBuffer,true);
+	  gfxContext.InsertUAVBarrier(m_SurfelList.m_GPUBuffer,true);
+	  gfxContext.InsertUAVBarrier(m_SurfelData.m_GPUBuffer,true);
 
 	  ScopedTimer _prof(L"Surfel Fill Acceleration Structures : SURFEL COUNT", gfxContext);
 	  const float groupX = 256.0f;
 	  UINT dispatchX = std::ceil((float)_SURFEL_MAX_COUNT_ / groupX);
 
-	  gfxContext.InsertUAVBarrier(m_SurfelGrid.m_GPUBuffer,true);
-	  gfxContext.InsertUAVBarrier(m_SurfelList.m_GPUBuffer,true);
 
-	  gfxContext.Dispatch(groupX, 1, 1);
+	  gfxContext.Dispatch(dispatchX, 1, 1);
 
   }
 
@@ -794,19 +795,23 @@ void SurfelGI::SpawnSurfelsInformed(ComputeContext& gfxContext, const Camera& ca
   void SurfelGI::FASSurfelInsertion(ComputeContext& gfxContext)
   {
 
-	//Switch to the appropriate PSO
-	gfxContext.SetPipelineState(m_AccelerationPassSurfelInsertionPSO);
-	gfxContext.SetRootSignature(m_SurfelGenerationRT);
+	  //Switch to the appropriate PSO
+	  gfxContext.SetPipelineState(m_AccelerationPassSurfelInsertionPSO);
+	  gfxContext.SetRootSignature(m_SurfelGenerationRT);
 
-	//Reset surfel grid buffer
-	SendParameters(gfxContext);
-	  
-	ScopedTimer _prof(L"Surfel Fill Acceleration Structures : SURFEL INSERTION", gfxContext);
-	const float groupX = 256.0f;
-	UINT dispatchX = std::ceil((float)_SURFEL_MAX_COUNT_ / groupX);
-	gfxContext.InsertUAVBarrier(m_SurfelGrid.m_GPUBuffer,true);
-	gfxContext.InsertUAVBarrier(m_SurfelList.m_GPUBuffer,true);
-	gfxContext.Dispatch(groupX, 1, 1);
+	  //Reset surfel grid buffer
+	  SendParameters(gfxContext);
+
+	  ScopedTimer _prof(L"Surfel Fill Acceleration Structures : SURFEL INSERTION", gfxContext);
+	  const float groupX = 256.0f;
+	  UINT dispatchX = std::ceil((float)_SURFEL_MAX_COUNT_ / groupX);
+
+	  gfxContext.InsertUAVBarrier(m_SurfelGrid.m_GPUBuffer, true);
+	  gfxContext.InsertUAVBarrier(m_SurfelList.m_GPUBuffer, true);
+	  gfxContext.InsertUAVBarrier(m_SurfelData.m_GPUBuffer, true);
+
+
+	  gfxContext.Dispatch(dispatchX, 1, 1);
 
   }
 

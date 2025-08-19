@@ -273,18 +273,9 @@ void SurfelCount(SurfelData surfel, UniformGrid grid, RWStructuredBuffer<uint> s
         {
             for (uint x = minCell.x; x <= maxCell.x; ++x)
             {
-                //uint linearIndex = x + y * gridDim.x + z * gridDim.x * gridDim.y;
                 uint3 idx = uint3(x, y, z);
-
                 uint linearIndex = HashGridIndex(idx,grid);
                 InterlockedAdd(surfelGrid[linearIndex], 1);
-//                if (ComputeCornerDotProductsWithSurfelPlane(surfel, grid, idx))
-//                {
-//                    //Surfel Overlaps with the grid cell
-//                    InterlockedAdd(surfelGrid[linearIndex], 1);
-//
-//
-//                }
             }
         }
     }

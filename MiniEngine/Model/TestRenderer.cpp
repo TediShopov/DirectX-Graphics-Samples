@@ -447,12 +447,6 @@ UINT TestRenderer::frameIndex = 0;
 
 
 		uint32_t VertexStride = m_Model->GetVertexStride();
-		//Allocate just and extra descriptor table entry
-		uint32_t DestCount = 9;
-		// Allocate a descriptor table for the common textures
-		Renderer::m_CommonTextures = Renderer::s_TextureHeap.Alloc(1);
-
-		uint32_t SourceCounts[] = { 1, 1, 1, 1, 1, 1, 1, 1,1 };
 
 		GBufferPtrs gbuffer{
 			&g_SceneColorBuffer,
@@ -487,24 +481,6 @@ UINT TestRenderer::frameIndex = 0;
 		);
 
 
-		D3D12_CPU_DESCRIPTOR_HANDLE SourceTextures[] =
-		{
-			GetDefaultTexture(kBlackCubeMap),
-			GetDefaultTexture(kBlackCubeMap),
-			g_SSAOFullScreen.GetSRV(),
-			g_ShadowBuffer.GetSRV(),
-			Lighting::m_LightBuffer.GetSRV(),
-			Lighting::m_LightShadowArray.GetSRV(),
-			Lighting::m_LightGrid.GetSRV(),
-			Lighting::m_LightGridBitMask.GetSRV(),
-
-			SurfelIllumination->m_OutputTexture.GetSRV()
-			
-			//TestRaytracing::GetOutputBuffer().GetSRV()
-
-		};
-		//       TestRaytracing::GetOutputBuffer().GetSRV()
-		g_Device->CopyDescriptors(1, &Renderer::m_CommonTextures, &DestCount, DestCount, SourceTextures, SourceCounts, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 		//ExtendedUtility::CopyDescriptorsToHeap(Renderer::m_CommonTextures,)
 
 
@@ -580,6 +556,28 @@ UINT TestRenderer::frameIndex = 0;
 		//SurfelIllumination->SetupInformed(&m_HBIL->m_OutputBentCone,&m_HBIL->m_OutputIrradiance);
 		SurfelIllumination->SetupInformed(&m_HBIL->m_OutputBentCone, &Graphics::g_SSAOFullScreen);
 
+
+		//Allocate just and extra descriptor table entry
+		uint32_t DestCount = 10;
+		// Allocate a descriptor table for the common textures
+		Renderer::m_CommonTextures = Renderer::s_TextureHeap.Alloc(2);
+
+		uint32_t SourceCounts[] = { 1, 1, 1, 1, 1, 1, 1, 1,1 };
+		D3D12_CPU_DESCRIPTOR_HANDLE SourceTextures[] =
+		{
+			GetDefaultTexture(kBlackCubeMap),
+			GetDefaultTexture(kBlackCubeMap),
+			g_SSAOFullScreen.GetSRV(),
+			g_ShadowBuffer.GetSRV(),
+			Lighting::m_LightBuffer.GetSRV(),
+			Lighting::m_LightShadowArray.GetSRV(),
+			Lighting::m_LightGrid.GetSRV(),
+			Lighting::m_LightGridBitMask.GetSRV(),
+			SurfelIllumination->m_OutputTexture.GetSRV(),
+			m_HBIL->m_OutputIrradiance.GetSRV(),
+		};
+		//       TestRaytracing::GetOutputBuffer().GetSRV()
+		g_Device->CopyDescriptors(1, &Renderer::m_CommonTextures, &DestCount, DestCount, SourceTextures, SourceCounts, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 
 
 		parameters.push_back(SurfelIllumination);
