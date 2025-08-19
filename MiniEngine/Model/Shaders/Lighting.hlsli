@@ -18,9 +18,9 @@
 
 cbuffer PSConstants : register(b0)
 {
-    float3 SunDirection;
-    float3 SunColor;
-    float3 AmbientColor;
+    float4 SunDirection;
+    float4 SunColor;
+    float4 AmbientColor;
     float4 ShadowTexelSize;
 
     float4 InvTileDim;
@@ -28,6 +28,9 @@ cbuffer PSConstants : register(b0)
     uint4 FirstLightIndex;
 
     uint FrameIndexMod2;
+    uint BlendMode;
+    float AOThreshold;
+    uint pad;
 }
 
 StructuredBuffer<LightData> lightBuffer : register(t14);

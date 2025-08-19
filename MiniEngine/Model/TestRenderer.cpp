@@ -1890,6 +1890,11 @@ XMVECTOR VectorProjection(XMVECTOR u, XMVECTOR v, float* scalarOut)
 		psConstants.FirstLightIndex[0] = Lighting::m_FirstConeLight;
 		psConstants.FirstLightIndex[1] = Lighting::m_FirstConeShadowedLight;
 		psConstants.FrameIndexMod2 = FrameIndex;
+		if(m_useSurfelInformedSBGI)
+			psConstants.UseConfidenceWeight = 255;
+		else
+			psConstants.UseConfidenceWeight = 0;
+		psConstants.AOThreshold = SurfelIllumination->m_SurfelGen.AOVariables.x;
 
 		TestRaytracing::directionalLightData.sunDirection = Vector4(m_SunDirection, 1);
 		TestRaytracing::directionalLightData.sunColor = Vector4(1.0f, 1.0f, 1.0f, 1.0f) * m_SunLightIntensity;

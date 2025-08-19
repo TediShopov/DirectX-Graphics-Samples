@@ -114,6 +114,10 @@ protected:
 		uint32_t FirstLightIndex[4];
 
 		uint32_t FrameIndexMod2;
+		uint32_t UseConfidenceWeight;
+		float	AOThreshold;
+		uint32_t pad;
+
 	};
 	static PSConstants psConstants;
 

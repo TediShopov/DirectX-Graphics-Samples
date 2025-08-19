@@ -92,17 +92,28 @@ MRT main(VSOutput vsOutput)
 
     float2 screenSpaceUV = vsOutput.position.xy / float2(1920, 1080);
 
-    float confidenceWeight = 1-texSSAO[pixelPos];
-    
-    
-    float4 resultIrradiance = lerp(indirrectDiffuseIrradianceSBGI[pixelPos],indirrectDiffuseIrradianceHBIL[pixelPos],confidenceWeight);
-    colorSum += (diffuseAlbedo * resultIrradiance) / M_PI;
-    
+    //The confidence weighing will blend between the SBGI indirect diffuse and the HBIL indirect diffuse 
+    //The blend depens on per-pixel confidence defined by the SSAO
+    if(BlendMode > 0)
+    {
+        float4 SBGI = indirrectDiffuseIrradianceSBGI[pixelPos];
+        float4 HBIL = indirrectDiffuseIrradianceHBIL[pixelPos];
+
+        //AO is bigger than threshold world position is not suffuciently occluded to use HBIL
+        float confidence = step(texSSAO[pixelPos],AOThreshold);
+        //float confidence = saturate(texSSAO[pixelPos] * (1 / AOThreshold));
+        //float confidence = saturate(texSSAO[pixelPos] - AOThreshold);
+        float4 resultIrradiance = lerp(SBGI, SBGI + HBIL, confidence);
+
+        colorSum    += (diffuseAlbedo * resultIrradiance) / M_PI;
+    }
+    else
+    {
+        float4 resultIrradiance = indirrectDiffuseIrradianceSBGI[pixelPos];
+        colorSum    += (diffuseAlbedo * resultIrradiance) / M_PI;
+        
+    }
     
 	mrt.Color = colorSum;
-    //mrt.Color = lerp(colorSum, irradiance,0.5);
-	//DEBUG UV 
-    //mrt.Color = float4(vsOutput.uv, 1, 1);
-    //mrt.Color = float4(normal,  1);
 	return mrt;
 }
