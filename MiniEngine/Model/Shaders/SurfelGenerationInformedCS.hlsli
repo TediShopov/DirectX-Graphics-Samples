@@ -70,18 +70,8 @@ void main(
 
         uint maxContributionSurfelIndex = RandomUintInRange(threadRandomnessSeed, 0, surfelCount);
 
-        //Represent how well covered is the grid cell 
-        //float coverage = EstimateSurfelCoverage(uv, depthRaw.x, maxContribution, maxContributionSurfelIndex);
 
-        //Use spawn chance for cap
-//       ContributionFromBentCone(worldPos, uv, bentNormal, radius, cosAngle, height);
-//        float spawnChance = RemapFloat(radius, 0, AOVariables.z, 0, 1);
-//       //Non-linearly transform
-//        spawnChance = pow(spawnChance, 2);
-        float coverage = EstimateSurfelCoverage(uv, depthRaw, maxContribution, maxContributionSurfelIndex);
-        //float coverage = spawnChance;
-
-
+        float coverage = EstimateSurfelCoverageInformed(uv, depthRaw,sampledNormal, maxContribution, maxContributionSurfelIndex);
 
         uint coverageData = PackCoverageData(coverage, threadRandomnessSeed, groupThreadID);
 
@@ -139,7 +129,7 @@ void main(
                 {
                     float spawnChance = EstimateSpawnChance(coverage, depthRaw);
                     float changeAgainst = RandomFloat01(threadRandomnessSeed);
-                    if (changeAgainst > spawnChance)
+                    if (spawnChance > changeAgainst)
                     {
                         //SurfelData newSurfel = SurfelPrototype(worldPos, depthRaw.x, sampledNormal, resolution.xy);
                         //newSurfel.isSurfelCap = true;
@@ -169,7 +159,7 @@ void main(
                     //newSurfel.normal = sampledNormal;
                         newSurfel.normal = float4(bentNormal, 0);
                     //newSurfel.radius = varRadius;
-                        newSurfel.radius = varRadius;
+                        newSurfel.radius = clamp(radius, minRadius, maxRadius);
                         newSurfel.tilePos = tilePos;
                         newSurfel.pixelPos = pixelPos;
 
@@ -201,7 +191,7 @@ void main(
                     float changeAgainst = RandomFloat01(threadRandomnessSeed);
 
 
-                    if (changeAgainst > chanceSpawn)
+                    if (chanceSpawn > changeAgainst)
                     {
                         SurfelData newSurfel = SurfelPrototype(worldPos, depthRaw.x, sampledNormal, resolution.xy);
                         AttemptSpawnSurfel(newSurfel);
@@ -227,14 +217,14 @@ void main(
             if (coverage > gRemovalThreshold)
             {
 
+                uint contributionData = groupShareMaxContribution;
+                float maxContribution = f16tof32((contributionData & 0xFFFF0000) >> 16);
+                uint maxContributionSurfelIndex = (contributionData & 0x0000FFFF) >> 0;
                 //float chanceRemove = pow(depthRaw, gChancePower) * gChanceMultiply;
-                float chanceRemove = 1.0;
+                float chanceRemove = smoothstep(0, 1, maxContribution);
                 float changeAgainst = RandomFloat01(threadRandomnessSeed);
                 if (changeAgainst < chanceRemove)
                 {
-                    uint contributionData = groupShareMaxContribution;
-                    float maxContribution = f16tof32((contributionData & 0xFFFF0000) >> 16);
-                    uint maxContributionSurfelIndex = (contributionData & 0x0000FFFF) >> 0;
                     uint toDestroySurfelIndex = surlfeListUAV[maxContributionSurfelIndex];
                     surfelsUAV[toDestroySurfelIndex].radius = 0;
 

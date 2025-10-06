@@ -221,7 +221,7 @@ float4 debugRecycleChance(PSInput input)
     float4 depthRaw = gDepth.SampleLevel(defaultSampler, uv, 0);
     float mC;
     uint mcIndex;
-    float coverage = EstimateSurfelCoverage(uv,depthRaw.x,mC,mcIndex);
+    float coverage = EstimateSurfelCoverage(uv,depthRaw.x,sampledNormal,mC,mcIndex);
     float recycleChance = EstimateRecycleChance(coverage);
     
     return float4(recycleChance, recycleChance, recycleChance, 1);
@@ -240,7 +240,7 @@ float4 debugOutputSpawnChance(PSInput input)
     float4 depthRaw = gDepth.SampleLevel(defaultSampler, uv, 0);
     float mC;
     uint mcIndex;
-    float coverage = EstimateSurfelCoverage(uv,depthRaw.x,mC,mcIndex);
+    float coverage = EstimateSurfelCoverage(uv,depthRaw.x,sampledNormal,mC,mcIndex);
     float spawnChance = EstimateSpawnChance(coverage, depthRaw.x);
     
     return float4(spawnChance, spawnChance, spawnChance, 1);
@@ -329,20 +329,14 @@ float4 main(PSInput input) : SV_TARGET
     else if(debugModeIndex.x == 1)
     {
         //Render surfel based on if they have surfel cap flag
-        //return debugOutputSpawnChance(input);
-        return debugRecycleChance(input);
-        //return debugSurfelCapOrNot(input);
+        return debugOutputSpawnChance(input);
+        //return debugRecycleChance(input);
 
     }
 
     else if(debugModeIndex.x == 2)
     {
-        float3 gResolution;
-        gDepth.GetDimensions(0, gResolution.x, gResolution.y, gResolution.z);
-        uint2 pixelPos = input.position;
-        float2 uv = input.position.xy / float2(gResolution.x, gResolution.y);
-        return ambientOcclusion.Sample(defaultSampler, uv);
-
+        return debugSurfelCapOrNot(input);
     }
     return float4(1, 0, 1, 1);
 }

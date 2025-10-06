@@ -78,8 +78,7 @@ bool IsInSurfelGeneralDirection(float3 relativePosition, SurfelData surfel, out 
     return dotN > 0;
 
 }
-
-float EstimateSurfelCoverage( float2 uv,float depthRaw, inout float maxContribution, inout int maxContributionSurfelIndex)
+float EstimateSurfelCoverageInformed( float2 uv,float depthRaw,float3 normal, inout float maxContribution, inout int maxContributionSurfelIndex)
 {
 
     float3 worldPos = ReconstructWorldPosition(uv, depthRaw.x, invViewProjectionMatrix);
@@ -96,12 +95,62 @@ float EstimateSurfelCoverage( float2 uv,float depthRaw, inout float maxContribut
         SurfelData surfel = surfelsUAV[surfelIndex];
         float dotN = 1;
 
+        if(surfel.isSurfelCap == false)
+        {
+            dotN = dot(normal, surfel.normal);
+        }
+
         //Bias is relative position from surfel world to the current reconstructed world 
         float3 bias = worldPos - (float3) surfel.position;
 
         float dist = length(bias);
+        float contribution = 0.f;
+
+        if(dotN > 0.0f)
+        {
+            contribution = 1.f;
+            contribution *= dotN;
+            contribution *= saturate(1 - dist / surfel.radius);
+            contribution = smoothstep(0, 1, contribution);
+            
+        }
+
+        coverage += contribution;
+
+        if (maxContribution < contribution)
+        {
+            maxContribution = contribution;
+            maxContributionSurfelIndex = i;
+        }
+    }
+    return coverage;
+}
+
+float EstimateSurfelCoverage( float2 uv,float depthRaw,float3 normal, inout float maxContribution, inout int maxContributionSurfelIndex)
+{
+
+    float3 worldPos = ReconstructWorldPosition(uv, depthRaw.x, invViewProjectionMatrix);
+
+    uint2 surfelFromTo = ComputeRelevantSurfelRange(worldPos);
+    uint surfelCount = surfelFromTo.y - surfelFromTo.x;
+    float coverage = 0;
+
+    //For each surfel into the current Surfle Acceleration Structure Cell
+    //In this case is the uniform grid
+    for (uint i = surfelFromTo.x; i < surfelFromTo.y; ++i)
+    {
+        uint surfelIndex = surlfeListUAV[i];
+        SurfelData surfel = surfelsUAV[surfelIndex];
+
+
+        //Bias is relative position from surfel world to the current reconstructed world 
+        float3 bias = worldPos - (float3) surfel.position;
+        float dotN = dot(normal, surfel.normal);
+
+        float dist = length(bias);
         float contribution = 1.f;
 
+        contribution *= dotN;
         contribution *= saturate(1 - dist / surfel.radius);
         contribution = smoothstep(0, 1, contribution);
 

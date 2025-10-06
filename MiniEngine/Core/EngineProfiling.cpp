@@ -884,7 +884,7 @@ static void CollectPerStageStamps(uint32_t frameIndex,
 		//m_nvperf.OnFrameStart
 
 		bool res = m_nvperf.OnFrameEnd();
-		m_sampler.OnFrameEnd();
+		//m_sampler.OnFrameEnd();
 		//m_nvperf.Reset();
 		//m_nvperf.StartCollectionOnNextFrame();
 

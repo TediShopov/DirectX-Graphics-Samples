@@ -321,12 +321,12 @@ public:
 		if(ImGui::CollapsingHeader("Spawn Chances", &spawnChancesCollapsingHeader))
 		{
 			//Used for altering the 0-1 range chance
-			ImGui::DragFloat("Chance Power", &m_SurfelGen.SpawnChancePower,0.01f,0.01f,1.2f);
+			ImGui::DragFloat("Chance Power", &m_SurfelGen.SpawnChancePower, 0.01f, 0.01f, 5.0f);
 			ImGui::DragFloat("Chance Mulitply", &m_SurfelGen.SpawnChanceMultiplier,1,1,150);
-			ImGui::DragFloat("AO Threhold", &m_SurfelGen.AOVariables.x, 0.01f, 0.0f, 1.0f);
-			ImGui::DragFloat("Surfel Cap Min Radius", &m_SurfelGen.AOVariables.y, 1.0f, 1.0f, 300.0f);
-			ImGui::DragFloat("Surlfe Cap Max Radius", &m_SurfelGen.AOVariables.z, 1.0f, 1.0f, 300.0f);
-			ImGui::DragFloat("Lerp ", &m_SurfelGen.AOVariables.w, 0.01f, 0.0f, 1.0f);
+			ImGui::DragFloat("Surfel Cap AO Threhold", &m_SurfelGen.AOVariables.x, 0.01f, 0.0f, 1.0f);
+			ImGui::DragFloat("Surfel Cap Chance: Cap Min Radius", &m_SurfelGen.AOVariables.y, 1.0f, 1.0f, 300.0f);
+			ImGui::DragFloat("Surlfe Cap Chance: Max Radius", &m_SurfelGen.AOVariables.z, 1.0f, 1.0f, 300.0f);
+			ImGui::DragFloat("Lerp. 0 is AO only, 1 is Surfel Cap Radius only", &m_SurfelGen.AOVariables.w, 0.01f, 0.0f, 1.0f);
 		}
 	}
 

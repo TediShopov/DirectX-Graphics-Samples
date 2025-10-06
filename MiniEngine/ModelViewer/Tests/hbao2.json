@@ -1,31 +1,31 @@
 {
     "cameraStops": [
         {
-            "dwellTime": 60,
+            "dwellTime": 10,
             "position": [
-                -1011.0760498046875,
-                215.062744140625,
-                -55.29166793823242
+                -694.4794311523438,
+                186.46078491210938,
+                -44.39103317260742
             ],
             "rotation": [
-                -0.06032761186361313,
-                0.698557436466217,
-                0.059310633689165115,
-                0.7105352878570557
+                0.04329409450292587,
+                0.6816797256469727,
+                -0.04047013446688652,
+                0.7292466163635254
             ]
         },
         {
-            "dwellTime": 60,
+            "dwellTime": 10,
             "position": [
-                -345.96099853515625,
-                193.36570739746094,
-                -87.08251190185547
+                -1194.433837890625,
+                209.3448028564453,
+                -148.3473663330078
             ],
             "rotation": [
-                -0.018100490793585777,
-                -0.6984163522720337,
-                -0.017674626782536507,
-                0.7152444124221802
+                0.009925310499966145,
+                0.5173551440238953,
+                -0.006000886671245098,
+                0.8556921482086182
             ]
         }
     ],
@@ -34,16 +34,16 @@
     "m_HBILExtraCB._gatherSphereMaxRadius_m": 50.0,
     "m_HBILExtraCB._gatherSphereMaxRadius_p": 80.0,
     "m_HBILExtraCB._maxAngles": 4,
-    "m_HBILExtraCB._maxSamples": 8,
+    "m_HBILExtraCB._maxSamples": 32,
     "m_SurfelGen.AOVariables": 0.5,
-    "m_SurfelGen.AOVariables.w": 0.0,
+    "m_SurfelGen.AOVariables.w": 0.5,
     "m_SurfelGen.AOVariables.y": 6.0,
     "m_SurfelGen.AOVariables.z": 200.0,
     "m_SurfelGen.PlacementThreshold": 1.0,
     "m_SurfelGen.RemovalTreshold": 3.0,
     "m_SurfelGen.SpawnChanceMultiplier": 10.0,
     "m_SurfelGen.SpawnChancePower": 0.5,
-    "m_SurfelGen.SurfelCellLimit": 120,
+    "m_SurfelGen.SurfelCellLimit": 250,
     "testSamples": 10,
     "useAugmented": true
 }

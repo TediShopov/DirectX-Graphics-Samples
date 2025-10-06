@@ -163,7 +163,6 @@
 
  void HBIL::RenderHBIL(GraphicsContext& gfx, const Camera& camera)
 {
-	ScopedTimer _prof(L"Render HBIL", gfx);
 
 	m_MainHBILCB._deltaTime = 0.1;
 	m_MainHBILCB._framesCount = 0;

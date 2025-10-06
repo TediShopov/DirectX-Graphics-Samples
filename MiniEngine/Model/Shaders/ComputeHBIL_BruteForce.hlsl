@@ -386,6 +386,7 @@ PS_OUT	main(PSInput input) {
     float averageAO = 0.0;
     float varianceAO = 0.0;
     float phiNoise = 2.6457513110645905905016157536393 * _framesCount;
+    phiNoise = 0;
     float4 wsSampleAverage = float4(0, 0, 0, 0);
     float wsAcceptedSamples = 0;
 	

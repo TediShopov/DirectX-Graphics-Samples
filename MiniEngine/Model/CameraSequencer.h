@@ -66,6 +66,35 @@ public:
 		m_load = false;
 		m_reset = false;
 	}
+	bool LoadConfigName(const std::string& name) {
+
+		m_targetPath = TestFolder + m_targetName + ".json";
+		std::ifstream f(m_targetPath);
+		if (!f.is_open()) return false;
+
+		nlohmann::json j;
+		f >> j;
+
+		m_config.cameraStops.clear();
+		for (auto& s : j["cameraStops"])
+		{
+			CameraStop stop;
+			stop.position = { s["position"][0], s["position"][1], s["position"][2] };
+			stop.rotation =Quaternion(XMVectorSet(s["rotation"][0], s["rotation"][1], s["rotation"][2], s["rotation"][3]));
+			stop.dwellTime = s["dwellTime"];
+			m_config.cameraStops.push_back(stop);
+		}
+		m_config.logMetrics = j.value("logMetrics", true);
+		m_config.captureScreenshots = j.value("captureScreenshots", true);
+		m_config.testSamples = j.value("testSamples", m_config.testSamples);
+		m_config.m_useAugmentedAlgorithm = j.value("useAugmented", m_config.m_useAugmentedAlgorithm);
+
+		for each (auto paramBlock in m_parametersBlocks)
+			paramBlock->FromJson(j);
+		
+
+		return true;
+	}
 
 	bool LoadConfig(const std::string& path) {
 

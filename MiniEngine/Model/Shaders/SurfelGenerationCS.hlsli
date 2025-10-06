@@ -56,7 +56,7 @@ void main(
         float maxContribution = 0.0f;
 
         uint maxContributionSurfelIndex = RandomUintInRange(threadRandomnessSeed, 0, surfelCount);
-        float coverage = EstimateSurfelCoverage(uv, depthRaw.x, maxContribution, maxContributionSurfelIndex); //Represent how well covered is the grid cell 
+        float coverage = EstimateSurfelCoverageInformed(uv, depthRaw.x, sampledNormal,maxContribution, maxContributionSurfelIndex); //Represent how well covered is the grid cell 
         uint coverageData = PackCoverageData(coverage, threadRandomnessSeed, groupThreadID);
 
             //This is clever trick to utilize InterlockedMin.
@@ -96,7 +96,7 @@ void main(
                 float chanceSpawn = EstimateSpawnChance(coverage,depthRaw.x);
                 float changeAgainst = RandomFloat01(threadRandomnessSeed);
 
-                if (changeAgainst < chanceSpawn) {
+                if (chanceSpawn > changeAgainst) {
                     SurfelData newSurfel = SurfelPrototype(worldPos,depthRaw.x, sampledNormal, resolution.xy);
 
                     AttemptSpawnSurfel(newSurfel);

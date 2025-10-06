@@ -300,9 +300,9 @@ UINT TestRenderer::frameIndex = 0;
 		//m_Transform.setScale(50,50,50);
 		m_Transform.setScale(10, 10, 10);
 
-		//m_sunData.ambientLightIntensity = 0.3f;
 		m_sunData.ambientLightIntensity = 0;
 		m_sunData.sunInclination = 1.0f;
+		m_sunData.sunOrientation = -20;
 		m_sunData.sunLightIntensity = 1.0f;
 
 		D3D12_INPUT_ELEMENT_DESC vertElem[] =
@@ -440,8 +440,9 @@ UINT TestRenderer::frameIndex = 0;
 		//Camera Setup needed ? 
 		float modelRadius = Length(m_Model->GetBoundingBox().GetDimensions()) * 0.5f;
 		const Vector3 eye = m_Model->GetBoundingBox().GetCenter() + Vector3(modelRadius * 0.5f, 0.0f, 0.0f);
-		camera.SetEyeAtUp(eye, Vector3(kZero), Vector3(kYUnitVector));
-		camera.SetPosition(Vector3(m_Transform.getPosition()));
+		camera.SetEyeAtUp(-eye, Vector3(kZero), Vector3(kYUnitVector));
+		//camera.SetPosition(Vector3(m_Transform.getPosition()));
+		camera.SetPosition(Vector3(-874.0f,234,-53));
 
 
 
@@ -1405,7 +1406,7 @@ UINT TestRenderer::frameIndex = 0;
 		{
 			ImGui::Checkbox("Enable Debug Overlay", &m_enableDebugOverlay);
 			ImGui::Checkbox("Stop Surfle Spawn Recycle", &m_stopSurfelUpdate);
-			ImGui::Checkbox("Fill Acceleration Structures Simple Algorithm", &m_useSimpleAlgorithm);
+			//ImGui::Checkbox("Fill Acceleration Structures Simple Algorithm", &m_useSimpleAlgorithm);
 			ImGui::Checkbox("Render Only Relevant Surfels", &m_renderOnlyCurrentCellSurfels);
 			ImGui::DragInt("Debug Mode", &m_debugOverlayMode);
 
@@ -1537,6 +1538,10 @@ XMVECTOR VectorProjection(XMVECTOR u, XMVECTOR v, float* scalarOut)
 			 ScopedTimer _prof2(L"Render Color", gfxContext);
 
 			 gfxContext.TransitionResource(g_SSAOFullScreen, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+			 gfxContext.InsertUAVBarrier(SurfelIllumination->m_SurfelGrid.m_GPUBuffer);
+			 gfxContext.InsertUAVBarrier(SurfelIllumination->m_SurfelList.m_GPUBuffer);
+			 gfxContext.InsertUAVBarrier(SurfelIllumination->m_SurfelData.m_GPUBuffer);
+
 			 //gfxContext.TransitionResource(TestRaytracing::GetOutputBuffer(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 
 			 gfxContext.SetDescriptorTable(Renderer::kCommonSRVs, Renderer::m_CommonTextures);
@@ -2017,9 +2022,9 @@ XMVECTOR VectorProjection(XMVECTOR u, XMVECTOR v, float* scalarOut)
 		{
 			m_GBufferDownsample->Dispatch(cfx, camera);
 			{
-				ScopedTimer _prof(L"Render HBIL Tri", gfxContext);
 				if (m_hbil_render)
 				{
+					ScopedTimer _prof(L"Render HBIL", gfxContext);
 					ImVec2 mousePos = ImGui::GetMousePos();
 					float verticalFovRad = camera.GetFOV();
 					float TAN_HALF_FOV = tan(verticalFovRad * 0.5);

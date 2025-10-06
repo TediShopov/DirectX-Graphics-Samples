@@ -366,8 +366,8 @@
 
 	  m_SurfelGen.PlacementThreshold = 1;
 	  m_SurfelGen.RemovalTreshold = 3;
-	  m_SurfelGen.SpawnChancePower = 0.5f;
-	  m_SurfelGen.SpawnChanceMultiplier = 10.0f;
+	  m_SurfelGen.SpawnChancePower = 0.52f;
+	  m_SurfelGen.SpawnChanceMultiplier = 1.0f;
 
 	  m_SurfelGen.UniformGrid.cellSize = Vector4(100, 100, 100, 100);
 	  m_SurfelGen.UniformGrid.gridOrigin = Vector4(-2000, -2000, -2000, -2000);

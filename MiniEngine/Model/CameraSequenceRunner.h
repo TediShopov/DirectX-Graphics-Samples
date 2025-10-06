@@ -31,6 +31,8 @@ protected:
 
 	void WriteCSVHeader(std::ostream& outStream, std::vector<StageStamp>& stamps)
 	{
+		outStream << "Test" << ", ";
+		outStream << "Sample" << ", ";
 		outStream << "Frame" << ", ";
 		outStream << "CameraIndex" << ", ";
 		for each (StageStamp s in stamps)
@@ -45,6 +47,8 @@ protected:
 	}
 	void WriteCSVPerStageValues(std::ostream& outStream, std::vector<StageStamp> stamps, uint32_t frameIndex)
 	{
+		outStream << name << ", ";
+		outStream << m_targetRunIndex << ", ";
 		outStream << frameIndex << ", ";
 		outStream << m_targetCameraIndex << ", ";
 		for each (StageStamp s in stamps)
@@ -60,6 +64,7 @@ protected:
 
 public:
 	bool m_NeedResetAlgorithm = false;
+	bool m_FullyFinishedTests = false;
 	bool UseAugmentedAlgorithm()
 	{
 		return sequence->m_useAugmentedAlgorithm;
@@ -80,6 +85,7 @@ public:
 
 	void Start() {
 		m_NeedResetAlgorithm = true;
+		m_FullyFinishedTests = false;
 		paused = false;
 
 		state = SeqState::Move;
@@ -100,6 +106,7 @@ public:
 	void Reset() {
 		m_NeedResetAlgorithm = true;
 		paused = true;
+		m_FullyFinishedTests = true;
 		hasWrittenHeader = false;
 
 		m_targetCameraIndex = 0;
@@ -122,6 +129,7 @@ public:
 				maxStampCount = stamps.size();
 		}
 
+		int inner = stampRingBuffer.size();
 		for each (auto stamps in stampRingBuffer)
 		{
 			if (stamps.size() == maxStampCount)
@@ -132,8 +140,9 @@ public:
 		//if (paused || state == SeqState::Idle) return;
 					this->hasWrittenHeader = true;
 				}
-				WriteCSVPerStageValues(csvFileOutput, stamps, testFrameCounter);
+				WriteCSVPerStageValues(csvFileOutput, stamps, testFrameCounter-inner);
 			}
+			inner--;
 		}
 	}
 
@@ -204,7 +213,7 @@ public:
 				m_targetCameraIndex = 0;
 				m_NeedResetAlgorithm = true;
 				//Require that header is written every new run
-				hasWrittenHeader = false;
+				//hasWrittenHeader = false;
 				if (m_targetRunIndex >= sequence->testSamples)
 				{
 					Reset();
@@ -235,6 +244,7 @@ public:
 
 		ImGui::DragInt("Run Index", &m_targetRunIndex, 0.2f, 0,sequence->testSamples);
 		ImGui::DragInt("CameraPosition", &m_targetCameraIndex, 0.2f, 0, sequence->cameraStops.size());
+		ImGui::Checkbox("Fully Finished Test", &m_FullyFinishedTests);
 
 		bool go = false;
 		if (ImGui::Checkbox("Go To Camera", &go))

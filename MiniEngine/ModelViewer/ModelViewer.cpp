@@ -46,6 +46,7 @@
 #include "Imgui/imgui-master/backends/imgui_impl_dx12.h"
 #include "ExtendedUtility.h"
 #include "SurfelGI.h"
+#include "TestSuiteRunner.h"
 
 #define LEGACY_RENDERER
 
@@ -186,6 +187,7 @@ private:
     ShadowCamera m_SunShadowCamera;
 	CameraSequencer m_CameraSequence;
 	CameraSequenceRunner* m_SequenceRunner;
+	TestSuiteRunner* m_TestSuiteRunner;
 };
 
 CREATE_APPLICATION( ModelViewer )
@@ -283,6 +285,7 @@ void ModelViewer::Startup( void )
     InitImGui();
 
     std::wstring gltfFileName;
+	m_TestSuiteRunner = new TestSuiteRunner();
 
     bool forceRebuild = false;
     uint32_t rebuildValue;
@@ -652,12 +655,38 @@ void ModelViewer::RenderUI(GraphicsContext& gfx)
 	ImGui::NewFrame();
 
 	m_CameraSequence.RenderImGui();
+
+
+
 	m_SequenceRunner->SetSequence(&m_CameraSequence.GetMutableConfig(),m_CameraSequence.GetName());
+	if(m_TestSuiteRunner->IsActive() && m_SequenceRunner->IsRunning() == false)
+	{
+		if (m_SequenceRunner->m_FullyFinishedTests == true)
+		{
+			m_TestSuiteRunner->MoveNext();
+		}
+		m_CameraSequence.m_targetName = m_TestSuiteRunner->GetName();
+		if(m_CameraSequence.LoadConfigName(m_CameraSequence.m_targetName))
+		{
+			m_SequenceRunner->SetSequence(&m_CameraSequence.GetMutableConfig(), m_CameraSequence.GetName());
+			m_SequenceRunner->Start();
+		}
+		else
+		{
+			m_TestSuiteRunner->SetActive(false);
+
+		}
+
+	}
 	m_SequenceRunner->RenderImGui();
+	m_TestSuiteRunner->RenderImGui();
 	TestRenderer::RenderImGuiUI(gfx);
 
 
+
+
 	ImGui::Render();
+
 
 	ID3D12GraphicsCommandList* cmdList = gfx.GetCommandList();
 	ID3D12DescriptorHeap* ppHeaps[] = {

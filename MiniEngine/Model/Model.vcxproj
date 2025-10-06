@@ -114,6 +114,7 @@
     <ClInclude Include="SurfelIrradianceAccumulation.h" />
     <ClInclude Include="SurfelSpawnChanceVisualization.h" />
     <ClInclude Include="SurfelSSRMIrradianceAccumulation.h" />
+    <ClInclude Include="TestSuiteRunner.h" />
     <ClInclude Include="UniformGrid.h" />
     <FxCompile Include="Shaders\BlendPS.hlsl">
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Pixel</ShaderType>
@@ -228,6 +229,7 @@
     <ClCompile Include="SurfelSSRMIrradianceAccumulation.cpp" />
     <ClCompile Include="TestRaytracing.cpp" />
     <ClCompile Include="TestRenderer.cpp" />
+    <ClCompile Include="TestSuiteRunner.cpp" />
     <ClCompile Include="TextureConvert.cpp" />
   </ItemGroup>
   <ItemGroup>
