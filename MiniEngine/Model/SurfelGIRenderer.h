@@ -30,7 +30,7 @@ class GBufferSlice;
 using namespace Math;
 
 //namespace TestRenderer
-class TestRenderer 
+class SurfelGIRenderer 
 {
 public:
 	//--- DEFINES ---

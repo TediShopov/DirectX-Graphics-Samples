@@ -35,7 +35,7 @@
 #include "Display.h"
 #include "sstream"
 #include <iomanip>
-#include "TestRenderer.h"
+#include "SurfelGIRenderer.h"
 #include <wrl/client.h>
 #include <iostream>
 #include "Imgui/imgui-master/imgui.h"
@@ -295,7 +295,7 @@ void ModelViewer::Startup( void )
     if (CommandLineArgs::GetString(L"model", gltfFileName) == false)
     {
 #ifdef LEGACY_RENDERER
-        TestRenderer::Startup(m_Camera,m_CameraSequence.m_parametersBlocks,g_hWnd);
+        SurfelGIRenderer::Startup(m_Camera,m_CameraSequence.m_parametersBlocks,g_hWnd);
         //Sponza::Startup(m_Camera);
 #else
         m_ModelInst = Renderer::LoadModel(L"Sponza/PBR/sponza2.gltf", forceRebuild);
@@ -331,7 +331,7 @@ void ModelViewer::Cleanup( void )
     g_IBLTextures.clear();
 
 #ifdef LEGACY_RENDERER
-    TestRenderer::Cleanup();
+    SurfelGIRenderer::Cleanup();
     //Sponza::Cleanup();
 #endif
 
@@ -427,7 +427,7 @@ void ModelViewer::UpdateInput(float deltaT)
 
 	if (m_SequenceRunner->m_NeedResetAlgorithm)
 	{
-		TestRenderer::SetSurfelIlluminationAlgorithm(m_SequenceRunner->UseAugmentedAlgorithm());
+		SurfelGIRenderer::SetSurfelIlluminationAlgorithm(m_SequenceRunner->UseAugmentedAlgorithm());
 		m_SequenceRunner->m_NeedResetAlgorithm = false;
 	}
 
@@ -458,7 +458,7 @@ void ModelViewer::RenderScene( void )
 #ifdef LEGACY_RENDERER
         //Sponza::RenderScene(gfxContext, m_Camera, viewport, scissor);
 		//EngineProfiling::BeginBlock(L"TestingBear", &gfxContext);
-        TestRenderer::RenderScene(gfxContext, m_Camera, viewport, scissor,false,false);
+        SurfelGIRenderer::RenderScene(gfxContext, m_Camera, viewport, scissor,false,false);
 		//EngineProfiling::EndBlock( &gfxContext);
 		//EngineProfiling::EndBlockPerfSDK(&gfxContext);
 #endif
@@ -680,7 +680,7 @@ void ModelViewer::RenderUI(GraphicsContext& gfx)
 	}
 	m_SequenceRunner->RenderImGui();
 	m_TestSuiteRunner->RenderImGui();
-	TestRenderer::RenderImGuiUI(gfx);
+	SurfelGIRenderer::RenderImGuiUI(gfx);
 
 
 

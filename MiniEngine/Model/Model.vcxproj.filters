@@ -43,7 +43,7 @@
     <ClCompile Include="Animation.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="TestRenderer.cpp">
+    <ClCompile Include="SurfelGIRenderer.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="TestRaytracing.cpp" />
@@ -187,7 +187,7 @@
     <ClInclude Include="Animation.h">
       <Filter>Source Files</Filter>
     </ClInclude>
-    <ClInclude Include="TestRenderer.h">
+    <ClInclude Include="SurfelGIRenderer.h">
       <Filter>Source Files</Filter>
     </ClInclude>
     <ClInclude Include="TestRaytracing.h" />

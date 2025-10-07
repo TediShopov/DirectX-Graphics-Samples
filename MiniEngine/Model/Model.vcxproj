@@ -176,7 +176,7 @@
     <ClInclude Include="SponzaRenderer.h" />
     <ClInclude Include="SurfelGI.h" />
     <ClInclude Include="TestRaytracing.h" />
-    <ClInclude Include="TestRenderer.h" />
+    <ClInclude Include="SurfelGIRenderer.h" />
     <ClInclude Include="TextureConvert.h" />
   </ItemGroup>
   <ItemGroup>
@@ -228,7 +228,7 @@
     <ClCompile Include="SurfelSpawnChanceVisualization.cpp" />
     <ClCompile Include="SurfelSSRMIrradianceAccumulation.cpp" />
     <ClCompile Include="TestRaytracing.cpp" />
-    <ClCompile Include="TestRenderer.cpp" />
+    <ClCompile Include="SurfelGIRenderer.cpp" />
     <ClCompile Include="TestSuiteRunner.cpp" />
     <ClCompile Include="TextureConvert.cpp" />
   </ItemGroup>
