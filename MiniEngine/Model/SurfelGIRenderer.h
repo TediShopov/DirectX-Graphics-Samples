@@ -29,6 +29,52 @@ class GBufferDownsample;
 class GBufferSlice;
 using namespace Math;
 
+// TestRendererContext.h
+struct SurfelGIRendererContext {
+    // device-independent toggles / state
+    bool useInformedSBGI = true;
+    bool drawSSR = false;
+    bool drawSurfels = false;
+    bool enableDebugOverlay = true;
+    int  debugOverlayMode = 0;
+    UINT frameIndex = 0;
+
+    // resources, PSOs, heaps, buffers…
+	std::unique_ptr<SurfelGI> SurfelIllumination;
+	std::unique_ptr<HashGridVisualization> GridVisualization;
+	std::unique_ptr<MSMEVisualization> GridMSMEVisualization;
+	std::unique_ptr<SurfelSpawnChanceVisualization> SurfelSpawnVisualization;
+	std::unique_ptr<SurfelGIOnlyVisualization> SurfelGIVisualization;
+	std::unique_ptr<SurfelGIOnlyVisualization> MaterialBindingDebug;
+	std::unique_ptr<HBIL> m_HBIL;
+	std::unique_ptr<HBILInterleaved> m_HBILInterleaved;
+	std::unique_ptr<GBufferDownsample> m_GBufferDownsample;
+	std::unique_ptr<GBufferSlice> m_GBufferSlice;
+    // … the rest of pointers you currently keep as statics …
+
+    // scene assets
+    std::unique_ptr<ModelH3D> model;
+    std::unique_ptr<SphereMesh> sphere;
+    std::unique_ptr<DiscMesh> disc;
+    std::unique_ptr<Transform> transform;
+
+    // cached sun/shadow and constants
+    ShadowCamera sunShadow;
+    ExpVar ambientIntensity  = ExpVar("Ambient Light Intensity", 0.1f);
+    ExpVar sunLightIntensity = ExpVar("Sun Light Intensity", 1.0f);
+    Vector3 sunDirection = Vector3(0,1,0);
+
+    // PSOs
+    GraphicsPSO psoDepth, psoCutoutDepth, psoShadow, psoCutoutShadow;
+    GraphicsPSO psoColor, psoColorCutout, psoSphere, psoSSR;
+
+    // convenience
+    Matrix4 lastViewProj;
+    Camera  lastCamera;
+};
+
+
+
 //namespace TestRenderer
 class SurfelGIRenderer 
 {
@@ -43,33 +89,33 @@ public:
 
 
 	//--- DATA ---
-#pragma region ExposedProperties
-	static UINT frameIndex;
-
-	static SurfelGI* SurfelIllumination;
-	static HashGridVisualization* GridVisualization;
-	static MSMEVisualization* GridMSMEVisualization;
-	static SurfelSpawnChanceVisualization* SurfelSpawnVisualization;
-	static SurfelGIOnlyVisualization* SurfelGIVisualization;
-	static SurfelGIOnlyVisualization* MaterialBindingDebug;
-	static HBIL* m_HBIL;
-	static HBILInterleaved* m_HBILInterleaved;
-	static GBufferDownsample* m_GBufferDownsample;
-	static GBufferSlice* m_GBufferSlice;
-
-	static SphereMesh* m_Sphere;
-	static DiscMesh* m_Disc;
-	static Transform m_Transform;
-
-	//-- DIRECTIONAL LIGHT PROPERTIES
-	static Math::Vector3 m_SunDirection;
-	static ShadowCamera m_SunShadow;
-	static ExpVar m_AmbientIntensity;
-	static ExpVar m_SunLightIntensity;
-#pragma endregion
-
-	
-	 static Math::Camera lastUsedCamera;
+//#pragma region ExposedProperties
+//	static UINT frameIndex;
+//
+//	static SurfelGI* SurfelIllumination;
+//	static HashGridVisualization* GridVisualization;
+//	static MSMEVisualization* GridMSMEVisualization;
+//	static SurfelSpawnChanceVisualization* SurfelSpawnVisualization;
+//	static SurfelGIOnlyVisualization* SurfelGIVisualization;
+//	static SurfelGIOnlyVisualization* MaterialBindingDebug;
+//	static HBIL* m_HBIL;
+//	static HBILInterleaved* m_HBILInterleaved;
+//	static GBufferDownsample* m_GBufferDownsample;
+//	static GBufferSlice* m_GBufferSlice;
+//
+//	static SphereMesh* m_Sphere;
+//	static DiscMesh* m_Disc;
+//	static Transform m_Transform;
+//
+//	//-- DIRECTIONAL LIGHT PROPERTIES
+//	static Math::Vector3 m_SunDirection;
+//	static ShadowCamera m_SunShadow;
+//	static ExpVar m_AmbientIntensity;
+//	static ExpVar m_SunLightIntensity;
+//#pragma endregion
+//
+//	
+//	 static Math::Camera lastUsedCamera;
 
 	//--- INITTIALIZATOIN ---
 	static void Startup(Math::Camera& camera,std::vector<IParameterBlock*>& parameters, HWND hwnd);

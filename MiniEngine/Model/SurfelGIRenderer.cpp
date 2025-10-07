@@ -51,8 +51,6 @@
 #include "CompiledShaders/SurfelAccelerationStructuresCS.h"
 #include "CompiledShaders/SurfelGenerationCS.h"
 #include "CompiledShaders/ScreenSpaceReflectionsPS.h"
-//#include "CompiledShaders/Raytracing.h"
-
 
 #include <dxcapi.h>
 #include <vector>
@@ -65,21 +63,13 @@
 #include "CameraSequenceRunner.h"
 #include "AdditiveBlendPass.h"
 
-//#include "nvperf_host.h"
-//#include "nvperf_d3d12_host.h"
-//#include "nvperf_host_impl.h"
-//#include "NvPerfRangeProfilerD3D12.h"
-//#include <NvPerfReportGeneratorD3D12.h>
-
-
-
-
-
 using namespace Math;
 using namespace Graphics;
 using namespace std;
-//using namespace DX;
 
+namespace {
+    std::unique_ptr<SurfelGIRendererContext> context;
+}
 	//--- DATA ---
 #pragma region DATA
 
@@ -89,32 +79,32 @@ using namespace std;
 #pragma endregion
 
 
-UINT SurfelGIRenderer::frameIndex = 0;
+//UINT SurfelGIRenderer::frameIndex = 0;
+//
+//	 SurfelGI* SurfelGIRenderer::SurfelIllumination = nullptr;
+// HashGridVisualization* SurfelGIRenderer::GridVisualization = nullptr;
+//	 MSMEVisualization* SurfelGIRenderer::GridMSMEVisualization = nullptr;
+//	 SurfelSpawnChanceVisualization* SurfelGIRenderer::SurfelSpawnVisualization = nullptr;
+//	 SurfelGIOnlyVisualization* SurfelGIRenderer::SurfelGIVisualization = nullptr;
+//	 SurfelGIOnlyVisualization* SurfelGIRenderer::MaterialBindingDebug = nullptr;
+//	 HBIL* SurfelGIRenderer::context->m_HBIL = nullptr;
+//	 HBILInterleaved* SurfelGIRenderer::m_HBILInterleaved = nullptr;
+//	 GBufferDownsample* SurfelGIRenderer::m_GBufferDownsample = nullptr;
+//	 GBufferSlice* SurfelGIRenderer::m_GBufferSlice = nullptr;
+//
+//
+//	 Math::Camera SurfelGIRenderer::lastUsedCamera = Math::Camera();
+//
+//	 SphereMesh* SurfelGIRenderer::m_Sphere = nullptr;
+//	 DiscMesh* SurfelGIRenderer::context->disc = nullptr;
+//	 Transform SurfelGIRenderer::m_Transform;
 
-	 SurfelGI* SurfelGIRenderer::SurfelIllumination = nullptr;
- HashGridVisualization* SurfelGIRenderer::GridVisualization = nullptr;
-	 MSMEVisualization* SurfelGIRenderer::GridMSMEVisualization = nullptr;
-	 SurfelSpawnChanceVisualization* SurfelGIRenderer::SurfelSpawnVisualization = nullptr;
-	 SurfelGIOnlyVisualization* SurfelGIRenderer::SurfelGIVisualization = nullptr;
-	 SurfelGIOnlyVisualization* SurfelGIRenderer::MaterialBindingDebug = nullptr;
 	 AdditiveBlendPass m_AdditiveBlendPass;
-	 HBIL* SurfelGIRenderer::m_HBIL = nullptr;
-	 HBILInterleaved* SurfelGIRenderer::m_HBILInterleaved = nullptr;
-	 GBufferDownsample* SurfelGIRenderer::m_GBufferDownsample = nullptr;
-	 GBufferSlice* SurfelGIRenderer::m_GBufferSlice = nullptr;
-
-	 ModelH3D* SurfelGIRenderer::m_Model = nullptr;
-	 ModelH3D* SurfelGIRenderer::m_ModelExtra = nullptr;
-
-	 Math::Camera SurfelGIRenderer::lastUsedCamera = Math::Camera();
-
-	 SphereMesh* SurfelGIRenderer::m_Sphere = nullptr;
-	 DiscMesh* SurfelGIRenderer::m_Disc = nullptr;
-	 Transform SurfelGIRenderer::m_Transform;
-
 	 DescriptorHeap SurfelGIRenderer::SSRHeap = DescriptorHeap();
 	 ColorBuffer SurfelGIRenderer::colorCopyBuffer = ColorBuffer();
 	 DepthBuffer SurfelGIRenderer::depthCopyBuffer = DepthBuffer();
+	 ModelH3D* SurfelGIRenderer::m_Model = nullptr;
+	 ModelH3D* SurfelGIRenderer::m_ModelExtra = nullptr;
 //	 CameraSequencer m_CameraSequence;
 //	 CameraSequenceRunner* m_SequenceRunner;
 
@@ -131,10 +121,10 @@ UINT SurfelGIRenderer::frameIndex = 0;
 	 };
 	 SunData m_sunData;
 	//-- DIRECTIONAL LIGHT PROPERTIES
-	 Math::Vector3 SurfelGIRenderer::m_SunDirection;
-	 ShadowCamera SurfelGIRenderer::m_SunShadow;
-	 ExpVar SurfelGIRenderer::m_AmbientIntensity = ExpVar("Ambient Light Intensity",0.1f);
-	 ExpVar SurfelGIRenderer::m_SunLightIntensity = ExpVar("Sun Light Intensity",1.0f);
+//	 Math::Vector3 SurfelGIRenderer::m_SunDirection;
+//	 ShadowCamera SurfelGIRenderer::m_SunShadow;
+//	 ExpVar SurfelGIRenderer::m_AmbientIntensity = ExpVar("Ambient Light Intensity",0.1f);
+//	 ExpVar SurfelGIRenderer::m_SunLightIntensity = ExpVar("Sun Light Intensity",1.0f);
 
 	NumVar m_SunOrientation = NumVar("Sponza/Lighting/Sun Orientation", -0.5f, -100.0f, 100.0f, 0.1f);
 	NumVar m_SunInclination = NumVar("Sponza/Lighting/Sun Inclination", 0.75f, 0.0f, 1.0f, 0.01f);
@@ -258,36 +248,20 @@ UINT SurfelGIRenderer::frameIndex = 0;
 	///--- INTIIALIZATION ---
 	void SurfelGIRenderer::Startup(Math::Camera& camera,std::vector<IParameterBlock*>& parameters, HWND hwnd)
 	{
-		//		DragonModel.Load(L"OBJ/Dragon.obj");
-		//		DragonModel.Load(L"D:/MScSurfelBasedGI/DirectX-Graphics-Samples/MiniEngine/Model/OBJ/Dragon.obj");
-
-		//m_nvperf.additionalMetrics = { "crop__write_throughput" };
-		//// Initialize
-		//m_nvperf.InitializeReportGenerator(g_Device);
-
-		//// Optional: set frame range name (so reports have a “Frame” top-level marker)
-		//m_nvperf.SetFrameLevelRangeName("Frame");
-
-		//// Depth of nested PushRange calls you might use
-		//m_nvperf.SetNumNestingLevels(10); // heuristic default
-
-		//m_nvperf.StartCollectionOnNextFrame();
+		context = std::make_unique<SurfelGIRendererContext>();
+		context->SurfelIllumination = std::make_unique<SurfelGI>();  
+		context->GridVisualization = std::make_unique<HashGridVisualization>();  
+		context->GridMSMEVisualization = std::make_unique<MSMEVisualization>();  
+		context->SurfelSpawnVisualization = std::make_unique<SurfelSpawnChanceVisualization>();  
+		context->SurfelGIVisualization = std::make_unique<SurfelGIOnlyVisualization>();  
+		context->MaterialBindingDebug = std::make_unique<SurfelGIOnlyVisualization>();  
+		context->frameIndex = 0;
 
 
-		SurfelIllumination = new SurfelGI();  // Definition (allocates storage)
-		GridVisualization = new HashGridVisualization();
-		GridMSMEVisualization = new MSMEVisualization();
-		SurfelSpawnVisualization = new SurfelSpawnChanceVisualization();
-		SurfelGIVisualization = new SurfelGIOnlyVisualization();
-		MaterialBindingDebug = new SurfelGIOnlyVisualization();
-		frameIndex = 0;
-		//m_SequenceRunner = new CameraSequenceRunner(&camera);
-		//m_CameraSequence.LoadConfig("DebugConfigPath.json");
-
-
-		m_Sphere = nullptr;
-		m_Disc = nullptr;
-		m_Transform = Transform();
+		context->sphere = nullptr;
+		context->disc = nullptr;
+		context->transform = std::make_unique<Transform>();
+		context->transform->setScale(10, 10, 10);
 
 		DXGI_FORMAT ColorFormat = g_SceneColorBuffer.GetFormat();
 		DXGI_FORMAT NormalFormat = g_SceneNormalBuffer.GetFormat();
@@ -298,7 +272,6 @@ UINT SurfelGIRenderer::frameIndex = 0;
 
 
 		//m_Transform.setScale(50,50,50);
-		m_Transform.setScale(10, 10, 10);
 
 		m_sunData.ambientLightIntensity = 0;
 		m_sunData.sunInclination = 1.0f;
@@ -413,7 +386,7 @@ UINT SurfelGIRenderer::frameIndex = 0;
 		InitQuadModel();
 		InitSphereModel();
 
-		m_Disc = new DiscMesh(10);
+		context->disc = std::make_unique<DiscMesh>(10);
 
 		// The caller of this function can override which materials are considered cutouts
 		m_pMaterialIsCutout.resize(m_Model->GetMaterialCount());
@@ -461,23 +434,23 @@ UINT SurfelGIRenderer::frameIndex = 0;
 		TestRaytracing::CreateOutputTextureUAV(&g_SceneColorBuffer);
 		SurfelIrradianceAccumulation::CreateOutputTextureUAV(&g_SceneColorBuffer);
 
-		SurfelIllumination->Setup(
+		context->SurfelIllumination->Setup(
 			gbuffer
 		);
 
 		TestRaytracing::CreateDeviceDependentResources(
-			m_Transform,
+			*context->transform,
 			*m_Model,
 			&Graphics::g_SceneColorBuffer,
-			SurfelIllumination->nonShaderVisibleHeap
-			//SurfelIllumination->srvHeap
+			context->SurfelIllumination->nonShaderVisibleHeap
+			//context->SurfelIllumination->srvHeap
 		);
 		SurfelIrradianceAccumulation::CreateDeviceDependentResources(
-			m_Transform,
+			*context->transform,
 			*m_Model,
 			&Graphics::g_SceneColorBuffer,
-			SurfelIllumination->nonShaderVisibleHeap
-			//SurfelIllumination->srvHeap
+			context->SurfelIllumination->nonShaderVisibleHeap
+			//context->SurfelIllumination->srvHeap
 
 		);
 
@@ -501,61 +474,60 @@ UINT SurfelGIRenderer::frameIndex = 0;
 			},
 			D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 
-		SSRMIrradianceAccumulation.Setup(colorCopyBuffer, SurfelIllumination->nonShaderVisibleHeap);
+		SSRMIrradianceAccumulation.Setup(colorCopyBuffer, context->SurfelIllumination->nonShaderVisibleHeap);
 
 
 
-		GridVisualization->Setup(
+		context->GridVisualization->Setup(
 			gbuffer,
 			&TestRaytracing::GetOutputBuffer()
 
 		);
 
-		m_HBIL = new HBIL();
-		//m_HBILInterleaved = new HBILInterleaved();
-		m_GBufferDownsample = new GBufferDownsample();
+		context->m_HBIL = std::make_unique<HBIL>();
+		context->m_GBufferDownsample = std::make_unique<GBufferDownsample>();
 		//m_GBufferSlice = new GBufferSlice();
-		m_GBufferDownsample->Setup(gbuffer, GridVisualization->m_TestPSO);
+		context->m_GBufferDownsample->Setup(gbuffer, context->GridVisualization->m_TestPSO);
 		//m_GBufferSlice->Setup(m_GBufferDownsample->GetDownsampledBufferPtr(), GridVisualization->m_TestPSO);
 
-		m_HBIL->Setup(
+		context->m_HBIL->Setup(
 			gbuffer,
-			m_GBufferDownsample->GetDownsampledBufferPtr(),
-			GridVisualization->m_TestPSO
+			context->m_GBufferDownsample->GetDownsampledBufferPtr(),
+			context->GridVisualization->m_TestPSO
 		);
 //		m_HBILInterleaved->Setup(
 //			gbuffer,
 //			m_GBufferSlice->GetOuptutBuffer(),
 //			GridVisualization->m_TestPSO
 //		);
-		GridMSMEVisualization->Setup(
+		context->GridMSMEVisualization->Setup(
 			gbuffer,
 			&TestRaytracing::GetOutputBuffer()
 		);
-		SurfelSpawnVisualization->Setup(
+		context->SurfelSpawnVisualization->Setup(
 			gbuffer,
 			&TestRaytracing::GetOutputBuffer()
 		);
-		SurfelGIVisualization->Setup(
+		context->SurfelGIVisualization->Setup(
 			gbuffer,
-			&SurfelIllumination->m_OutputTexture
+			&context->SurfelIllumination->m_OutputTexture
 		);
 		m_AdditiveBlendPass.Setup(
 			gbuffer,
-			&SurfelIllumination->m_OutputTexture,
-			&m_HBIL->m_OutputIrradiance,
+			&context->SurfelIllumination->m_OutputTexture,
+			&context->m_HBIL->m_OutputIrradiance,
 			&Graphics::g_SSAOFullScreen,
 			g_pSimpleColorVS, sizeof(g_pSimpleColorVS),
 			g_pSimpleColorPS, sizeof(g_pSimpleColorPS)
 		);
-		MaterialBindingDebug->Setup(
+		context->MaterialBindingDebug->Setup(
 			gbuffer,
 			&TestRaytracing::GetOutputBuffer()
 		);
 
 
-		//SurfelIllumination->SetupInformed(&m_HBIL->m_OutputBentCone,&m_HBIL->m_OutputIrradiance);
-		SurfelIllumination->SetupInformed(&m_HBIL->m_OutputBentCone, &Graphics::g_SSAOFullScreen);
+		//SurfelIllumination->SetupInformed(&context->m_HBIL->m_OutputBentCone,&context->m_HBIL->m_OutputIrradiance);
+		context->SurfelIllumination->SetupInformed(&context->m_HBIL->m_OutputBentCone, &Graphics::g_SSAOFullScreen);
 
 
 		//Allocate just and extra descriptor table entry
@@ -574,15 +546,15 @@ UINT SurfelGIRenderer::frameIndex = 0;
 			Lighting::m_LightShadowArray.GetSRV(),
 			Lighting::m_LightGrid.GetSRV(),
 			Lighting::m_LightGridBitMask.GetSRV(),
-			SurfelIllumination->m_OutputTexture.GetSRV(),
-			m_HBIL->m_OutputIrradiance.GetSRV(),
+			context->SurfelIllumination->m_OutputTexture.GetSRV(),
+			context->m_HBIL->m_OutputIrradiance.GetSRV(),
 		};
 		//       TestRaytracing::GetOutputBuffer().GetSRV()
 		g_Device->CopyDescriptors(1, &Renderer::m_CommonTextures, &DestCount, DestCount, SourceTextures, SourceCounts, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 
 
-		parameters.push_back(SurfelIllumination);
-		parameters.push_back(m_HBIL);
+		parameters.push_back(context->SurfelIllumination.get());
+		parameters.push_back(context->m_HBIL.get());
 
 
 	}
@@ -655,14 +627,14 @@ UINT SurfelGIRenderer::frameIndex = 0;
 	}
 	void SurfelGIRenderer::InitSphereModel()
 	{
-		m_Sphere = new SphereMesh(2);
+		context->sphere = std::make_unique<SphereMesh>(2);
 	}
 
 	UINT SurfelGIRenderer::FindClosesSurfelToPosition(Math::Vector3 position)
 	{
 		float closestDistance = 999999.0f;
 		UINT closesSurfelId = -1;
-		std::vector<SurfelData>& surfels = SurfelIllumination->m_SurfelData.m_Actual;
+		std::vector<SurfelData>& surfels = context->SurfelIllumination->m_SurfelData.m_Actual;
 		for (size_t i = 0; i < surfels.size(); i++)
 		{
 			if (surfels[i].radius.GetX() <= 0.5f)
@@ -683,6 +655,7 @@ UINT SurfelGIRenderer::frameIndex = 0;
 	///---	CLEANUP ---
 	void SurfelGIRenderer::Cleanup(void)
 	{
+
 		m_Model->Clear();
 		Lighting::Shutdown();
 		TextureManager::Shutdown();
@@ -694,9 +667,10 @@ UINT SurfelGIRenderer::frameIndex = 0;
 	SurfelGIRenderer::VSConstants SurfelGIRenderer::SetupObjectVSConstants(RENDER_OBJECT_INSTANCE_PARAMS)
 	{
 		VSConstants vsConstants;
-		vsConstants.modelToWorld = Matrix4(SurfelGIRenderer::m_Transform.getTransformMatrix());
+		//vsConstants.modelToWorld = Matrix4(SurfelGIRenderer::m_Transform.getTransformMatrix());
+		vsConstants.modelToWorld = Matrix4(context->transform->getTransformMatrix());
 		vsConstants.modelToProjection = ViewProjMat;
-		vsConstants.modelToShadow = m_SunShadow.GetShadowMatrix();
+		vsConstants.modelToShadow = context->sunShadow.GetShadowMatrix();
 		XMStoreFloat3(&vsConstants.viewerPos, viewerPos);
 		return vsConstants;
 
@@ -824,8 +798,8 @@ UINT SurfelGIRenderer::frameIndex = 0;
 	}
 	void SurfelGIRenderer::RenderSurfelAt(Vector4 color,Vector4 normal,float scale, Vector4 position, RENDER_OBJECT_INSTANCE_PARAMS) {
 
-		gfxContext.SetIndexBuffer(m_Disc->m_IndexBufferView);
-		gfxContext.SetVertexBuffer(0, m_Disc->m_VertexBufferView);
+		gfxContext.SetIndexBuffer(context->disc->m_IndexBufferView);
+		gfxContext.SetVertexBuffer(0, context->disc->m_VertexBufferView);
 
 
 			Transform t;
@@ -858,7 +832,7 @@ UINT SurfelGIRenderer::frameIndex = 0;
 				gfxContext.SetDynamicConstantBufferView(Renderer::kMeshConstants, sizeof(vsConstants), &vsConstants);
 				gfxContext.SetDynamicConstantBufferView(Renderer::kCommonCBV, sizeof(Vector4), &s.color);
 				//--- Draw three indices of the triangle
-				gfxContext.DrawIndexed(m_Disc->m_Indices.size(), 0, 0);
+				gfxContext.DrawIndexed(context->disc->m_Indices.size(), 0, 0);
 
 			}
 	}
@@ -867,13 +841,13 @@ UINT SurfelGIRenderer::frameIndex = 0;
 	{
 		
 		const UINT vertexBufferSize = sizeof(triangleVertices);
-		gfxContext.SetIndexBuffer(m_Sphere->m_IndexBufferView);
-		gfxContext.SetVertexBuffer(0, m_Sphere->m_VertexBufferView);
+		gfxContext.SetIndexBuffer(context->sphere->m_IndexBufferView);
+		gfxContext.SetVertexBuffer(0, context->sphere->m_VertexBufferView);
 
 
 		//gfxContext.SetDynamicConstantBufferView(Renderer::kCommonCBV, sizeof(Vector4), &s.color);
 		//--- Draw three indices of the triangle
-		gfxContext.DrawIndexed(m_Sphere->m_Indices.size(), 0, 0);
+		gfxContext.DrawIndexed(context->sphere->m_Indices.size(), 0, 0);
 
 		//--- Switch Back To Sponza model
 		gfxContext.SetIndexBuffer(m_Model->GetIndexBuffer());
@@ -917,8 +891,8 @@ UINT SurfelGIRenderer::frameIndex = 0;
 
 	void SurfelGIRenderer::GetRelevantSurfels( UINT& from, UINT& to )
 	{
-		UniformGrid grid = SurfelIllumination->m_SurfelGen.UniformGrid;
-		SurfelDebugData data = SurfelIllumination->m_SurfelDebugActual;
+		UniformGrid grid = context->SurfelIllumination->m_SurfelGen.UniformGrid;
+		SurfelDebugData data = context->SurfelIllumination->m_SurfelDebugActual;
 
 		UINT gridDimX =
 			grid.dimensions.GetX() / grid.cellSize.GetX();
@@ -933,8 +907,8 @@ UINT SurfelGIRenderer::frameIndex = 0;
            data.PointedCellZ * gridDimX * gridDimY;
 
 
-		 from = SurfelIllumination->m_SurfelGrid.m_Actual[linearIndex];
-		 to = SurfelIllumination->m_SurfelGrid.m_Actual[linearIndex+1];
+		 from = context->SurfelIllumination->m_SurfelGrid.m_Actual[linearIndex];
+		 to = context->SurfelIllumination->m_SurfelGrid.m_Actual[linearIndex+1];
 
 	}
 
@@ -943,8 +917,8 @@ UINT SurfelGIRenderer::frameIndex = 0;
 		VSConstants vsConstants =SetupObjectVSConstants(gfxContext, ViewProjMat, viewerPos, Filter);
 
 		const UINT vertexBufferSize = sizeof(triangleVertices);
-		gfxContext.SetIndexBuffer(m_Disc->m_IndexBufferView);
-		gfxContext.SetVertexBuffer(0, m_Disc->m_VertexBufferView);
+		gfxContext.SetIndexBuffer(context->disc->m_IndexBufferView);
+		gfxContext.SetVertexBuffer(0, context->disc->m_VertexBufferView);
 
 		UINT surfelListIndexFrom ;
 		UINT surfelListIndexTo ;
@@ -955,9 +929,9 @@ UINT SurfelGIRenderer::frameIndex = 0;
 
 			Transform t;
 			//UINT surfelIndex = SurfelIllumination->m_SurfelListActual[i];
-			UINT surfelIndex = SurfelIllumination->m_SurfelList.m_Actual[i];
+			UINT surfelIndex = context->SurfelIllumination->m_SurfelList.m_Actual[i];
 			//SurfelData s = SurfelIllumination->m_SurfelDataArray[surfelIndex];
-			SurfelData s = SurfelIllumination->m_SurfelData.m_Actual[surfelIndex];
+			SurfelData s = context->SurfelIllumination->m_SurfelData.m_Actual[surfelIndex];
 			Vector4 extrudedPossition = s.position + (s.normal * 1.0f);
 
 
@@ -979,7 +953,7 @@ UINT SurfelGIRenderer::frameIndex = 0;
 				gfxContext.SetDynamicConstantBufferView(Renderer::kMeshConstants, sizeof(vsConstants), &vsConstants);
 				gfxContext.SetDynamicConstantBufferView(Renderer::kCommonCBV, sizeof(Vector4), &s.color);
 				//--- Draw three indices of the triangle
-				gfxContext.DrawIndexed(m_Disc->m_Indices.size(), 0, 0);
+				gfxContext.DrawIndexed(context->disc->m_Indices.size(), 0, 0);
 
 			}
 
@@ -998,7 +972,7 @@ UINT SurfelGIRenderer::frameIndex = 0;
 		const Vector3 offset = relSphereOffset * modelRadius;
 
 
-		for each (SurfelData s in SurfelIllumination->m_SurfelData.m_Actual)
+		for each (SurfelData s in context->SurfelIllumination->m_SurfelData.m_Actual)
 		{
 			if ((float)s.radius.GetX() == 0)
 			{
@@ -1014,8 +988,8 @@ UINT SurfelGIRenderer::frameIndex = 0;
 				VSConstants vsConstants = SetupObjectVSConstants(gfxContext, ViewProjMat, viewerPos, Filter);
 				const UINT vertexBufferSize = sizeof(triangleVertices);
 				//---TEMPORARILY switch index and vertex buffers
-				gfxContext.SetIndexBuffer(m_Disc->m_IndexBufferView);
-				gfxContext.SetVertexBuffer(0, m_Disc->m_VertexBufferView);
+				gfxContext.SetIndexBuffer(context->disc->m_IndexBufferView);
+				gfxContext.SetVertexBuffer(0, context->disc->m_VertexBufferView);
 
 				//This postioing woudl be extruded along bent normal
 				Transform t;
@@ -1037,7 +1011,7 @@ UINT SurfelGIRenderer::frameIndex = 0;
 
 
 				//--- Draw three indices of the triangle
-				gfxContext.DrawIndexed(m_Disc->m_Indices.size(), 0, 0);
+				gfxContext.DrawIndexed(context->disc->m_Indices.size(), 0, 0);
 
 
 				//Render a surfel by offsetting height alogn bent normal
@@ -1049,8 +1023,8 @@ UINT SurfelGIRenderer::frameIndex = 0;
 				VSConstants vsConstants = SetupObjectVSConstants(gfxContext, ViewProjMat, viewerPos, Filter);
 				const UINT vertexBufferSize = sizeof(triangleVertices);
 				//---TEMPORARILY switch index and vertex buffers
-				gfxContext.SetIndexBuffer(m_Disc->m_IndexBufferView);
-				gfxContext.SetVertexBuffer(0, m_Disc->m_VertexBufferView);
+				gfxContext.SetIndexBuffer(context->disc->m_IndexBufferView);
+				gfxContext.SetVertexBuffer(0, context->disc->m_VertexBufferView);
 
 			Transform t;
 			t.setPosition(s.position);
@@ -1067,7 +1041,7 @@ UINT SurfelGIRenderer::frameIndex = 0;
 				gfxContext.SetDynamicConstantBufferView(Renderer::kCommonCBV, sizeof(Vector4), &s.color);
 
 				//--- Draw three indices of the triangle
-				gfxContext.DrawIndexed(m_Disc->m_Indices.size(), 0, 0);
+				gfxContext.DrawIndexed(context->disc->m_Indices.size(), 0, 0);
 
 			}
 			else {
@@ -1091,7 +1065,7 @@ UINT SurfelGIRenderer::frameIndex = 0;
 			XMFLOAT3 viewerPos;
 		} vsConstants;
 		vsConstants.modelToProjection = ViewProjMat;
-		vsConstants.modelToShadow = m_SunShadow.GetShadowMatrix();
+		vsConstants.modelToShadow = context->sunShadow.GetShadowMatrix();
 		vsConstants.modelToWorld = Matrix4(XMMatrixIdentity());
 		XMStoreFloat3(&vsConstants.viewerPos, viewerPos);
 
@@ -1108,7 +1082,7 @@ UINT SurfelGIRenderer::frameIndex = 0;
 
 			if (meshIndex > 33)
 			{
-				vsConstants.modelToWorld = Matrix4(m_Transform.getTransformMatrix());
+				vsConstants.modelToWorld = Matrix4(context->transform->getTransformMatrix());
 
 
 			}
@@ -1164,7 +1138,7 @@ UINT SurfelGIRenderer::frameIndex = 0;
 			XMFLOAT3 viewerPos;
 		} vsConstants;
 		vsConstants.modelToProjection = camera.GetViewProjMatrix();
-		vsConstants.modelToShadow = m_SunShadow.GetShadowMatrix();
+		vsConstants.modelToShadow = context->sunShadow.GetShadowMatrix();
 		vsConstants.modelToWorld = Matrix4(XMMatrixIdentity());
 		XMStoreFloat3(&vsConstants.viewerPos, camera.GetPosition());
 		__declspec(align(16)) uint32_t materialIdx = 0xFFFFFFFFul;
@@ -1173,7 +1147,7 @@ UINT SurfelGIRenderer::frameIndex = 0;
 		UINT a = sizeof(vsConstants);
 		UINT meshIndex = objectIndex;
 
-		vsConstants.modelToWorld = Matrix4(m_Transform.getTransformMatrix());
+		vsConstants.modelToWorld = Matrix4(context->transform->getTransformMatrix());
 
 
 		gfxContext.SetDynamicConstantBufferView(Renderer::kMeshConstants, sizeof(vsConstants), &vsConstants);
@@ -1322,14 +1296,14 @@ UINT SurfelGIRenderer::frameIndex = 0;
 			}
 			if (pressedResetSurfels)
 			{
-				SurfelIllumination->ResetSurfels(gfx);
+				context->SurfelIllumination->ResetSurfels(gfx);
 
 			}
 			if (pressedResetSurfelsIrradiance)
 			{
-				SurfelIllumination->ReadbackSurfelData(gfx);
+				context->SurfelIllumination->ReadbackSurfelData(gfx);
 				//Reset Surfels Code
-				SurfelIllumination->ResetSurfelsIrradiance(gfx);
+				context->SurfelIllumination->ResetSurfelsIrradiance(gfx);
 
 			}
 
@@ -1390,7 +1364,7 @@ UINT SurfelGIRenderer::frameIndex = 0;
 		ImGui::DragFloat("Sun Ambient", &m_sunData.ambientLightIntensity, 0.01f, 0, 1.0f);
 		ImGui::Checkbox("Use Augmented", &m_useSurfelInformedSBGI);
 
-		SurfelIllumination->RenderImGui();
+		context->SurfelIllumination->RenderImGui();
 //		static bool spawnThresholdsCollapsingHeader = true;
 //		if (ImGui::CollapsingHeader("Spawning Thresholds", &spawnThresholdsCollapsingHeader))
 //		{
@@ -1433,8 +1407,8 @@ UINT SurfelGIRenderer::frameIndex = 0;
 
 		//m_HBILExtraCB._gatherSphereMaxRadius_m = 1000;
 		//m_HBILExtraCB._gatherSphereMaxRadius_p = 50;
-			ImGui::SliderFloat("Gathre Sphere Max Radius Meters", &m_HBIL->m_HBILExtraCB._gatherSphereMaxRadius_m,100,4000);
-			ImGui::SliderFloat("Garher Spherre Max Radius Pixels", &m_HBIL->m_HBILExtraCB._gatherSphereMaxRadius_p,0,1500);
+			ImGui::SliderFloat("Gathre Sphere Max Radius Meters", &context->m_HBIL->m_HBILExtraCB._gatherSphereMaxRadius_m,100,4000);
+			ImGui::SliderFloat("Garher Spherre Max Radius Pixels", &context->m_HBIL->m_HBILExtraCB._gatherSphereMaxRadius_p,0,1500);
 
 		}
 
@@ -1443,13 +1417,13 @@ UINT SurfelGIRenderer::frameIndex = 0;
 		ImGui::Checkbox("Draw Physical Surfel Objects", &m_drawPhysicalSurfelInstances);
 
 		ImGui::DragFloat("Bunny Scale", &bunnyScale,1.0,1,3000);
-		m_Transform.setScale(bunnyScale, bunnyScale, bunnyScale);
+		context->transform->setScale(bunnyScale, bunnyScale, bunnyScale);
 
 
 		std::stringstream ss;
 		UINT from, to;
 		GetRelevantSurfels(from, to);
-		SurfelDebugData dd = SurfelIllumination->m_SurfelDebugActual;
+		SurfelDebugData dd = context->SurfelIllumination->m_SurfelDebugActual;
 		ss << "Surfel In Pointed Cell: " << dd.PointedCellX << " " << dd.PointedCellY << " " << dd.PointedCellZ;
 		ss << "\n";
 		ImGui::Text(ss.str().c_str());
@@ -1457,8 +1431,8 @@ UINT SurfelGIRenderer::frameIndex = 0;
 		for (size_t i = from; i < to; i++)
 		{
 			std::stringstream perSurfelStringStream;
-			UINT surfelIndex = SurfelIllumination->m_SurfelList.m_Actual[i];
-			SurfelData s = SurfelIllumination->m_SurfelData.m_Actual[surfelIndex];
+			UINT surfelIndex = context->SurfelIllumination->m_SurfelList.m_Actual[i];
+			SurfelData s = context->SurfelIllumination->m_SurfelData.m_Actual[surfelIndex];
 			perSurfelStringStream << "	S ID:	" << surfelIndex << "	POS:" << s.position.GetX() << "," << s.position.GetY() << "," << s.position.GetZ() << ",";
 
 			ImGui::Text(perSurfelStringStream.str().c_str());
@@ -1491,7 +1465,7 @@ UINT SurfelGIRenderer::frameIndex = 0;
 
 
 		std::stringstream cameraPositionString;
-		auto camPos = lastUsedCamera.GetPosition();
+		auto camPos = context->lastCamera.GetPosition();
 		cameraPositionString << "Camera Position: " << camPos.GetX() << "	" << camPos.GetY() << "	" << camPos.GetZ();
 		ImGui::Text(cameraPositionString.str().c_str());
 
@@ -1533,14 +1507,14 @@ XMVECTOR VectorProjection(XMVECTOR u, XMVECTOR v, float* scalarOut)
 }
 	 void SurfelGIRenderer::RenderColor(RENDER_SCENE_PARAMS)
 	 {
-		 lastUsedCamera = camera;
+		 context->lastCamera = camera;
 		 {
 			 ScopedTimer _prof2(L"Render Color", gfxContext);
 
 			 gfxContext.TransitionResource(g_SSAOFullScreen, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
-			 gfxContext.InsertUAVBarrier(SurfelIllumination->m_SurfelGrid.m_GPUBuffer);
-			 gfxContext.InsertUAVBarrier(SurfelIllumination->m_SurfelList.m_GPUBuffer);
-			 gfxContext.InsertUAVBarrier(SurfelIllumination->m_SurfelData.m_GPUBuffer);
+			 gfxContext.InsertUAVBarrier(context->SurfelIllumination->m_SurfelGrid.m_GPUBuffer);
+			 gfxContext.InsertUAVBarrier(context->SurfelIllumination->m_SurfelList.m_GPUBuffer);
+			 gfxContext.InsertUAVBarrier(context->SurfelIllumination->m_SurfelData.m_GPUBuffer);
 
 			 //gfxContext.TransitionResource(TestRaytracing::GetOutputBuffer(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 
@@ -1579,10 +1553,10 @@ XMVECTOR VectorProjection(XMVECTOR u, XMVECTOR v, float* scalarOut)
 				 else
 					 RenderSurfels(gfxContext, camera.GetViewProjMatrix(), camera.GetPosition(), SurfelGIRenderer::kOpaque);
 
-				 if(m_hbil_drawDebug && m_HBIL->m_DebugHBILActual.size()>0)
+				 if(m_hbil_drawDebug && context->m_HBIL->m_DebugHBILActual.size()>0)
 				 {
 					 //DEBUG RENDERING OF RAYS OF HBIL SAMPLED WITH SPHERES
-					 auto d = m_HBIL->m_DebugHBILActual[0];
+					 auto d = context->m_HBIL->m_DebugHBILActual[0];
 
 					 float samples = 10;
 					 float offset = 50;
@@ -1627,7 +1601,7 @@ XMVECTOR VectorProjection(XMVECTOR u, XMVECTOR v, float* scalarOut)
 
 					 for (size_t i = 0; i < 16; i++)
 					 {
-						 auto currentAngleDebugData = m_HBIL->m_DebugHBILActual[i];
+						 auto currentAngleDebugData = context->m_HBIL->m_DebugHBILActual[i];
 						 Vector4 wsFront = Vector4(XMLoadFloat4(&currentAngleDebugData.wsSampleFront));
 						Vector4 wsBack = Vector4(XMLoadFloat4(&currentAngleDebugData.wsSampleBack));
 						RenderSphereAt(red,1, wsFront, gfxContext,camera.GetViewProjMatrix(),camera.GetPosition(),SurfelGIRenderer::kOpaque);
@@ -1740,16 +1714,16 @@ XMVECTOR VectorProjection(XMVECTOR u, XMVECTOR v, float* scalarOut)
 		 if (m_debugOverlayMode == 0)
 		 {
 			 ScopedTimer _prof3(L"Surfel Density Debug Overlay", gfxContext);
-			 GridVisualization->SetupRenderStage(gfxContext, viewport, scissor,
+			 context->GridVisualization->SetupRenderStage(gfxContext, viewport, scissor,
 				 TestRaytracing::GetOutputBuffer(),
 				 camera);
 
-			 SurfelIllumination->UpdateProjection(camera);
-			 SurfelIllumination->SendParametersGraphics(gfxContext);
+			 context->SurfelIllumination->UpdateProjection(camera);
+			 context->SurfelIllumination->SendParametersGraphics(gfxContext);
 
-			 gfxContext.InsertUAVBarrier(SurfelIllumination->m_SurfelGrid.m_GPUBuffer);
-			 gfxContext.InsertUAVBarrier(SurfelIllumination->m_SurfelList.m_GPUBuffer);
-			 gfxContext.InsertUAVBarrier(SurfelIllumination->m_SurfelStack.m_GPUBuffer);
+			 gfxContext.InsertUAVBarrier(context->SurfelIllumination->m_SurfelGrid.m_GPUBuffer);
+			 gfxContext.InsertUAVBarrier(context->SurfelIllumination->m_SurfelList.m_GPUBuffer);
+			 gfxContext.InsertUAVBarrier(context->SurfelIllumination->m_SurfelStack.m_GPUBuffer);
 			 gfxContext.InsertUAVBarrier(TestRaytracing::GetOutputBuffer());
 			 RenderFullScreenQuad(gfxContext);
 
@@ -1758,27 +1732,27 @@ XMVECTOR VectorProjection(XMVECTOR u, XMVECTOR v, float* scalarOut)
 		 {
 			 ScopedTimer _prof3(L"Surfel GI Only Debug Overlay", gfxContext);
 
-			 SurfelGIVisualization->SetupRenderStage(gfxContext, viewport, scissor,
-				 SurfelIllumination->m_OutputTexture,
+			 context->SurfelGIVisualization->SetupRenderStage(gfxContext, viewport, scissor,
+				 context->SurfelIllumination->m_OutputTexture,
 				 camera);
 
-			 gfxContext.TransitionResource(SurfelIllumination->m_OutputTexture, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,true);
+			 gfxContext.TransitionResource(context->SurfelIllumination->m_OutputTexture, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,true);
 
-			 SurfelGIVisualization->SetRootParameters(gfxContext, SurfelIllumination->m_OutputTexture);
+			 context->SurfelGIVisualization->SetRootParameters(gfxContext, context->SurfelIllumination->m_OutputTexture);
 			 RenderFullScreenQuad(gfxContext);
 		 }
 		 else if (m_debugOverlayMode == 2)
 		 {
 			 ScopedTimer _prof3(L"Surfel MSME Debug Overlay", gfxContext);
 
-			 GridMSMEVisualization->SetupRenderStage(gfxContext, viewport, scissor,
+			 context->GridMSMEVisualization->SetupRenderStage(gfxContext, viewport, scissor,
 				 TestRaytracing::GetOutputBuffer(),
 				 camera);
 
 			 gfxContext.InsertUAVBarrier(TestRaytracing::GetOutputBuffer());
 
-			 SurfelIllumination->UpdateProjection(camera);
-			 SurfelIllumination->SendParametersGraphics(gfxContext);
+			 context->SurfelIllumination->UpdateProjection(camera);
+			 context->SurfelIllumination->SendParametersGraphics(gfxContext);
 
 			 RenderFullScreenQuad(gfxContext);
 
@@ -1788,16 +1762,16 @@ XMVECTOR VectorProjection(XMVECTOR u, XMVECTOR v, float* scalarOut)
 			 ScopedTimer _prof3(L"Material Binding Ouptut", gfxContext);
 
 			 gfxContext.TransitionResource(TestRaytracing::GetOutputBuffer(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
-			 MaterialBindingDebug->SetupRenderStage(gfxContext, viewport, scissor,
+			 context->MaterialBindingDebug->SetupRenderStage(gfxContext, viewport, scissor,
 				 TestRaytracing::GetOutputBuffer(),
 				 camera);
-			 MaterialBindingDebug->SetRootParameters(gfxContext, TestRaytracing::GetOutputBuffer());
+			 context->MaterialBindingDebug->SetRootParameters(gfxContext, TestRaytracing::GetOutputBuffer());
 			 RenderFullScreenQuad(gfxContext);
 		 }
 		 else if (m_debugOverlayMode >= 4)
 		 {
 			 ScopedTimer _prof3(L"Surfel Spawn Chance Debug Overlay", gfxContext);
-			 SurfelSpawnVisualization->SetupRenderStage(gfxContext, viewport, scissor,
+			 context->SurfelSpawnVisualization->SetupRenderStage(gfxContext, viewport, scissor,
 				 TestRaytracing::GetOutputBuffer(),
 				 camera);
 
@@ -1806,11 +1780,11 @@ XMVECTOR VectorProjection(XMVECTOR u, XMVECTOR v, float* scalarOut)
 
 			 gfxContext.InsertUAVBarrier(TestRaytracing::GetOutputBuffer());
 
-			 SurfelIllumination->UpdateProjection(camera);
+			 context->SurfelIllumination->UpdateProjection(camera);
 			 
 			 //SurfelIllumination->SendParametersGraphics(gfxContext);
-			 SurfelIllumination->SendParametersInformedGraphics(gfxContext);
-			 SurfelSpawnVisualization->SetDebugMode(gfxContext,localDebugMode);
+			 context->SurfelIllumination->SendParametersInformedGraphics(gfxContext);
+			 context->SurfelSpawnVisualization->SetDebugMode(gfxContext,localDebugMode);
 
 			 RenderFullScreenQuad(gfxContext);
 		 }
@@ -1832,7 +1806,7 @@ XMVECTOR VectorProjection(XMVECTOR u, XMVECTOR v, float* scalarOut)
 
 		if (m_resetSurfelNextFrame == true)
 		{
-			SurfelIllumination->ResetSurfels(gfxContext);
+			context->SurfelIllumination->ResetSurfels(gfxContext);
 			m_resetSurfelNextFrame = false;
 		}
 
@@ -1841,26 +1815,26 @@ XMVECTOR VectorProjection(XMVECTOR u, XMVECTOR v, float* scalarOut)
 
 		if (m_stopSurfelUpdate == false || m_stopSurfelUpdate == true && m_stopSurfelUpdate != m_prevStopSurfelUpdate)
 		{
-			SurfelIllumination->FillAccelerationStructuresReduceThenScan(cfx);
+			context->SurfelIllumination->FillAccelerationStructuresReduceThenScan(cfx);
 		}
 		//Control GPU Readback
 		//SurfelIllumination->ReadbakcSurfelDebugData(gfxContext);
 		if (m_stopSurfelUpdate == true && m_stopSurfelUpdate != m_prevStopSurfelUpdate)
 		{
-			SurfelIllumination->ReadbackSurfelAccelerationStructure(gfxContext);
-			SurfelIllumination->ReadbackSurfelData(gfxContext);
+			context->SurfelIllumination->ReadbackSurfelAccelerationStructure(gfxContext);
+			context->SurfelIllumination->ReadbackSurfelData(gfxContext);
 		}
 
 		if (m_stopSurfelUpdate == false)
 		{
-			cfx.InsertUAVBarrier(SurfelIllumination->m_SurfelData.m_GPUBuffer);
-			gfxContext.InsertUAVBarrier(SurfelIllumination->m_SurfelData.m_GPUBuffer);
+			cfx.InsertUAVBarrier(context->SurfelIllumination->m_SurfelData.m_GPUBuffer);
+			gfxContext.InsertUAVBarrier(context->SurfelIllumination->m_SurfelData.m_GPUBuffer);
 			SurfelIrradianceAccumulation::DoRaytracing(
 				cfx,
 				camera,
-				SurfelIllumination->descriptorHeap,
-				SurfelIllumination->m_SurfelGen.UniformGrid,
-				SurfelIllumination->m_SurfelData.m_Actual);
+				context->SurfelIllumination->descriptorHeap,
+				context->SurfelIllumination->m_SurfelGen.UniformGrid,
+				context->SurfelIllumination->m_SurfelData.m_Actual);
 		}
 
 
@@ -1873,20 +1847,23 @@ XMVECTOR VectorProjection(XMVECTOR u, XMVECTOR v, float* scalarOut)
 
 		m_SunOrientation = m_sunData.sunOrientation;
 		m_SunInclination = m_sunData.sunInclination;
-		m_SunLightIntensity = m_sunData.sunInclination;
-		m_AmbientIntensity = m_sunData.ambientLightIntensity;
+		//m_SunLightIntensity = m_sunData.sunInclination;
+		context->sunLightIntensity = m_sunData.sunInclination;
+		//m_AmbientIntensity = m_sunData.ambientLightIntensity;
+		context->ambientIntensity = m_sunData.ambientLightIntensity;
 
 		float costheta = cosf(m_SunOrientation);
 		float sintheta = sinf(m_SunOrientation);
 		float cosphi = cosf(m_SunInclination * 3.14159f * 0.5f);
 		float sinphi = sinf(m_SunInclination * 3.14159f * 0.5f);
-		m_SunDirection = Normalize(Vector3(costheta * cosphi, sinphi, sintheta * cosphi));
+		//m_SunDirection = Normalize(Vector3(costheta * cosphi, sinphi, sintheta * cosphi));
+		context->sunDirection = Normalize(Vector3(costheta * cosphi, sinphi, sintheta * cosphi));
 
 
 
-		psConstants.sunDirection = m_SunDirection;
-		psConstants.sunLight = Vector3(1.0f, 1.0f, 1.0f) * m_SunLightIntensity;
-		psConstants.ambientLight = Vector3(1.0f, 1.0f, 1.0f) * m_AmbientIntensity;
+		psConstants.sunDirection = context->sunDirection;
+		psConstants.sunLight = Vector3(1.0f, 1.0f, 1.0f) * context->sunLightIntensity;
+		psConstants.ambientLight = Vector3(1.0f, 1.0f, 1.0f) * context->ambientIntensity;
 		psConstants.ShadowTexelSize[0] = 1.0f / g_ShadowBuffer.GetWidth();
 		psConstants.InvTileDim[0] = 1.0f / Lighting::LightGridDim;
 		psConstants.InvTileDim[1] = 1.0f / Lighting::LightGridDim;
@@ -1899,14 +1876,14 @@ XMVECTOR VectorProjection(XMVECTOR u, XMVECTOR v, float* scalarOut)
 			psConstants.UseConfidenceWeight = 255;
 		else
 			psConstants.UseConfidenceWeight = 0;
-		psConstants.AOThreshold = SurfelIllumination->m_SurfelGen.AOVariables.x;
+		psConstants.AOThreshold = context->SurfelIllumination->m_SurfelGen.AOVariables.x;
 
-		TestRaytracing::directionalLightData.sunDirection = Vector4(m_SunDirection, 1);
-		TestRaytracing::directionalLightData.sunColor = Vector4(1.0f, 1.0f, 1.0f, 1.0f) * m_SunLightIntensity;
-		TestRaytracing::directionalLightData.ambientColor = Vector4(1.0f, 1.0f, 1.0f, 1.0f) * m_AmbientIntensity;
-		SurfelIrradianceAccumulation::directionalLightData.sunDirection = Vector4(m_SunDirection, 1);
-		SurfelIrradianceAccumulation::directionalLightData.sunColor = Vector4(1.0f, 1.0f, 1.0f, 1.0f) * m_SunLightIntensity;
-		SurfelIrradianceAccumulation::directionalLightData.ambientColor = Vector4(1.0f, 1.0f, 1.0f, 1.0f) * m_AmbientIntensity;
+		TestRaytracing::directionalLightData.sunDirection = Vector4(context->sunDirection, 1);
+		TestRaytracing::directionalLightData.sunColor = Vector4(1.0f, 1.0f, 1.0f, 1.0f) * context->sunLightIntensity;
+		TestRaytracing::directionalLightData.ambientColor = Vector4(1.0f, 1.0f, 1.0f, 1.0f) * context->ambientIntensity;
+		SurfelIrradianceAccumulation::directionalLightData.sunDirection = Vector4(context->sunDirection, 1);
+		SurfelIrradianceAccumulation::directionalLightData.sunColor = Vector4(1.0f, 1.0f, 1.0f, 1.0f) * context->sunLightIntensity;
+		SurfelIrradianceAccumulation::directionalLightData.ambientColor = Vector4(1.0f, 1.0f, 1.0f, 1.0f) * context->ambientIntensity;
 
 		// Set the default state for command lists
 		auto& pfnSetupGraphicsState = [&](void)
@@ -1977,14 +1954,14 @@ XMVECTOR VectorProjection(XMVECTOR u, XMVECTOR v, float* scalarOut)
 				{
 					ScopedTimer _prof2(L"Render Shadow Map", gfxContext);
 
-					m_SunShadow.UpdateMatrix(-m_SunDirection, Vector3(0, -500.0f, 0), Vector3(ShadowDimX, ShadowDimY, ShadowDimZ),
+					context->sunShadow.UpdateMatrix(-context->sunDirection, Vector3(0, -500.0f, 0), Vector3(ShadowDimX, ShadowDimY, ShadowDimZ),
 						(uint32_t)g_ShadowBuffer.GetWidth(), (uint32_t)g_ShadowBuffer.GetHeight(), 16);
 
 					g_ShadowBuffer.BeginRendering(gfxContext);
 					gfxContext.SetPipelineState(m_ShadowPSO);
-					RenderObjects(gfxContext, m_SunShadow.GetViewProjMatrix(), camera.GetPosition(), kOpaque);
+					RenderObjects(gfxContext, context->sunShadow.GetViewProjMatrix(), camera.GetPosition(), kOpaque);
 					gfxContext.SetPipelineState(m_CutoutShadowPSO);
-					RenderObjects(gfxContext, m_SunShadow.GetViewProjMatrix(), camera.GetPosition(), kCutout);
+					RenderObjects(gfxContext, context->sunShadow.GetViewProjMatrix(), camera.GetPosition(), kCutout);
 					g_ShadowBuffer.EndRendering(gfxContext);
 				}
 			}
@@ -2020,7 +1997,7 @@ XMVECTOR VectorProjection(XMVECTOR u, XMVECTOR v, float* scalarOut)
 
 		if (m_useSurfelInformedSBGI)
 		{
-			m_GBufferDownsample->Dispatch(cfx, camera);
+			context->m_GBufferDownsample->Dispatch(cfx, camera);
 			{
 				if (m_hbil_render)
 				{
@@ -2028,41 +2005,41 @@ XMVECTOR VectorProjection(XMVECTOR u, XMVECTOR v, float* scalarOut)
 					ImVec2 mousePos = ImGui::GetMousePos();
 					float verticalFovRad = camera.GetFOV();
 					float TAN_HALF_FOV = tan(verticalFovRad * 0.5);
-					m_HBIL->SetMousePos(mousePos.x, mousePos.y);
-					m_HBIL->RenderHBIL(gfxContext, camera);
+					context->m_HBIL->SetMousePos(mousePos.x, mousePos.y);
+					context->m_HBIL->RenderHBIL(gfxContext, camera);
 					RenderFullScreenQuad(gfxContext);
 					last_camera_data = camera;
 				}
 				if (m_hbil_updateDebug)
 				{
-					m_HBIL->ReadDebugHBIL(gfxContext, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, true);
+					context->m_HBIL->ReadDebugHBIL(gfxContext, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, true);
 
 				}
 			}
 		}
 
 		// --- SURFEL PASS
-		frameIndex++;
+		context->frameIndex++;
 		//Set the frame index
-		SurfelIllumination->m_SurfelGen.FrameIndex = frameIndex;
+		context->SurfelIllumination->m_SurfelGen.FrameIndex = context->frameIndex;
 
 		if (m_stopSurfelUpdate == false)
 		{
 			if(m_useSurfelInformedSBGI)
-				SurfelIllumination->SpawnSurfelsInformed(cfx, camera);
+				context->SurfelIllumination->SpawnSurfelsInformed(cfx, camera);
 			else
-				SurfelIllumination->SpawnSurfels(cfx, camera);
+				context->SurfelIllumination->SpawnSurfels(cfx, camera);
 		}
 
 		if (m_drawPhysicalSurfelInstances)
 		{
-			SurfelIllumination->ReadbackSurfelData(gfxContext);
+			context->SurfelIllumination->ReadbackSurfelData(gfxContext);
 		}
 
-		SurfelIllumination->ApplySurfels(cfx, camera);
+		context->SurfelIllumination->ApplySurfels(cfx, camera);
 
 		if (m_stopSurfelUpdate == false)
-			SurfelIllumination->RecycleSurfels(cfx, camera);
+			context->SurfelIllumination->RecycleSurfels(cfx, camera);
 
 		m_prevStopSurfelUpdate = m_stopSurfelUpdate;
 		CopyColorAndDepthBuffers(gfxContext);
