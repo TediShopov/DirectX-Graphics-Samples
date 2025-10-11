@@ -709,7 +709,7 @@ namespace {
 		gfxContext.SetIndexBuffer(m_Model->GetIndexBuffer());
 		gfxContext.SetVertexBuffer(0, m_Model->GetVertexBuffer());
 	}
-	void SurfelGIRenderer::RenderOBJObject(RenderObjectInstancePassArgs args)
+	void SurfelGIRenderer::RenderOBJObject(const RenderObjectInstancePassArgs args)
 	{
 		VSConstants vsConstants = SetupObjectVSConstants(args);
 
@@ -726,7 +726,7 @@ namespace {
 
 
 	}
-	void SurfelGIRenderer::RenderOBJObjectCorrectPipeline(RenderObjectInstancePassArgs args)
+	void SurfelGIRenderer::RenderOBJObjectCorrectPipeline(const RenderObjectInstancePassArgs args)
 	{
 		VSConstants vsConstants = SetupObjectVSConstants(args);
 		args.gfx.SetDynamicConstantBufferView(Renderer::kMeshConstants, sizeof(vsConstants), &vsConstants);
@@ -827,7 +827,7 @@ namespace {
 			}
 	}
 
-	void SurfelGIRenderer::RenderSphereObject(RenderObjectInstancePassArgs args)
+	void SurfelGIRenderer::RenderSphereObject(const RenderObjectInstancePassArgs args)
 	{
 		const UINT vertexBufferSize = sizeof(triangleVertices);
 		args.gfx.SetIndexBuffer(context->sphere->m_IndexBufferView);
@@ -900,7 +900,7 @@ namespace {
 
 	}
 
-	void SurfelGIRenderer::RenderRelevantSurfels(RenderObjectInstancePassArgs args)
+	void SurfelGIRenderer::RenderRelevantSurfels(const RenderObjectInstancePassArgs args)
 	{
 		VSConstants vsConstants =SetupObjectVSConstants(args);
 
@@ -951,7 +951,7 @@ namespace {
 		args.gfx.SetVertexBuffer(0, m_Model->GetVertexBuffer());
 
 	}
-	void SurfelGIRenderer::RenderSurfels(RenderObjectInstancePassArgs args)
+	void SurfelGIRenderer::RenderSurfels(const RenderObjectInstancePassArgs args)
 	{
 
 		float modelRadius = Length(m_Model->GetBoundingBox().GetDimensions()) * 0.5f;
@@ -1042,7 +1042,7 @@ namespace {
 		args.gfx.SetVertexBuffer(0, m_Model->GetVertexBuffer());
 
 	}
-	void SurfelGIRenderer::RenderObjects(RenderObjectInstancePassArgs args)
+	void SurfelGIRenderer::RenderObjects(const RenderObjectInstancePassArgs args)
 	{
 		struct VSConstanstsWithModel
 		{
@@ -1883,38 +1883,7 @@ XMVECTOR VectorProjection(XMVECTOR u, XMVECTOR v, float* scalarOut)
 
 		RenderLightShadows(args.gfx, args.camera);
 
-		{
-			ScopedTimer _prof(L"Z PrePass", args.gfx);
-			RenderObjectInstancePassArgs renderInstancesCameraArgs 
-				{ args.gfx, args.camera.GetViewProjMatrix(), args.camera.GetPosition(), kOpaque };
-
-			args.gfx.SetDynamicConstantBufferView(Renderer::kMaterialConstants, sizeof(psConstants), &psConstants);
-
-			{
-				ScopedTimer _prof2(L"Opaque", args.gfx);
-				{
-					args.gfx.TransitionResource(g_SceneDepthBuffer, D3D12_RESOURCE_STATE_DEPTH_WRITE, true);
-					args.gfx.ClearDepth(g_SceneDepthBuffer);
-					args.gfx.SetPipelineState(m_DepthPSO);
-					args.gfx.SetDepthStencilTarget(g_SceneDepthBuffer.GetDSV());
-					args.gfx.SetViewportAndScissor(args.viewport, args.scissor);
-				}
-
-				renderInstancesCameraArgs.filter = kOpaque;
-				RenderObjects(renderInstancesCameraArgs);
-
-			}
-
-			//--- CUTOUT RENDERING ---
-			{
-				ScopedTimer _prof2(L"Cutout", args.gfx);
-				{
-					args.gfx.SetPipelineState(m_CutoutDepthPSO);
-				}
-				renderInstancesCameraArgs.filter = kCutout;
-				RenderObjects(renderInstancesCameraArgs);
-			}
-		}
+		RenderZPrePass(args);
 
 
 
@@ -2040,14 +2009,40 @@ XMVECTOR VectorProjection(XMVECTOR u, XMVECTOR v, float* scalarOut)
 
 		m_prevStopSurfelUpdate = m_stopSurfelUpdate;
 		CopyColorAndDepthBuffers(args.gfx);
-		//Final pass apply the collected diffuse lighting as an ambient term
-//		if(m_enableBlending)
-//		{
-//			ScopedTimer _prof(L"Apply Diffuse Lighting", args.gfx);
-//			m_AdditiveBlendPass.SetupRenderStage(args.gfx, viewport, scissor, SurfelIllumination->m_OutputTexture, Graphics::g_SceneColorBuffer);
-//			RenderFullScreenQuad(args.gfx);
-//		}
+	}
 
+	void SurfelGIRenderer::RenderZPrePass(RenderArgs& args)
+	{
+		{
+			ScopedTimer _prof(L"Z PrePass", args.gfx);
+			RenderObjectInstancePassArgs renderInstancesCameraArgs
+			{ args.gfx, args.camera.GetViewProjMatrix(), args.camera.GetPosition(), kOpaque };
 
+			args.gfx.SetDynamicConstantBufferView(Renderer::kMaterialConstants, sizeof(psConstants), &psConstants);
 
+			{
+				ScopedTimer _prof2(L"Opaque", args.gfx);
+				{
+					args.gfx.TransitionResource(g_SceneDepthBuffer, D3D12_RESOURCE_STATE_DEPTH_WRITE, true);
+					args.gfx.ClearDepth(g_SceneDepthBuffer);
+					args.gfx.SetPipelineState(m_DepthPSO);
+					args.gfx.SetDepthStencilTarget(g_SceneDepthBuffer.GetDSV());
+					args.gfx.SetViewportAndScissor(args.viewport, args.scissor);
+				}
+
+				renderInstancesCameraArgs.filter = kOpaque;
+				RenderObjects(renderInstancesCameraArgs);
+
+			}
+
+			//--- CUTOUT RENDERING ---
+			{
+				ScopedTimer _prof2(L"Cutout", args.gfx);
+				{
+					args.gfx.SetPipelineState(m_CutoutDepthPSO);
+				}
+				renderInstancesCameraArgs.filter = kCutout;
+				RenderObjects(renderInstancesCameraArgs);
+			}
+		}
 	}

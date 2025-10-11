@@ -136,6 +136,8 @@ public:
 	//--- RENDERING ---
 	static void RenderScene(RenderArgs& renderArgs);
 
+	static  void RenderZPrePass(RenderArgs& args);
+
 	//-- UI SPECIFIC --
 	static void RenderImGuiUI(GraphicsContext& gfx);
 protected:
@@ -150,39 +152,42 @@ protected:
 	//Model Rendering VS Constants
 	static PSConstants psConstants;
 
-	//--- RENDERING PASSES ---
-
-	static void RenderLightShadows(GraphicsContext& gfxContext, const Camera& camera);
-	static void RenderScreenSpaceTriangle(GraphicsContext& Context);
-	static void RenderSpheresAlongRay(Vector4 color,Vector3 rayOrigin, Vector3 rayDirection, int samples ,float offset,RenderObjectInstancePassArgs);
-	static void RenderSphereAt(Vector4 color,float scale, Vector4 position,RenderObjectInstancePassArgs);
-	static void RenderSurfelAt(Vector4 color, Vector4 normal, float scale, Vector4 position, RenderObjectInstancePassArgs);
-	static void RenderSphereObject(RenderObjectInstancePassArgs);
-	static void RenderOBJObject(RenderObjectInstancePassArgs);
-	static void RenderOBJObjectCorrectPipeline(RenderObjectInstancePassArgs);
-
-	static void RenderObjects(RenderObjectInstancePassArgs);
-
-	static void RenderSSR(GraphicsContext& gfxContext, const Camera& camera,UINT objectIndex);
-
 	static DescriptorHeap SSRHeap;
 	static ColorBuffer colorCopyBuffer;
 	static DepthBuffer depthCopyBuffer;
 
+	//--- RENDERING PASSES ---
+	static void RenderColorPass(RenderArgs& renderArgs);
+	static void RenderDebugOverlayPass(RenderArgs& renderArgs);
+	static void RenderLightShadowsPass(GraphicsContext& gfxContext, const Camera& camera);
+	static void RenderSSR(GraphicsContext& gfxContext, const Camera& camera,UINT objectIndex);
+	static void RenderRelevantSurfels(const RenderObjectInstancePassArgs);
+	static void RenderSurfels(const RenderObjectInstancePassArgs);
+
+	///--- RENDERING OBJECTS ---
+	static void RenderSphereObject(const RenderObjectInstancePassArgs);
+	static void RenderObjects(const RenderObjectInstancePassArgs);
+	static void RenderOBJObject(const RenderObjectInstancePassArgs);
+	static void RenderOBJObjectCorrectPipeline(const RenderObjectInstancePassArgs);
+	static void RenderScreenSpaceTriangle(GraphicsContext& Context);
+	static void RenderFullScreenQuad(GraphicsContext& gfxContext);
+
+	//--- RENDER DEBUG FUNCTIONALITY ---
+	static void RenderSpheresAlongRay(Vector4 color,Vector3 rayOrigin, Vector3 rayDirection, int samples ,float offset,RenderObjectInstancePassArgs);
+	static void RenderSphereAt(Vector4 color,float scale, Vector4 position,RenderObjectInstancePassArgs);
+	static void RenderSurfelAt(Vector4 color, Vector4 normal, float scale, Vector4 position, RenderObjectInstancePassArgs);
+
+
+
 	static void CopyColorAndDepthBuffers(GraphicsContext& gfxContext);
 
-	static void RenderRelevantSurfels(RenderObjectInstancePassArgs);
-	static void RenderSurfels(RenderObjectInstancePassArgs);
 
-	static void RenderColor(RenderArgs& renderArgs);
-	static void RenderDebugOverlay(RenderArgs& renderArgs);
 
 
 	static VSConstants SetupObjectVSConstants(RenderObjectInstancePassArgs);
 	
 
 
-	static void RenderFullScreenQuad(GraphicsContext& gfxContext);
 
 	//--- UTILITY ---
 	static const ModelH3D& GetModel();
