@@ -664,14 +664,14 @@ namespace {
 		ImGui::DestroyContext(ImGui::GetCurrentContext());
 	}
 
-	VSConstants SurfelGIRenderer::SetupObjectVSConstants(RENDER_OBJECT_INSTANCE_PARAMS)
+	VSConstants SurfelGIRenderer::SetupObjectVSConstants(RenderObjectInstancePassArgs args)
 	{
 		VSConstants vsConstants;
 		//vsConstants.modelToWorld = Matrix4(SurfelGIRenderer::m_Transform.getTransformMatrix());
 		vsConstants.modelToWorld = Matrix4(context->transform->getTransformMatrix());
-		vsConstants.modelToProjection = ViewProjMat;
+		vsConstants.modelToProjection = args.viewProjMat;
 		vsConstants.modelToShadow = context->sunShadow.GetShadowMatrix();
-		XMStoreFloat3(&vsConstants.viewerPos, viewerPos);
+		XMStoreFloat3(&vsConstants.viewerPos, args.viewerPos);
 		return vsConstants;
 
 	}
@@ -709,26 +709,27 @@ namespace {
 		gfxContext.SetIndexBuffer(m_Model->GetIndexBuffer());
 		gfxContext.SetVertexBuffer(0, m_Model->GetVertexBuffer());
 	}
-	void SurfelGIRenderer::RenderOBJObject(RENDER_OBJECT_INSTANCE_PARAMS)
+	void SurfelGIRenderer::RenderOBJObject(RenderObjectInstancePassArgs args)
 	{
-		VSConstants vsConstants = SetupObjectVSConstants(gfxContext, ViewProjMat, viewerPos, Filter);
-		gfxContext.SetDynamicConstantBufferView(Renderer::kMeshConstants, sizeof(vsConstants), &vsConstants);
+		VSConstants vsConstants = SetupObjectVSConstants(args);
+
+		args.gfx.SetDynamicConstantBufferView(Renderer::kMeshConstants, sizeof(vsConstants), &vsConstants);
 		
-		gfxContext.SetIndexBuffer(OBJModel.GetIndexBuffer());
-		gfxContext.SetVertexBuffer(0,OBJModel.GetVertexBuffer());
+		args.gfx.SetIndexBuffer(OBJModel.GetIndexBuffer());
+		args.gfx.SetVertexBuffer(0,OBJModel.GetVertexBuffer());
 		//--- Draw three indices of the triangle
-		gfxContext.DrawIndexed(OBJModel.m_pIndices.size(), 0, 0);
+		args.gfx.DrawIndexed(OBJModel.m_pIndices.size(), 0, 0);
 
 		//--- Switch Back To Sponza model
-		gfxContext.SetIndexBuffer(m_Model->GetIndexBuffer());
-		gfxContext.SetVertexBuffer(0, m_Model->GetVertexBuffer());
+		args.gfx.SetIndexBuffer(m_Model->GetIndexBuffer());
+		args.gfx.SetVertexBuffer(0, m_Model->GetVertexBuffer());
 
 
 	}
-	void SurfelGIRenderer::RenderOBJObjectCorrectPipeline(RENDER_OBJECT_INSTANCE_PARAMS)
+	void SurfelGIRenderer::RenderOBJObjectCorrectPipeline(RenderObjectInstancePassArgs args)
 	{
-		VSConstants vsConstants = SetupObjectVSConstants(gfxContext, ViewProjMat, viewerPos, Filter);
-		gfxContext.SetDynamicConstantBufferView(Renderer::kMeshConstants, sizeof(vsConstants), &vsConstants);
+		VSConstants vsConstants = SetupObjectVSConstants(args);
+		args.gfx.SetDynamicConstantBufferView(Renderer::kMeshConstants, sizeof(vsConstants), &vsConstants);
 
 
 
@@ -743,21 +744,10 @@ namespace {
 		uint32_t baseVertex = mesh.vertexDataByteOffset / 56;
 
 		
-		//gfxContext.Set
-		//gfxContext.SetIndexBuffer(OBJModel.GetIndexBuffer());
-		//gfxContext.SetVertexBuffer(0,OBJModel.GetVertexBuffer());
-		//--- Draw three indices of the triangle
-		//gfxContext.DrawIndexed(OBJModel.m_pIndices.size(), 0, 0);
-
-		gfxContext.DrawIndexed(indexCount, startIndex, baseVertex);
-		//--- Switch Back To Sponza model
-		//gfxContext.SetIndexBuffer(m_Model->GetIndexBuffer());
-		//gfxContext.SetVertexBuffer(0, m_Model->GetVertexBuffer());
-
-
+		args.gfx.DrawIndexed(indexCount, startIndex, baseVertex);
 
 	}
-	void SurfelGIRenderer::RenderSpheresAlongRay(Vector4 color,Vector3 rayOrigin, Vector3 rayDirection,int samplesAlongRay,float offset, RENDER_OBJECT_INSTANCE_PARAMS)
+	void SurfelGIRenderer::RenderSpheresAlongRay(Vector4 color,Vector3 rayOrigin, Vector3 rayDirection,int samplesAlongRay,float offset, RenderObjectInstancePassArgs args)
 	{
 		//E.g after 20 samples the offset from original position should be "offset"
 		//  rayDir*raySamples = offset
@@ -771,35 +761,35 @@ namespace {
 			float scale = 5;
 			t.setScale(scale,scale,scale);
 
-			VSConstants vsConstants = SetupObjectVSConstants(gfxContext, ViewProjMat, viewerPos, Filter);
+			VSConstants vsConstants = SetupObjectVSConstants(args);
 			vsConstants.modelToWorld =Matrix4(t.getTransformMatrix());
-			gfxContext.SetDynamicConstantBufferView(Renderer::kMeshConstants, sizeof(vsConstants), &vsConstants);
+			args.gfx.SetDynamicConstantBufferView(Renderer::kMeshConstants, sizeof(vsConstants), &vsConstants);
 
-			gfxContext.SetDynamicConstantBufferView(Renderer::kCommonCBV, sizeof(Vector4), &color);
+			args.gfx.SetDynamicConstantBufferView(Renderer::kCommonCBV, sizeof(Vector4), &color);
 
-			RenderSphereObject(gfxContext, ViewProjMat, viewerPos, Filter);
+			RenderSphereObject(args);
 		}
 
 	}
 
-	void SurfelGIRenderer::RenderSphereAt(Vector4 color,float scale, Vector4 position, RENDER_OBJECT_INSTANCE_PARAMS) {
+	void SurfelGIRenderer::RenderSphereAt(Vector4 color,float scale, Vector4 position, RenderObjectInstancePassArgs args) {
 
 			Transform t;
 			t.setPosition(position);
 			t.setScale(scale,scale,scale);
 
-			VSConstants vsConstants = SetupObjectVSConstants(gfxContext, ViewProjMat, viewerPos, Filter);
+			VSConstants vsConstants = SetupObjectVSConstants(args);
 			vsConstants.modelToWorld =Matrix4(t.getTransformMatrix());
-			gfxContext.SetDynamicConstantBufferView(Renderer::kMeshConstants, sizeof(vsConstants), &vsConstants);
+			args.gfx.SetDynamicConstantBufferView(Renderer::kMeshConstants, sizeof(vsConstants), &vsConstants);
 
-			gfxContext.SetDynamicConstantBufferView(Renderer::kCommonCBV, sizeof(Vector4), &color);
+			args.gfx.SetDynamicConstantBufferView(Renderer::kCommonCBV, sizeof(Vector4), &color);
 
-			RenderSphereObject(gfxContext, ViewProjMat, viewerPos, Filter);
+			RenderSphereObject(args);
 	}
-	void SurfelGIRenderer::RenderSurfelAt(Vector4 color,Vector4 normal,float scale, Vector4 position, RENDER_OBJECT_INSTANCE_PARAMS) {
+	void SurfelGIRenderer::RenderSurfelAt(Vector4 color,Vector4 normal,float scale, Vector4 position, RenderObjectInstancePassArgs args) {
 
-		gfxContext.SetIndexBuffer(context->disc->m_IndexBufferView);
-		gfxContext.SetVertexBuffer(0, context->disc->m_VertexBufferView);
+		args.gfx.SetIndexBuffer(context->disc->m_IndexBufferView);
+		args.gfx.SetVertexBuffer(0, context->disc->m_VertexBufferView);
 
 
 			Transform t;
@@ -813,7 +803,7 @@ namespace {
 			Vector4 extrudedPossition = s.position + (s.normal * 1.0f);
 
 
-			VSConstants vsConstants = SetupObjectVSConstants(gfxContext, ViewProjMat, viewerPos, Filter);
+			VSConstants vsConstants = SetupObjectVSConstants(args);
 
 			t.setPosition(extrudedPossition);
 
@@ -827,31 +817,29 @@ namespace {
 
 
 				vsConstants.modelToWorld = Matrix4(t.getTransformMatrix());
-				XMStoreFloat3(&vsConstants.viewerPos, viewerPos);
+				XMStoreFloat3(&vsConstants.viewerPos, args.viewerPos);
 
-				gfxContext.SetDynamicConstantBufferView(Renderer::kMeshConstants, sizeof(vsConstants), &vsConstants);
-				gfxContext.SetDynamicConstantBufferView(Renderer::kCommonCBV, sizeof(Vector4), &s.color);
+				args.gfx.SetDynamicConstantBufferView(Renderer::kMeshConstants, sizeof(vsConstants), &vsConstants);
+				args.gfx.SetDynamicConstantBufferView(Renderer::kCommonCBV, sizeof(Vector4), &s.color);
 				//--- Draw three indices of the triangle
-				gfxContext.DrawIndexed(context->disc->m_Indices.size(), 0, 0);
+				args.gfx.DrawIndexed(context->disc->m_Indices.size(), 0, 0);
 
 			}
 	}
 
-	void SurfelGIRenderer::RenderSphereObject(RENDER_OBJECT_INSTANCE_PARAMS)
+	void SurfelGIRenderer::RenderSphereObject(RenderObjectInstancePassArgs args)
 	{
-		
 		const UINT vertexBufferSize = sizeof(triangleVertices);
-		gfxContext.SetIndexBuffer(context->sphere->m_IndexBufferView);
-		gfxContext.SetVertexBuffer(0, context->sphere->m_VertexBufferView);
-
+		args.gfx.SetIndexBuffer(context->sphere->m_IndexBufferView);
+		args.gfx.SetVertexBuffer(0, context->sphere->m_VertexBufferView);
 
 		//gfxContext.SetDynamicConstantBufferView(Renderer::kCommonCBV, sizeof(Vector4), &s.color);
 		//--- Draw three indices of the triangle
-		gfxContext.DrawIndexed(context->sphere->m_Indices.size(), 0, 0);
+		args.gfx.DrawIndexed(context->sphere->m_Indices.size(), 0, 0);
 
 		//--- Switch Back To Sponza model
-		gfxContext.SetIndexBuffer(m_Model->GetIndexBuffer());
-		gfxContext.SetVertexBuffer(0, m_Model->GetVertexBuffer());
+		args.gfx.SetIndexBuffer(m_Model->GetIndexBuffer());
+		args.gfx.SetVertexBuffer(0, m_Model->GetVertexBuffer());
 
 	}
 
@@ -912,13 +900,13 @@ namespace {
 
 	}
 
-	void SurfelGIRenderer::RenderRelevantSurfels(RENDER_OBJECT_INSTANCE_PARAMS)
+	void SurfelGIRenderer::RenderRelevantSurfels(RenderObjectInstancePassArgs args)
 	{
-		VSConstants vsConstants =SetupObjectVSConstants(gfxContext, ViewProjMat, viewerPos, Filter);
+		VSConstants vsConstants =SetupObjectVSConstants(args);
 
 		const UINT vertexBufferSize = sizeof(triangleVertices);
-		gfxContext.SetIndexBuffer(context->disc->m_IndexBufferView);
-		gfxContext.SetVertexBuffer(0, context->disc->m_VertexBufferView);
+		args.gfx.SetIndexBuffer(context->disc->m_IndexBufferView);
+		args.gfx.SetVertexBuffer(0, context->disc->m_VertexBufferView);
 
 		UINT surfelListIndexFrom ;
 		UINT surfelListIndexTo ;
@@ -948,22 +936,22 @@ namespace {
 
 
 				vsConstants.modelToWorld = Matrix4(t.getTransformMatrix());
-				XMStoreFloat3(&vsConstants.viewerPos, viewerPos);
+				XMStoreFloat3(&vsConstants.viewerPos, args.viewerPos);
 
-				gfxContext.SetDynamicConstantBufferView(Renderer::kMeshConstants, sizeof(vsConstants), &vsConstants);
-				gfxContext.SetDynamicConstantBufferView(Renderer::kCommonCBV, sizeof(Vector4), &s.color);
+				args.gfx.SetDynamicConstantBufferView(Renderer::kMeshConstants, sizeof(vsConstants), &vsConstants);
+				args.gfx.SetDynamicConstantBufferView(Renderer::kCommonCBV, sizeof(Vector4), &s.color);
 				//--- Draw three indices of the triangle
-				gfxContext.DrawIndexed(context->disc->m_Indices.size(), 0, 0);
+				args.gfx.DrawIndexed(context->disc->m_Indices.size(), 0, 0);
 
 			}
 
 		}
 		//--- Switch Back To Sponza model
-		gfxContext.SetIndexBuffer(m_Model->GetIndexBuffer());
-		gfxContext.SetVertexBuffer(0, m_Model->GetVertexBuffer());
+		args.gfx.SetIndexBuffer(m_Model->GetIndexBuffer());
+		args.gfx.SetVertexBuffer(0, m_Model->GetVertexBuffer());
 
 	}
-	void SurfelGIRenderer::RenderSurfels(RENDER_OBJECT_INSTANCE_PARAMS)
+	void SurfelGIRenderer::RenderSurfels(RenderObjectInstancePassArgs args)
 	{
 
 		float modelRadius = Length(m_Model->GetBoundingBox().GetDimensions()) * 0.5f;
@@ -982,14 +970,13 @@ namespace {
 			{
 				//Different visualization strategy for the surfel NF 
 				//Render sphere with radius at position
-				//RenderSphereAt(s.color, s.radius.GetX(), s.position, gfxContext, ViewProjMat, viewerPos, Filter);
-				RenderSphereAt(Vector4(0,0,0,1), s.radius.GetX()/2.0f, s.position, gfxContext, ViewProjMat, viewerPos, Filter);
+				RenderSphereAt(Vector4(0,0,0,1), s.radius.GetX()/2.0f, s.position, args);
 
-				VSConstants vsConstants = SetupObjectVSConstants(gfxContext, ViewProjMat, viewerPos, Filter);
+				VSConstants vsConstants = SetupObjectVSConstants(args);
 				const UINT vertexBufferSize = sizeof(triangleVertices);
 				//---TEMPORARILY switch index and vertex buffers
-				gfxContext.SetIndexBuffer(context->disc->m_IndexBufferView);
-				gfxContext.SetVertexBuffer(0, context->disc->m_VertexBufferView);
+				args.gfx.SetIndexBuffer(context->disc->m_IndexBufferView);
+				args.gfx.SetVertexBuffer(0, context->disc->m_VertexBufferView);
 
 				//This postioing woudl be extruded along bent normal
 				Transform t;
@@ -1002,16 +989,16 @@ namespace {
 				t.setScale(s.radius.GetX(), s.radius.GetX(), s.radius.GetX());
 
 				vsConstants.modelToWorld = Matrix4(t.getTransformMatrix());
-				XMStoreFloat3(&vsConstants.viewerPos, viewerPos);
+				XMStoreFloat3(&vsConstants.viewerPos, args.viewerPos);
 
-				gfxContext.SetDynamicConstantBufferView(Renderer::kMeshConstants, sizeof(vsConstants), &vsConstants);
+				args.gfx.SetDynamicConstantBufferView(Renderer::kMeshConstants, sizeof(vsConstants), &vsConstants);
 				Vector4 tempYellow = Vector4(1, 0, 1, 1);
 				//gfxContext.SetDynamicConstantBufferView(Renderer::kCommonCBV, sizeof(Vector4), &s.color);
-				gfxContext.SetDynamicConstantBufferView(Renderer::kCommonCBV, sizeof(Vector4), &tempYellow);
+				args.gfx.SetDynamicConstantBufferView(Renderer::kCommonCBV, sizeof(Vector4), &tempYellow);
 
 
 				//--- Draw three indices of the triangle
-				gfxContext.DrawIndexed(context->disc->m_Indices.size(), 0, 0);
+				args.gfx.DrawIndexed(context->disc->m_Indices.size(), 0, 0);
 
 
 				//Render a surfel by offsetting height alogn bent normal
@@ -1020,11 +1007,11 @@ namespace {
 			}
 			else if (XMVector4Length(s.normal).m128_f32[0] > 0.001f)
 			{
-				VSConstants vsConstants = SetupObjectVSConstants(gfxContext, ViewProjMat, viewerPos, Filter);
+				VSConstants vsConstants = SetupObjectVSConstants(args);
 				const UINT vertexBufferSize = sizeof(triangleVertices);
 				//---TEMPORARILY switch index and vertex buffers
-				gfxContext.SetIndexBuffer(context->disc->m_IndexBufferView);
-				gfxContext.SetVertexBuffer(0, context->disc->m_VertexBufferView);
+				args.gfx.SetIndexBuffer(context->disc->m_IndexBufferView);
+				args.gfx.SetVertexBuffer(0, context->disc->m_VertexBufferView);
 
 			Transform t;
 			t.setPosition(s.position);
@@ -1035,13 +1022,13 @@ namespace {
 				t.setScale(s.radius.GetX(), s.radius.GetX(), s.radius.GetX());
 
 				vsConstants.modelToWorld = Matrix4(t.getTransformMatrix());
-				XMStoreFloat3(&vsConstants.viewerPos, viewerPos);
+				XMStoreFloat3(&vsConstants.viewerPos, args.viewerPos);
 
-				gfxContext.SetDynamicConstantBufferView(Renderer::kMeshConstants, sizeof(vsConstants), &vsConstants);
-				gfxContext.SetDynamicConstantBufferView(Renderer::kCommonCBV, sizeof(Vector4), &s.color);
+				args.gfx.SetDynamicConstantBufferView(Renderer::kMeshConstants, sizeof(vsConstants), &vsConstants);
+				args.gfx.SetDynamicConstantBufferView(Renderer::kCommonCBV, sizeof(Vector4), &s.color);
 
 				//--- Draw three indices of the triangle
-				gfxContext.DrawIndexed(context->disc->m_Indices.size(), 0, 0);
+				args.gfx.DrawIndexed(context->disc->m_Indices.size(), 0, 0);
 
 			}
 			else {
@@ -1051,11 +1038,11 @@ namespace {
 
 		}
 		//--- Switch Back To Sponza model
-		gfxContext.SetIndexBuffer(m_Model->GetIndexBuffer());
-		gfxContext.SetVertexBuffer(0, m_Model->GetVertexBuffer());
+		args.gfx.SetIndexBuffer(m_Model->GetIndexBuffer());
+		args.gfx.SetVertexBuffer(0, m_Model->GetVertexBuffer());
 
 	}
-	void SurfelGIRenderer::RenderObjects(RENDER_OBJECT_INSTANCE_PARAMS)
+	void SurfelGIRenderer::RenderObjects(RenderObjectInstancePassArgs args)
 	{
 		struct VSConstanstsWithModel
 		{
@@ -1064,10 +1051,10 @@ namespace {
 			Matrix4 modelToWorld;
 			XMFLOAT3 viewerPos;
 		} vsConstants;
-		vsConstants.modelToProjection = ViewProjMat;
+		vsConstants.modelToProjection = args.viewProjMat;
 		vsConstants.modelToShadow = context->sunShadow.GetShadowMatrix();
 		vsConstants.modelToWorld = Matrix4(XMMatrixIdentity());
-		XMStoreFloat3(&vsConstants.viewerPos, viewerPos);
+		XMStoreFloat3(&vsConstants.viewerPos, args.viewerPos);
 
 
 		__declspec(align(16)) uint32_t materialIdx = 0xFFFFFFFFul;
@@ -1086,7 +1073,7 @@ namespace {
 
 
 			}
-			gfxContext.SetDynamicConstantBufferView(Renderer::kMeshConstants, sizeof(vsConstants), &vsConstants);
+			args.gfx.SetDynamicConstantBufferView(Renderer::kMeshConstants, sizeof(vsConstants), &vsConstants);
 			const ModelH3D::Mesh& mesh = m_Model->GetMesh(meshIndex);
 
 			uint32_t indexCount = mesh.indexCount;
@@ -1099,16 +1086,16 @@ namespace {
 
 			if (mesh.materialIndex != materialIdx)
 			{
-				if (m_pMaterialIsCutout[mesh.materialIndex] && !(Filter & kCutout) ||
-					!m_pMaterialIsCutout[mesh.materialIndex] && !(Filter & kOpaque))
+				if (m_pMaterialIsCutout[mesh.materialIndex] && !(args.filter & kCutout) ||
+					!m_pMaterialIsCutout[mesh.materialIndex] && !(args.filter & kOpaque))
 					continue;
 
 				materialIdx = mesh.materialIndex;
-				gfxContext.SetDescriptorTable(Renderer::kMaterialSRVs, m_Model->GetSRVs(materialIdx));
-				gfxContext.SetDynamicConstantBufferView(Renderer::kCommonCBV, sizeof(uint32_t), &materialIdx);
+				args.gfx.SetDescriptorTable(Renderer::kMaterialSRVs, m_Model->GetSRVs(materialIdx));
+				args.gfx.SetDynamicConstantBufferView(Renderer::kCommonCBV, sizeof(uint32_t), &materialIdx);
 			}
 
-			gfxContext.DrawIndexed(indexCount, startIndex, baseVertex);
+			args.gfx.DrawIndexed(indexCount, startIndex, baseVertex);
 		}
 
 	}
@@ -1236,9 +1223,20 @@ namespace {
 		m_LightShadowTempBuffer.BeginRendering(gfxContext);
 		{
 			gfxContext.SetPipelineState(m_ShadowPSO);
-			RenderObjects(gfxContext, m_LightShadowMatrix[LightIndex], camera.GetPosition(), kOpaque);
+			RenderObjectInstancePassArgs opaqueLigthShadows{
+				gfxContext,
+				m_LightShadowMatrix[LightIndex],
+				camera.GetPosition(),
+				kOpaque
+			};
+
+			//Same camera position and view matrix but different filter
+			RenderObjectInstancePassArgs cutoutLightShadows = opaqueLigthShadows;
+			cutoutLightShadows.filter = kCutout;
+
+			RenderObjects(opaqueLigthShadows);
 			gfxContext.SetPipelineState(m_CutoutShadowPSO);
-			RenderObjects(gfxContext, m_LightShadowMatrix[LightIndex], camera.GetPosition(), kCutout);
+			RenderObjects(cutoutLightShadows);
 		}
 		m_LightShadowTempBuffer.EndRendering(gfxContext);
 
@@ -1528,7 +1526,8 @@ XMVECTOR VectorProjection(XMVECTOR u, XMVECTOR v, float* scalarOut)
 				 args.gfx.SetRenderTargets(ARRAYSIZE(rtvs), rtvs, g_SceneDepthBuffer.GetDSV_DepthReadOnly());
 				 args.gfx.SetViewportAndScissor(args.viewport, args.scissor);
 			 }
-			 RenderObjects(args.gfx, args.camera.GetViewProjMatrix(), args.camera.GetPosition(), SurfelGIRenderer::kOpaque);
+
+			 RenderObjects(RenderObjectInstancePassArgs{args.gfx,args.camera.GetViewProjMatrix(),args.camera.GetPosition(),kOpaque});
 			 //Diffuse only from the scene rended pass
 			 //CopyColorAndDepthBuffers(args.gfx);
 
@@ -1547,11 +1546,18 @@ XMVECTOR VectorProjection(XMVECTOR u, XMVECTOR v, float* scalarOut)
 				 D3D12_CPU_DESCRIPTOR_HANDLE rtvs[]{ g_SceneColorBuffer.GetRTV(), g_SceneNormalBuffer.GetRTV() };
 				 args.gfx.SetRenderTargets(ARRAYSIZE(rtvs), rtvs, g_SceneDepthBuffer.GetDSV_DepthReadOnly());
 				 args.gfx.SetViewportAndScissor(args.viewport, args.scissor);
-				 //RenderSphereObject(args.gfx, args.camera.GetViewProjMatrix(), args.camera.GetPosition(), TestRenderer::kOpaque);
+
+
+				 
+				 auto renderOpaqueInstancesArgs = 
+					 RenderObjectInstancePassArgs{ args.gfx, args.camera.GetViewProjMatrix(), args.camera.GetPosition(), kOpaque };
+
+
+
 				 if (m_renderOnlyCurrentCellSurfels)
-					 RenderRelevantSurfels(args.gfx, args.camera.GetViewProjMatrix(), args.camera.GetPosition(), SurfelGIRenderer::kOpaque);
+					 RenderRelevantSurfels(renderOpaqueInstancesArgs);
 				 else
-					 RenderSurfels(args.gfx, args.camera.GetViewProjMatrix(), args.camera.GetPosition(), SurfelGIRenderer::kOpaque);
+					 RenderSurfels(renderOpaqueInstancesArgs);
 
 				 if(m_hbil_drawDebug && context->m_HBIL->m_DebugHBILActual.size()>0)
 				 {
@@ -1582,10 +1588,9 @@ XMVECTOR VectorProjection(XMVECTOR u, XMVECTOR v, float* scalarOut)
 					 Vector3 LocalCameraRight = Vector3(XMLoadFloat4(&d.localCameraDirectionRight));
 					 Vector3 LocalCameraAt = Vector3(XMLoadFloat4(&d.localCameraDirectionAt));
 
-					 RenderSpheresAlongRay(blue,LocalSpaceAt, LocalCameraUp, samples,offset,args.gfx,args.camera.GetViewProjMatrix(),args.camera.GetPosition(),SurfelGIRenderer::kOpaque);
-					 RenderSpheresAlongRay(blue,LocalSpaceAt, LocalCameraRight, samples,offset,args.gfx,args.camera.GetViewProjMatrix(),args.camera.GetPosition(),SurfelGIRenderer::kOpaque);
-					 RenderSpheresAlongRay(blue,LocalSpaceAt, LocalCameraAt, samples,offset,args.gfx,args.camera.GetViewProjMatrix(),args.camera.GetPosition(),SurfelGIRenderer::kOpaque);
-
+					 RenderSpheresAlongRay(blue,LocalSpaceAt, LocalCameraUp, samples,offset,renderOpaqueInstancesArgs);
+					 RenderSpheresAlongRay(blue, LocalSpaceAt, LocalCameraRight, samples, offset, renderOpaqueInstancesArgs);
+				     RenderSpheresAlongRay(blue, LocalSpaceAt, LocalCameraAt, samples, offset, renderOpaqueInstancesArgs);
 					 Vector3 NormalSampledAtW = Vector3(XMVector3Normalize( XMLoadFloat4(&d.normalAtW)));
 					 //NormalSampledAtW.SetZ(-NormalSampledAtW.GetZ());
 					 Vector3 RecomputedNormal = Vector3(XMVector3Normalize(XMLoadFloat4(&d.recomputedNormal)));
@@ -1604,8 +1609,8 @@ XMVECTOR VectorProjection(XMVECTOR u, XMVECTOR v, float* scalarOut)
 						 auto currentAngleDebugData = context->m_HBIL->m_DebugHBILActual[i];
 						 Vector4 wsFront = Vector4(XMLoadFloat4(&currentAngleDebugData.wsSampleFront));
 						Vector4 wsBack = Vector4(XMLoadFloat4(&currentAngleDebugData.wsSampleBack));
-						RenderSphereAt(red,1, wsFront, args.gfx,args.camera.GetViewProjMatrix(),args.camera.GetPosition(),SurfelGIRenderer::kOpaque);
-						RenderSphereAt(green,1, wsBack, args.gfx, args.camera.GetViewProjMatrix(),args.camera.GetPosition(),SurfelGIRenderer::kOpaque);
+						RenderSphereAt(red, 1, wsFront, renderOpaqueInstancesArgs);
+						RenderSphereAt(green, 1, wsBack, renderOpaqueInstancesArgs);
 					 }
 					 
 
@@ -1618,7 +1623,7 @@ XMVECTOR VectorProjection(XMVECTOR u, XMVECTOR v, float* scalarOut)
 					 XMVECTOR normalizedNormal = XMVector3Normalize(BentNormalAtW);
 					 //Debug vector  projection by setting upa normal at 45 deg
 					 //XMVECTOR normalizedNormal = XMVector3Normalize(XMVectorSet(0,1,1,0));
-					 RenderSpheresAlongRay(magenta,LocalSpaceAt, Vector3(normalizedNormal), samples,offset,args.gfx,args.camera.GetViewProjMatrix(),args.camera.GetPosition(),SurfelGIRenderer::kOpaque);
+					 RenderSpheresAlongRay(magenta, LocalSpaceAt, Vector3(normalizedNormal), samples, offset, renderOpaqueInstancesArgs);
 
 					 //RenderSpheresAlongRay(red,LocalSpaceAt, Vector3(originToAvg), samples,offset,gfxContext,args.camera.GetViewProjMatrix(),args.camera.GetPosition(),TestRenderer::kOpaque);
 
@@ -1639,30 +1644,9 @@ XMVECTOR VectorProjection(XMVECTOR u, XMVECTOR v, float* scalarOut)
 					 radiusOfCone = min(40.0f, radiusOfCone);
 
 
-					 //RenderSphereAt(yellow, 5, Vector4(worldPosition), gfxContext, args.camera.GetViewProjMatrix(), args.camera.GetPosition(), TestRenderer::kOpaque);
-					 //RenderSphereAt(yellow, radiusOfCone*2, Vector4(worldPosition), gfxContext, args.camera.GetViewProjMatrix(), args.camera.GetPosition(), TestRenderer::kOpaque);
-					 RenderSphereAt(green, 3, Vector4(d.wsSampleAverage), args.gfx, args.camera.GetViewProjMatrix(), args.camera.GetPosition(), SurfelGIRenderer::kOpaque);
-					 //RenderSphereAt(yellow, radiusOfCone, Vector4(worldPosition), gfxContext, args.camera.GetViewProjMatrix(), args.camera.GetPosition(), TestRenderer::kOpaque);
-					 RenderSurfelAt(yellow,
-						 
-						 Vector4(normalizedNormal), radiusOfCone,Vector4(worldPosition), 
-						 args.gfx, 
-						 args.camera.GetViewProjMatrix(), args.camera.GetPosition(), SurfelGIRenderer::kOpaque);
-
-
-
-
-					 
-
+					 RenderSphereAt(green, 3, Vector4(d.wsSampleAverage), renderOpaqueInstancesArgs);
+					 RenderSurfelAt(yellow,Vector4(normalizedNormal), radiusOfCone, Vector4(worldPosition),renderOpaqueInstancesArgs);
 				 }
-
-
-				 
-
-
-
-
-
 			 }
 
 
@@ -1901,6 +1885,8 @@ XMVECTOR VectorProjection(XMVECTOR u, XMVECTOR v, float* scalarOut)
 
 		{
 			ScopedTimer _prof(L"Z PrePass", args.gfx);
+			RenderObjectInstancePassArgs renderInstancesCameraArgs 
+				{ args.gfx, args.camera.GetViewProjMatrix(), args.camera.GetPosition(), kOpaque };
 
 			args.gfx.SetDynamicConstantBufferView(Renderer::kMaterialConstants, sizeof(psConstants), &psConstants);
 
@@ -1913,7 +1899,10 @@ XMVECTOR VectorProjection(XMVECTOR u, XMVECTOR v, float* scalarOut)
 					args.gfx.SetDepthStencilTarget(g_SceneDepthBuffer.GetDSV());
 					args.gfx.SetViewportAndScissor(args.viewport, args.scissor);
 				}
-				RenderObjects(args.gfx, args.camera.GetViewProjMatrix(), args.camera.GetPosition(), kOpaque);
+
+				renderInstancesCameraArgs.filter = kOpaque;
+				RenderObjects(renderInstancesCameraArgs);
+
 			}
 
 			//--- CUTOUT RENDERING ---
@@ -1922,7 +1911,8 @@ XMVECTOR VectorProjection(XMVECTOR u, XMVECTOR v, float* scalarOut)
 				{
 					args.gfx.SetPipelineState(m_CutoutDepthPSO);
 				}
-				RenderObjects(args.gfx, args.camera.GetViewProjMatrix(), args.camera.GetPosition(), kCutout);
+				renderInstancesCameraArgs.filter = kCutout;
+				RenderObjects(renderInstancesCameraArgs);
 			}
 		}
 
@@ -1954,14 +1944,21 @@ XMVECTOR VectorProjection(XMVECTOR u, XMVECTOR v, float* scalarOut)
 				{
 					ScopedTimer _prof2(L"Render Shadow Map", args.gfx);
 
+					RenderObjectInstancePassArgs renderInstancesShadowMapArgs{
+							args.gfx, context->sunShadow.GetViewProjMatrix(), args.camera.GetPosition(), kOpaque
+					};
+
 					context->sunShadow.UpdateMatrix(-context->sunDirection, Vector3(0, -500.0f, 0), Vector3(ShadowDimX, ShadowDimY, ShadowDimZ),
 						(uint32_t)g_ShadowBuffer.GetWidth(), (uint32_t)g_ShadowBuffer.GetHeight(), 16);
 
 					g_ShadowBuffer.BeginRendering(args.gfx);
 					args.gfx.SetPipelineState(m_ShadowPSO);
-					RenderObjects(args.gfx, context->sunShadow.GetViewProjMatrix(), args.camera.GetPosition(), kOpaque);
+					RenderObjects(renderInstancesShadowMapArgs);
+
 					args.gfx.SetPipelineState(m_CutoutShadowPSO);
-					RenderObjects(args.gfx, context->sunShadow.GetViewProjMatrix(), args.camera.GetPosition(), kCutout);
+					renderInstancesShadowMapArgs.filter = kCutout;
+					RenderObjects(renderInstancesShadowMapArgs);
+
 					g_ShadowBuffer.EndRendering(args.gfx);
 				}
 			}

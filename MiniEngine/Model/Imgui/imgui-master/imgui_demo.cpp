@@ -8738,7 +8738,7 @@ struct ExampleAppConsole
     ImVector<const char*> Commands;
     ImVector<char*>       History;
     int                   HistoryPos;    // -1: new line, 0..History.Size-1 browsing history.
-    ImGuiTextFilter       Filter;
+    ImGuiTextFilter       filter;
     bool                  AutoScroll;
     bool                  ScrollToBottom;
 
@@ -8839,7 +8839,7 @@ struct ExampleAppConsole
         if (ImGui::Button("Options"))
             ImGui::OpenPopup("Options");
         ImGui::SameLine();
-        Filter.Draw("Filter (\"incl,-excl\") (\"error\")", 180);
+        filter.Draw("Filter (\"incl,-excl\") (\"error\")", 180);
         ImGui::Separator();
 
         // Reserve enough left-over height for 1 separator + 1 input text
@@ -8881,7 +8881,7 @@ struct ExampleAppConsole
                 ImGui::LogToClipboard();
             for (const char* item : Items)
             {
-                if (!Filter.PassFilter(item))
+                if (!filter.PassFilter(item))
                     continue;
 
                 // Normally you would store more information in your item than just a string.
@@ -9099,7 +9099,7 @@ static void ShowExampleAppConsole(bool* p_open)
 struct ExampleAppLog
 {
     ImGuiTextBuffer     Buf;
-    ImGuiTextFilter     Filter;
+    ImGuiTextFilter     filter;
     ImVector<int>       LineOffsets; // Index to lines offset. We maintain this with AddLog() calls.
     bool                AutoScroll;  // Keep scrolling if already at the bottom.
 
@@ -9151,7 +9151,7 @@ struct ExampleAppLog
         ImGui::SameLine();
         bool copy = ImGui::Button("Copy");
         ImGui::SameLine();
-        Filter.Draw("Filter", -100.0f);
+        filter.Draw("Filter", -100.0f);
 
         ImGui::Separator();
 
@@ -9165,7 +9165,7 @@ struct ExampleAppLog
             ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(0, 0));
             const char* buf = Buf.begin();
             const char* buf_end = Buf.end();
-            if (Filter.IsActive())
+            if (filter.IsActive())
             {
                 // In this example we don't use the clipper when Filter is enabled.
                 // This is because we don't have random access to the result of our filter.
@@ -9175,7 +9175,7 @@ struct ExampleAppLog
                 {
                     const char* line_start = buf + LineOffsets[line_no];
                     const char* line_end = (line_no + 1 < LineOffsets.Size) ? (buf + LineOffsets[line_no + 1] - 1) : buf_end;
-                    if (Filter.PassFilter(line_start, line_end))
+                    if (filter.PassFilter(line_start, line_end))
                         ImGui::TextUnformatted(line_start, line_end);
                 }
             }
@@ -9328,7 +9328,7 @@ static void ShowExampleAppLayout(bool* p_open)
 
 struct ExampleAppPropertyEditor
 {
-    ImGuiTextFilter     Filter;
+    ImGuiTextFilter     filter;
     ExampleTreeNode*    VisibleNode = NULL;
 
     void Draw(ExampleTreeNode* root_node)
@@ -9340,14 +9340,14 @@ struct ExampleAppPropertyEditor
             ImGui::SetNextItemWidth(-FLT_MIN);
             ImGui::SetNextItemShortcut(ImGuiMod_Ctrl | ImGuiKey_F, ImGuiInputFlags_Tooltip);
             ImGui::PushItemFlag(ImGuiItemFlags_NoNavDefaultFocus, true);
-            if (ImGui::InputTextWithHint("##Filter", "incl,-excl", Filter.InputBuf, IM_ARRAYSIZE(Filter.InputBuf), ImGuiInputTextFlags_EscapeClearsAll))
-                Filter.Build();
+            if (ImGui::InputTextWithHint("##Filter", "incl,-excl", filter.InputBuf, IM_ARRAYSIZE(filter.InputBuf), ImGuiInputTextFlags_EscapeClearsAll))
+                filter.Build();
             ImGui::PopItemFlag();
 
             if (ImGui::BeginTable("##bg", 1, ImGuiTableFlags_RowBg))
             {
                 for (ExampleTreeNode* node : root_node->Childs)
-                    if (Filter.PassFilter(node->Name)) // Filter root node
+                    if (filter.PassFilter(node->Name)) // Filter root node
                         DrawTreeNode(node);
                 ImGui::EndTable();
             }

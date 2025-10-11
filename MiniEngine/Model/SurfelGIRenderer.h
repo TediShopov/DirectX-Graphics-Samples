@@ -107,6 +107,14 @@ struct RenderArgs {
     bool skipShadow  = false;
 };
 
+enum  eObjectFilter { kOpaque = 0x1, kCutout = 0x2, kTransparent = 0x4, kAll = 0xF, kNone = 0x0 };
+
+struct RenderObjectInstancePassArgs {
+    GraphicsContext& gfx;
+	const Matrix4& viewProjMat;
+	const Vector3& viewerPos;
+	eObjectFilter filter;
+};
 
 
 //namespace TestRenderer
@@ -114,12 +122,7 @@ class SurfelGIRenderer
 {
 public:
 	//--- DEFINES ---
-
-	enum eObjectFilter { kOpaque = 0x1, kCutout = 0x2, kTransparent = 0x4, kAll = 0xF, kNone = 0x0 };
-
-//#define RENDER_SCENE_DEFAULT_PARAMS GraphicsContext& gfxContext, const Math::Camera& camera,const D3D12_VIEWPORT& viewport,const D3D12_RECT& scissor,bool skipDiffusePass = false,bool skipShadowMap = false
-//#define RENDER_SCENE_PARAMS GraphicsContext& gfxContext, const Math::Camera& camera,const D3D12_VIEWPORT& viewport,const D3D12_RECT& scissor,bool skipDiffusePass ,bool skipShadowMap
-#define RENDER_OBJECT_INSTANCE_PARAMS GraphicsContext& gfxContext, const Matrix4& ViewProjMat, const Vector3& viewerPos, eObjectFilter Filter
+//#define RenderObjectInstancePassArgs GraphicsContext& gfxContext, const Matrix4& ViewProjMat, const Vector3& viewerPos, eObjectFilter Filter
 
 	//--- INITTIALIZATOIN ---
 	static void Startup(Math::Camera& camera,std::vector<IParameterBlock*>& parameters, HWND hwnd);
@@ -151,14 +154,14 @@ protected:
 
 	static void RenderLightShadows(GraphicsContext& gfxContext, const Camera& camera);
 	static void RenderScreenSpaceTriangle(GraphicsContext& Context);
-	static void RenderSphereObject(RENDER_OBJECT_INSTANCE_PARAMS);
-	static void RenderSpheresAlongRay(Vector4 color,Vector3 rayOrigin, Vector3 rayDirection, int samples ,float offset,RENDER_OBJECT_INSTANCE_PARAMS);
-	static void RenderSphereAt(Vector4 color,float scale, Vector4 position,RENDER_OBJECT_INSTANCE_PARAMS);
-	static void RenderSurfelAt(Vector4 color, Vector4 normal, float scale, Vector4 position, RENDER_OBJECT_INSTANCE_PARAMS);
-	static void RenderOBJObject(RENDER_OBJECT_INSTANCE_PARAMS);
-	static void RenderOBJObjectCorrectPipeline(RENDER_OBJECT_INSTANCE_PARAMS);
+	static void RenderSpheresAlongRay(Vector4 color,Vector3 rayOrigin, Vector3 rayDirection, int samples ,float offset,RenderObjectInstancePassArgs);
+	static void RenderSphereAt(Vector4 color,float scale, Vector4 position,RenderObjectInstancePassArgs);
+	static void RenderSurfelAt(Vector4 color, Vector4 normal, float scale, Vector4 position, RenderObjectInstancePassArgs);
+	static void RenderSphereObject(RenderObjectInstancePassArgs);
+	static void RenderOBJObject(RenderObjectInstancePassArgs);
+	static void RenderOBJObjectCorrectPipeline(RenderObjectInstancePassArgs);
 
-	static void RenderObjects(RENDER_OBJECT_INSTANCE_PARAMS);
+	static void RenderObjects(RenderObjectInstancePassArgs);
 
 	static void RenderSSR(GraphicsContext& gfxContext, const Camera& camera,UINT objectIndex);
 
@@ -168,14 +171,14 @@ protected:
 
 	static void CopyColorAndDepthBuffers(GraphicsContext& gfxContext);
 
-	static void RenderRelevantSurfels(RENDER_OBJECT_INSTANCE_PARAMS);
-	static void RenderSurfels(RENDER_OBJECT_INSTANCE_PARAMS);
+	static void RenderRelevantSurfels(RenderObjectInstancePassArgs);
+	static void RenderSurfels(RenderObjectInstancePassArgs);
 
 	static void RenderColor(RenderArgs& renderArgs);
 	static void RenderDebugOverlay(RenderArgs& renderArgs);
 
 
-	static VSConstants SetupObjectVSConstants(RENDER_OBJECT_INSTANCE_PARAMS);
+	static VSConstants SetupObjectVSConstants(RenderObjectInstancePassArgs);
 	
 
 

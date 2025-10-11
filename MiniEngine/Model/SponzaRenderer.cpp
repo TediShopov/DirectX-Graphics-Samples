@@ -44,7 +44,7 @@ namespace Sponza
     void RenderLightShadows(GraphicsContext& gfxContext, const Camera& camera);
 
     enum eObjectFilter { kOpaque = 0x1, kCutout = 0x2, kTransparent = 0x4, kAll = 0xF, kNone = 0x0 };
-    void RenderObjects( GraphicsContext& Context, const Matrix4& ViewProjMat, const Vector3& viewerPos, eObjectFilter Filter = kAll );
+    void RenderObjects( GraphicsContext& Context, const Matrix4& ViewProjMat, const Vector3& viewerPos, eObjectFilter filter = kAll );
 
     GraphicsPSO m_DepthPSO = { (L"Sponza: Depth PSO") };
     GraphicsPSO m_CutoutDepthPSO = { (L"Sponza: Cutout Depth PSO") };
@@ -169,7 +169,7 @@ void Sponza::Cleanup( void )
     TextureManager::Shutdown();
 }
 
-void Sponza::RenderObjects( GraphicsContext& gfxContext, const Matrix4& ViewProjMat, const Vector3& viewerPos, eObjectFilter Filter )
+void Sponza::RenderObjects( GraphicsContext& gfxContext, const Matrix4& ViewProjMat, const Vector3& viewerPos, eObjectFilter filter )
 {
     struct VSConstants
     {
@@ -197,8 +197,8 @@ void Sponza::RenderObjects( GraphicsContext& gfxContext, const Matrix4& ViewProj
 
         if (mesh.materialIndex != materialIdx)
         {
-            if ( m_pMaterialIsCutout[mesh.materialIndex] && !(Filter & kCutout) ||
-                !m_pMaterialIsCutout[mesh.materialIndex] && !(Filter & kOpaque) )
+            if ( m_pMaterialIsCutout[mesh.materialIndex] && !(filter & kCutout) ||
+                !m_pMaterialIsCutout[mesh.materialIndex] && !(filter & kOpaque) )
                 continue;
 
             materialIdx = mesh.materialIndex;
