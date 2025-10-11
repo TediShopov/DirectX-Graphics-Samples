@@ -136,11 +136,21 @@ public:
 	//--- RENDERING ---
 	static void RenderScene(RenderArgs& renderArgs);
 
-	static  void RenderZPrePass(RenderArgs& args);
+	static void SetupRenderTargets(RenderArgs& args);
 
-	//-- UI SPECIFIC --
+	static void RenderHBIL(RenderArgs& args);
+
+	static void RenderShadowMapPass(RenderArgs& args);
+
+	static void UpdateContextDirectionalLight();
+
+	static void UpdateColorPassPixelShaderArgs(const uint32_t& FrameIndex);
+
+
 	static void RenderImGuiUI(GraphicsContext& gfx);
 protected:
+
+	static void SetCommandListDefaultState(GraphicsContext& gfx);
 
 	//--- INITTIALIZATOIN ---
 	static void InitTriangleModel();
@@ -160,6 +170,7 @@ protected:
 	static void RenderColorPass(RenderArgs& renderArgs);
 	static void RenderDebugOverlayPass(RenderArgs& renderArgs);
 	static void RenderLightShadowsPass(GraphicsContext& gfxContext, const Camera& camera);
+	static  void RenderZPrePass(RenderArgs& args);
 	static void RenderSSR(GraphicsContext& gfxContext, const Camera& camera,UINT objectIndex);
 	static void RenderRelevantSurfels(const RenderObjectInstancePassArgs);
 	static void RenderSurfels(const RenderObjectInstancePassArgs);

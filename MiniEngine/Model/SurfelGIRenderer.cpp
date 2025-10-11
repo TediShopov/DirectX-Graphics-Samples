@@ -77,39 +77,11 @@ namespace {
 
 
 #pragma endregion
-
-
-//UINT SurfelGIRenderer::frameIndex = 0;
-//
-//	 SurfelGI* SurfelGIRenderer::SurfelIllumination = nullptr;
-// HashGridVisualization* SurfelGIRenderer::GridVisualization = nullptr;
-//	 MSMEVisualization* SurfelGIRenderer::GridMSMEVisualization = nullptr;
-//	 SurfelSpawnChanceVisualization* SurfelGIRenderer::SurfelSpawnVisualization = nullptr;
-//	 SurfelGIOnlyVisualization* SurfelGIRenderer::SurfelGIVisualization = nullptr;
-//	 SurfelGIOnlyVisualization* SurfelGIRenderer::MaterialBindingDebug = nullptr;
-//	 HBIL* SurfelGIRenderer::context->m_HBIL = nullptr;
-//	 HBILInterleaved* SurfelGIRenderer::m_HBILInterleaved = nullptr;
-//	 GBufferDownsample* SurfelGIRenderer::m_GBufferDownsample = nullptr;
-//	 GBufferSlice* SurfelGIRenderer::m_GBufferSlice = nullptr;
-//
-//
-//	 Math::Camera SurfelGIRenderer::lastUsedCamera = Math::Camera();
-//
-//	 SphereMesh* SurfelGIRenderer::m_Sphere = nullptr;
-//	 DiscMesh* SurfelGIRenderer::context->disc = nullptr;
-//	 Transform SurfelGIRenderer::m_Transform;
-
-	 AdditiveBlendPass m_AdditiveBlendPass;
 	 DescriptorHeap SurfelGIRenderer::SSRHeap = DescriptorHeap();
 	 ColorBuffer SurfelGIRenderer::colorCopyBuffer = ColorBuffer();
 	 DepthBuffer SurfelGIRenderer::depthCopyBuffer = DepthBuffer();
 	 ModelH3D* SurfelGIRenderer::m_Model = nullptr;
 	 ModelH3D* SurfelGIRenderer::m_ModelExtra = nullptr;
-//	 CameraSequencer m_CameraSequence;
-//	 CameraSequenceRunner* m_SequenceRunner;
-
-	 // Nvidia Init
-	 ///nv::perf::profiler::ReportGeneratorD3D12 m_nvperf;
 
 	 struct SunData {
 		 XMFLOAT3 sunDirection;
@@ -120,11 +92,6 @@ namespace {
 
 	 };
 	 SunData m_sunData;
-	//-- DIRECTIONAL LIGHT PROPERTIES
-//	 Math::Vector3 SurfelGIRenderer::m_SunDirection;
-//	 ShadowCamera SurfelGIRenderer::m_SunShadow;
-//	 ExpVar SurfelGIRenderer::m_AmbientIntensity = ExpVar("Ambient Light Intensity",0.1f);
-//	 ExpVar SurfelGIRenderer::m_SunLightIntensity = ExpVar("Sun Light Intensity",1.0f);
 
 	NumVar m_SunOrientation = NumVar("Sponza/Lighting/Sun Orientation", -0.5f, -100.0f, 100.0f, 0.1f);
 	NumVar m_SunInclination = NumVar("Sponza/Lighting/Sun Inclination", 0.75f, 0.0f, 1.0f, 0.01f);
@@ -511,14 +478,6 @@ namespace {
 		context->SurfelGIVisualization->Setup(
 			gbuffer,
 			&context->SurfelIllumination->m_OutputTexture
-		);
-		m_AdditiveBlendPass.Setup(
-			gbuffer,
-			&context->SurfelIllumination->m_OutputTexture,
-			&context->m_HBIL->m_OutputIrradiance,
-			&Graphics::g_SSAOFullScreen,
-			g_pSimpleColorVS, sizeof(g_pSimpleColorVS),
-			g_pSimpleColorPS, sizeof(g_pSimpleColorPS)
 		);
 		context->MaterialBindingDebug->Setup(
 			gbuffer,
@@ -1210,7 +1169,7 @@ namespace {
 		gfxContext.DrawIndexed(indexCount, startIndex, baseVertex);
 
 	}
-	void SurfelGIRenderer::RenderLightShadows(GraphicsContext& gfxContext, const Camera& camera)
+	void SurfelGIRenderer::RenderLightShadowsPass(GraphicsContext& gfxContext, const Camera& camera)
 	{
 		using namespace Lighting;
 
@@ -1350,28 +1309,13 @@ namespace {
 
 		}
 
-
-		//m_CameraSequence.RenderImGui();
-		//m_SequenceRunner->SetSequence(&m_CameraSequence.GetMutableConfig());
-		//m_SequenceRunner->RenderImGui();
-
 		// Your ImGui UI code here
 		ImGui::Begin("Surfel Gen CB");
 
-		ImGui::DragFloat("Diffuse Light Application Blend", &m_AdditiveBlendPass.m_blendControlCB.lerpSBGItoInformedSBGI.x, 0.01f, 0, 1.0f);;
 		ImGui::DragFloat("Sun Ambient", &m_sunData.ambientLightIntensity, 0.01f, 0, 1.0f);
 		ImGui::Checkbox("Use Augmented", &m_useSurfelInformedSBGI);
 
 		context->SurfelIllumination->RenderImGui();
-//		static bool spawnThresholdsCollapsingHeader = true;
-//		if (ImGui::CollapsingHeader("Spawning Thresholds", &spawnThresholdsCollapsingHeader))
-//		{
-//
-//			ImGui::DragInt("Per Cell Surfel Limit", & SurfelIllumination->m_SurfelGen.SurfelCellLimit);
-//			ImGui::DragFloat("Placement Threshold", &SurfelIllumination->m_SurfelGen.PlacementThreshold,0.1f,0.0f,10.0f);
-//			ImGui::DragFloat("Removal Threshold", &SurfelIllumination->m_SurfelGen.RemovalTreshold,0.1f,0.0f,10.0f);
-//		}
-
 
 		static bool debugCollapsingHeader = true;
 		if(ImGui::CollapsingHeader("Debug", &debugCollapsingHeader))
@@ -1456,12 +1400,6 @@ namespace {
 
 
 		}
-
-
-//		float colorA[3] = { 0,0,0 };
-//		ImGui::ColorEdit3("Color One", colorA);
-
-
 		std::stringstream cameraPositionString;
 		auto camPos = context->lastCamera.GetPosition();
 		cameraPositionString << "Camera Position: " << camPos.GetX() << "	" << camPos.GetY() << "	" << camPos.GetZ();
@@ -1472,12 +1410,17 @@ namespace {
 		closestSurfelIDString << "Closest Surfel: " << sID;
 		ImGui::Text(closestSurfelIDString.str().c_str());
 
-
-
-
-		//ImGui::ShowDemoWindow();
-		//ImGui::Text("Hello from ImGui!");
 		ImGui::End();
+
+	}
+
+	 void SurfelGIRenderer::SetCommandListDefaultState(GraphicsContext& gfx)
+	{
+		gfx.SetRootSignature(Renderer::m_RootSig);
+		gfx.SetDescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, Renderer::s_TextureHeap.GetHeapPointer());
+		gfx.SetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+		gfx.SetIndexBuffer(m_Model->GetIndexBuffer());
+		gfx.SetVertexBuffer(0, m_Model->GetVertexBuffer());
 
 	}
 
@@ -1503,8 +1446,10 @@ XMVECTOR VectorProjection(XMVECTOR u, XMVECTOR v, float* scalarOut)
 
     return XMVectorMultiply(scalar, v);
 }
-	 void SurfelGIRenderer::RenderColor(RenderArgs& args)
+	 void SurfelGIRenderer::RenderColorPass(RenderArgs& args)
 	 {
+		UpdateColorPassPixelShaderArgs(context->frameIndex);
+
 		 context->lastCamera = args.camera;
 		 {
 			 ScopedTimer _prof2(L"Render Color", args.gfx);
@@ -1576,12 +1521,6 @@ XMVECTOR VectorProjection(XMVECTOR u, XMVECTOR v, float* scalarOut)
 
 					 float HALF_FOV = tan(args.camera.GetFOV()/2);
 
-
-
-//					 RenderSpheresAlongRay(red,last_camera_data.GetPosition(), last_camera_data.GetUpVec(), samples, offset, args.gfx, args.camera.GetViewProjMatrix(), args.camera.GetPosition(), TestRenderer::kOpaque);
-//					 RenderSpheresAlongRay(red,last_camera_data.GetPosition(), last_camera_data.GetRightVec(), samples, offset, args.gfx, args.camera.GetViewProjMatrix(), args.camera.GetPosition(), TestRenderer::kOpaque);
-//					 RenderSpheresAlongRay(red,last_camera_data.GetPosition(), last_camera_data.GetForwardVec(), samples, offset, args.gfx, args.camera.GetViewProjMatrix(), args.camera.GetPosition(), TestRenderer::kOpaque);
-
 					 //Render local args.camera-space vectors
 					 Vector3 LocalSpaceAt = Vector3(XMLoadFloat4(&d.reconstructedWorldSpacePosition));
 					 Vector3 LocalCameraUp = Vector3(XMLoadFloat4(&d.localCameraDirectionUp));
@@ -1591,18 +1530,8 @@ XMVECTOR VectorProjection(XMVECTOR u, XMVECTOR v, float* scalarOut)
 					 RenderSpheresAlongRay(blue,LocalSpaceAt, LocalCameraUp, samples,offset,renderOpaqueInstancesArgs);
 					 RenderSpheresAlongRay(blue, LocalSpaceAt, LocalCameraRight, samples, offset, renderOpaqueInstancesArgs);
 				     RenderSpheresAlongRay(blue, LocalSpaceAt, LocalCameraAt, samples, offset, renderOpaqueInstancesArgs);
-					 Vector3 NormalSampledAtW = Vector3(XMVector3Normalize( XMLoadFloat4(&d.normalAtW)));
-					 //NormalSampledAtW.SetZ(-NormalSampledAtW.GetZ());
-					 Vector3 RecomputedNormal = Vector3(XMVector3Normalize(XMLoadFloat4(&d.recomputedNormal)));
-					 //RecomputedNormal.SetZ(-RecomputedNormal.GetZ());
+					 
 					 Vector4 BentNormalAtW = Vector4(XMLoadFloat4(&d.bentNormalAtW));
-					 //BentNormalAtW.SetZ(-BentNormalAtW.GetZ());
-
-					 //RenderSpheresAlongRay(green,LocalSpaceAt, NormalSampledAtW, samples+50,offset+150,gfxContext,args.camera.GetViewProjMatrix(),args.camera.GetPosition(),TestRenderer::kOpaque);
-
-					 //RenderSpheresAlongRay(yellow,LocalSpaceAt, RecomputedNormal, samples+50,offset+150,gfxContext,args.camera.GetViewProjMatrix(),args.camera.GetPosition(),TestRenderer::kOpaque);
-
-					 //RenderSpheresAlongRay(magenta,LocalSpaceAt, Vector3(BentNormalAtW), samples,offset,gfxContext,args.camera.GetViewProjMatrix(),args.camera.GetPosition(),TestRenderer::kOpaque);
 
 					 for (size_t i = 0; i < 16; i++)
 					 {
@@ -1614,21 +1543,9 @@ XMVECTOR VectorProjection(XMVECTOR u, XMVECTOR v, float* scalarOut)
 					 }
 					 
 
-
-//					 XMVECTOR originToAvg =  XMVectorSubtract( XMLoadFloat4(&d.wsSampleAverage),LocalSpaceAt);
-//					 //RenderSphereAt(yellow, 5, Vector4(avg), gfxContext, args.camera.GetViewProjMatrix(), args.camera.GetPosition(), TestRenderer::kOpaque);
-//
-//					 //Calculate Height
-//					 float height = 0;
 					 XMVECTOR normalizedNormal = XMVector3Normalize(BentNormalAtW);
-					 //Debug vector  projection by setting upa normal at 45 deg
-					 //XMVECTOR normalizedNormal = XMVector3Normalize(XMVectorSet(0,1,1,0));
 					 RenderSpheresAlongRay(magenta, LocalSpaceAt, Vector3(normalizedNormal), samples, offset, renderOpaqueInstancesArgs);
 
-					 //RenderSpheresAlongRay(red,LocalSpaceAt, Vector3(originToAvg), samples,offset,gfxContext,args.camera.GetViewProjMatrix(),args.camera.GetPosition(),TestRenderer::kOpaque);
-
-					 //XMVECTOR projection = VectorProjection(originToAvg, normalizedNormal, &height);
-					 //XMVECTOR projection = VectorProjection( BentNormalAtW,originToAvg, &height);
 					 float height = BentNormalAtW.GetW();
 					 XMVECTOR worldPosition = XMVectorAdd(LocalSpaceAt,XMVectorScale(normalizedNormal,height));
 						 
@@ -1642,7 +1559,6 @@ XMVECTOR VectorProjection(XMVECTOR u, XMVECTOR v, float* scalarOut)
 
 
 					 radiusOfCone = min(40.0f, radiusOfCone);
-
 
 					 RenderSphereAt(green, 3, Vector4(d.wsSampleAverage), renderOpaqueInstancesArgs);
 					 RenderSurfelAt(yellow,Vector4(normalizedNormal), radiusOfCone, Vector4(worldPosition),renderOpaqueInstancesArgs);
@@ -1675,25 +1591,14 @@ XMVECTOR VectorProjection(XMVECTOR u, XMVECTOR v, float* scalarOut)
 				 RenderSSR(args.gfx, args.camera, 35);
 			 }
 
-			 //			 {
-			 //				 ScopedTimer _prof3(L"Render OBJ", args.gfx);
-			 //				 args.gfx.SetPipelineState(m_ModelSimplifiedPSO);
-			 //				 args.gfx.SetRootSignature(m_ModelSimplifiedPSO.GetRootSignature());
-			 //				 args.gfx.TransitionResource(g_SceneColorBuffer, D3D12_RESOURCE_STATE_RENDER_TARGET);
-			 //				 args.gfx.TransitionResource(g_SceneNormalBuffer, D3D12_RESOURCE_STATE_RENDER_TARGET);
-			 //				 args.gfx.TransitionResource(g_SceneDepthBuffer, D3D12_RESOURCE_STATE_DEPTH_READ);
-			 //				 D3D12_CPU_DESCRIPTOR_HANDLE rtvs[]{ g_SceneColorBuffer.GetRTV(), g_SceneNormalBuffer.GetRTV() };
-			 //				 args.gfx.SetRenderTargets(ARRAYSIZE(rtvs), rtvs, g_SceneDepthBuffer.GetDSV_DepthReadOnly());
-			 //				 args.gfx.SetViewportAndScissor(args.viewport, args.scissor);
-			 //				 //RenderOBJObject(args.gfx, args.camera.GetViewProjMatrix(), args.camera.GetPosition(), TestRenderer::kOpaque);
-			 //				 RenderOBJObjectCorrectPipeline(args.gfx, args.camera.GetViewProjMatrix(), args.camera.GetPosition(), TestRenderer::kOpaque);
-			 //			 }
-
+				//                --- SKIP NORMAL CUTOUTS---
+				//args.gfx.SetPipelineState(m_CutoutModelPSO);
+				//RenderObjects( args.gfx, args.camera.GetViewProjMatrix(), args.camera.GetPosition(), TestRenderer::kCutout );
 		 }
 
 	 }
 
-	 void SurfelGIRenderer::RenderDebugOverlay(RenderArgs& args)
+	 void SurfelGIRenderer::RenderDebugOverlayPass(RenderArgs& args)
 	 {
 		 if (m_debugOverlayMode == 0)
 		 {
@@ -1783,11 +1688,6 @@ XMVECTOR VectorProjection(XMVECTOR u, XMVECTOR v, float* scalarOut)
 	 }
 	void SurfelGIRenderer::RenderScene(RenderArgs& args)
 	{
-		if (m_useSurfelInformedSBGI)
-			m_AdditiveBlendPass.m_blendControlCB.lerpSBGItoInformedSBGI.x = 1;
-		else
-			m_AdditiveBlendPass.m_blendControlCB.lerpSBGItoInformedSBGI.x = 0;
-
 		if (m_resetSurfelNextFrame == true)
 		{
 			context->SurfelIllumination->ResetSurfels(args.gfx);
@@ -1824,64 +1724,28 @@ XMVECTOR VectorProjection(XMVECTOR u, XMVECTOR v, float* scalarOut)
 
 		Renderer::UpdateGlobalDescriptors();
 
-		Vector3 pos = args.camera.GetPosition();
-
-		uint32_t FrameIndex = TemporalEffects::GetFrameIndexMod2();
-
-
-		m_SunOrientation = m_sunData.sunOrientation;
-		m_SunInclination = m_sunData.sunInclination;
-		//m_SunLightIntensity = m_sunData.sunInclination;
-		context->sunLightIntensity = m_sunData.sunInclination;
-		//m_AmbientIntensity = m_sunData.ambientLightIntensity;
-		context->ambientIntensity = m_sunData.ambientLightIntensity;
-
-		float costheta = cosf(m_SunOrientation);
-		float sintheta = sinf(m_SunOrientation);
-		float cosphi = cosf(m_SunInclination * 3.14159f * 0.5f);
-		float sinphi = sinf(m_SunInclination * 3.14159f * 0.5f);
-		//m_SunDirection = Normalize(Vector3(costheta * cosphi, sinphi, sintheta * cosphi));
-		context->sunDirection = Normalize(Vector3(costheta * cosphi, sinphi, sintheta * cosphi));
 
 
 
-		psConstants.sunDirection = context->sunDirection;
-		psConstants.sunLight = Vector3(1.0f, 1.0f, 1.0f) * context->sunLightIntensity;
-		psConstants.ambientLight = Vector3(1.0f, 1.0f, 1.0f) * context->ambientIntensity;
-		psConstants.ShadowTexelSize[0] = 1.0f / g_ShadowBuffer.GetWidth();
-		psConstants.InvTileDim[0] = 1.0f / Lighting::LightGridDim;
-		psConstants.InvTileDim[1] = 1.0f / Lighting::LightGridDim;
-		psConstants.TileCount[0] = Math::DivideByMultiple(g_SceneColorBuffer.GetWidth(), Lighting::LightGridDim);
-		psConstants.TileCount[1] = Math::DivideByMultiple(g_SceneColorBuffer.GetHeight(), Lighting::LightGridDim);
-		psConstants.FirstLightIndex[0] = Lighting::m_FirstConeLight;
-		psConstants.FirstLightIndex[1] = Lighting::m_FirstConeShadowedLight;
-		psConstants.FrameIndexMod2 = FrameIndex;
-		if(m_useSurfelInformedSBGI)
-			psConstants.UseConfidenceWeight = 255;
-		else
-			psConstants.UseConfidenceWeight = 0;
-		psConstants.AOThreshold = context->SurfelIllumination->m_SurfelGen.AOVariables.x;
+		UpdateContextDirectionalLight();
 
-		TestRaytracing::directionalLightData.sunDirection = Vector4(context->sunDirection, 1);
-		TestRaytracing::directionalLightData.sunColor = Vector4(1.0f, 1.0f, 1.0f, 1.0f) * context->sunLightIntensity;
-		TestRaytracing::directionalLightData.ambientColor = Vector4(1.0f, 1.0f, 1.0f, 1.0f) * context->ambientIntensity;
-		SurfelIrradianceAccumulation::directionalLightData.sunDirection = Vector4(context->sunDirection, 1);
-		SurfelIrradianceAccumulation::directionalLightData.sunColor = Vector4(1.0f, 1.0f, 1.0f, 1.0f) * context->sunLightIntensity;
-		SurfelIrradianceAccumulation::directionalLightData.ambientColor = Vector4(1.0f, 1.0f, 1.0f, 1.0f) * context->ambientIntensity;
 
-		// Set the default state for command lists
-		auto& pfnSetupGraphicsState = [&](void)
-			{
-				args.gfx.SetRootSignature(Renderer::m_RootSig);
-				args.gfx.SetDescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, Renderer::s_TextureHeap.GetHeapPointer());
-				args.gfx.SetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-				args.gfx.SetIndexBuffer(m_Model->GetIndexBuffer());
-				args.gfx.SetVertexBuffer(0, m_Model->GetVertexBuffer());
-			};
 
-		pfnSetupGraphicsState();
+		TestRaytracing::directionalLightData = {
+			Vector4(context->sunDirection, 1),
+			Vector4(1.0f) * context->sunLightIntensity,
+			Vector4(1.0f) * context->ambientIntensity,
+		};
+		SurfelIrradianceAccumulation::directionalLightData =
+		{
+			Vector4(context->sunDirection, 1),
+			Vector4(1.0f) * context->sunLightIntensity,
+			Vector4(1.0f) * context->ambientIntensity,
+		};
 
-		RenderLightShadows(args.gfx, args.camera);
+		SetCommandListDefaultState(args.gfx);
+
+		RenderLightShadowsPass(args.gfx, args.camera);
 
 		RenderZPrePass(args);
 
@@ -1894,44 +1758,11 @@ XMVECTOR VectorProjection(XMVECTOR u, XMVECTOR v, float* scalarOut)
 			Lighting::FillLightGrid(args.gfx, args.camera);
 
 			if (!SSAO::DebugDraw)
-			{
-				ScopedTimer _prof(L"Main Render", args.gfx);
-				{
-					args.gfx.TransitionResource(g_SceneColorBuffer, D3D12_RESOURCE_STATE_RENDER_TARGET, true);
-					args.gfx.TransitionResource(g_SceneNormalBuffer, D3D12_RESOURCE_STATE_RENDER_TARGET, true);
-					args.gfx.ClearColor(g_SceneColorBuffer);
-				}
-			}
+				SetupRenderTargets(args);
 		}
 
-		if (!args.skipShadow)
-		{
-			if (!SSAO::DebugDraw)
-			{
-				//--- SHADOWS PASS ---
-				pfnSetupGraphicsState();
-				{
-					ScopedTimer _prof2(L"Render Shadow Map", args.gfx);
-
-					RenderObjectInstancePassArgs renderInstancesShadowMapArgs{
-							args.gfx, context->sunShadow.GetViewProjMatrix(), args.camera.GetPosition(), kOpaque
-					};
-
-					context->sunShadow.UpdateMatrix(-context->sunDirection, Vector3(0, -500.0f, 0), Vector3(ShadowDimX, ShadowDimY, ShadowDimZ),
-						(uint32_t)g_ShadowBuffer.GetWidth(), (uint32_t)g_ShadowBuffer.GetHeight(), 16);
-
-					g_ShadowBuffer.BeginRendering(args.gfx);
-					args.gfx.SetPipelineState(m_ShadowPSO);
-					RenderObjects(renderInstancesShadowMapArgs);
-
-					args.gfx.SetPipelineState(m_CutoutShadowPSO);
-					renderInstancesShadowMapArgs.filter = kCutout;
-					RenderObjects(renderInstancesShadowMapArgs);
-
-					g_ShadowBuffer.EndRendering(args.gfx);
-				}
-			}
-		}
+		if (!args.skipShadow && !SSAO::DebugDraw)
+			RenderShadowMapPass(args);
 
 		if (!args.skipDiffuse)
 		{
@@ -1940,22 +1771,15 @@ XMVECTOR VectorProjection(XMVECTOR u, XMVECTOR v, float* scalarOut)
 				if (SSAO::AsyncCompute)
 				{
 					args.gfx.Flush();
-					pfnSetupGraphicsState();
-
+					SetCommandListDefaultState(args.gfx);
 					// Make the 3D queue wait for the Compute queue to finish SSAO
 					g_CommandManager.GetGraphicsQueue().StallForProducer(g_CommandManager.GetComputeQueue());
 				}
 
-				RenderColor(args);
-
-				//                --- SKIP NORMAL CUTOUTS---
-				//args.gfx.SetPipelineState(m_CutoutModelPSO);
-				//RenderObjects( args.gfx, args.camera.GetViewProjMatrix(), args.camera.GetPosition(), TestRenderer::kCutout );
+				RenderColorPass(args);
 
 				if (m_enableDebugOverlay)
-				{
-					RenderDebugOverlay(args);
-				}
+					RenderDebugOverlayPass(args);
 
 			}
 		}
@@ -1967,14 +1791,7 @@ XMVECTOR VectorProjection(XMVECTOR u, XMVECTOR v, float* scalarOut)
 			{
 				if (m_hbil_render)
 				{
-					ScopedTimer _prof(L"Render HBIL", args.gfx);
-					ImVec2 mousePos = ImGui::GetMousePos();
-					float verticalFovRad = args.camera.GetFOV();
-					float TAN_HALF_FOV = tan(verticalFovRad * 0.5);
-					context->m_HBIL->SetMousePos(mousePos.x, mousePos.y);
-					context->m_HBIL->RenderHBIL(args.gfx, args.camera);
-					RenderFullScreenQuad(args.gfx);
-					last_camera_data = args.camera;
+					RenderHBIL(args);
 				}
 				if (m_hbil_updateDebug)
 				{
@@ -1987,6 +1804,7 @@ XMVECTOR VectorProjection(XMVECTOR u, XMVECTOR v, float* scalarOut)
 		// --- SURFEL PASS
 		context->frameIndex++;
 		//Set the frame index
+		uint32_t FrameIndex = TemporalEffects::GetFrameIndexMod2();
 		context->SurfelIllumination->m_SurfelGen.FrameIndex = context->frameIndex;
 
 		if (m_stopSurfelUpdate == false)
@@ -2009,6 +1827,93 @@ XMVECTOR VectorProjection(XMVECTOR u, XMVECTOR v, float* scalarOut)
 
 		m_prevStopSurfelUpdate = m_stopSurfelUpdate;
 		CopyColorAndDepthBuffers(args.gfx);
+	}
+
+	void SurfelGIRenderer::SetupRenderTargets(RenderArgs& args)
+	{
+		ScopedTimer _prof(L"Main Render", args.gfx);
+		{
+			args.gfx.TransitionResource(g_SceneColorBuffer, D3D12_RESOURCE_STATE_RENDER_TARGET, true);
+			args.gfx.TransitionResource(g_SceneNormalBuffer, D3D12_RESOURCE_STATE_RENDER_TARGET, true);
+			args.gfx.ClearColor(g_SceneColorBuffer);
+		}
+	}
+
+	void SurfelGIRenderer::RenderHBIL(RenderArgs& args)
+	{
+		ScopedTimer _prof(L"Render HBIL", args.gfx);
+		ImVec2 mousePos = ImGui::GetMousePos();
+		float verticalFovRad = args.camera.GetFOV();
+		float TAN_HALF_FOV = tan(verticalFovRad * 0.5);
+		context->m_HBIL->SetMousePos(mousePos.x, mousePos.y);
+		context->m_HBIL->RenderHBIL(args.gfx, args.camera);
+		RenderFullScreenQuad(args.gfx);
+		last_camera_data = args.camera;
+	}
+
+	void SurfelGIRenderer::RenderShadowMapPass(RenderArgs& args)
+	{
+		SetCommandListDefaultState(args.gfx);
+		{
+
+			ScopedTimer _prof2(L"Render Shadow Map", args.gfx);
+			//--- SHADOWS PASS ---
+
+			context->sunShadow.UpdateMatrix(-context->sunDirection, Vector3(0, -500.0f, 0), Vector3(ShadowDimX, ShadowDimY, ShadowDimZ),
+				(uint32_t)g_ShadowBuffer.GetWidth(), (uint32_t)g_ShadowBuffer.GetHeight(), 16);
+
+			RenderObjectInstancePassArgs renderInstancesShadowMapArgs{
+				args.gfx, context->sunShadow.GetViewProjMatrix(), args.camera.GetPosition(), kOpaque
+			};
+//			RenderObjectInstancePassArgs renderInstancesShadowMapArgs{
+//				args.gfx, context->sunShadow.GetViewProjMatrix(), context->sunShadow.GetPosition(), kOpaque
+//			};
+
+			g_ShadowBuffer.BeginRendering(args.gfx);
+			args.gfx.SetPipelineState(m_ShadowPSO);
+			RenderObjects(renderInstancesShadowMapArgs);
+
+			args.gfx.SetPipelineState(m_CutoutShadowPSO);
+			renderInstancesShadowMapArgs.filter = kCutout;
+			RenderObjects(renderInstancesShadowMapArgs);
+
+			g_ShadowBuffer.EndRendering(args.gfx);
+		}
+	}
+
+	void SurfelGIRenderer::UpdateContextDirectionalLight()
+	{
+		m_SunOrientation = m_sunData.sunOrientation;
+		m_SunInclination = m_sunData.sunInclination;
+		context->sunLightIntensity = m_sunData.sunInclination;
+		context->ambientIntensity = m_sunData.ambientLightIntensity;
+
+		float costheta = cosf(m_SunOrientation);
+		float sintheta = sinf(m_SunOrientation);
+		float cosphi = cosf(m_SunInclination * 3.14159f * 0.5f);
+		float sinphi = sinf(m_SunInclination * 3.14159f * 0.5f);
+		//m_SunDirection = Normalize(Vector3(costheta * cosphi, sinphi, sintheta * cosphi));
+		context->sunDirection = Normalize(Vector3(costheta * cosphi, sinphi, sintheta * cosphi));
+	}
+
+	void SurfelGIRenderer::UpdateColorPassPixelShaderArgs(const uint32_t& FrameIndex)
+	{
+		psConstants.sunDirection = context->sunDirection;
+		psConstants.sunLight = Vector3(1.0f, 1.0f, 1.0f) * context->sunLightIntensity;
+		psConstants.ambientLight = Vector3(1.0f, 1.0f, 1.0f) * context->ambientIntensity;
+		psConstants.ShadowTexelSize[0] = 1.0f / g_ShadowBuffer.GetWidth();
+		psConstants.InvTileDim[0] = 1.0f / Lighting::LightGridDim;
+		psConstants.InvTileDim[1] = 1.0f / Lighting::LightGridDim;
+		psConstants.TileCount[0] = Math::DivideByMultiple(g_SceneColorBuffer.GetWidth(), Lighting::LightGridDim);
+		psConstants.TileCount[1] = Math::DivideByMultiple(g_SceneColorBuffer.GetHeight(), Lighting::LightGridDim);
+		psConstants.FirstLightIndex[0] = Lighting::m_FirstConeLight;
+		psConstants.FirstLightIndex[1] = Lighting::m_FirstConeShadowedLight;
+		psConstants.FrameIndexMod2 = FrameIndex;
+		if (m_useSurfelInformedSBGI)
+			psConstants.UseConfidenceWeight = 255;
+		else
+			psConstants.UseConfidenceWeight = 0;
+		psConstants.AOThreshold = context->SurfelIllumination->m_SurfelGen.AOVariables.x;
 	}
 
 	void SurfelGIRenderer::RenderZPrePass(RenderArgs& args)

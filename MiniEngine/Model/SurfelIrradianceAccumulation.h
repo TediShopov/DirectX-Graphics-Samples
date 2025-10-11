@@ -88,6 +88,7 @@ namespace SurfelIrradianceAccumulation
 
 
 
+
 	D3D12_GPU_DESCRIPTOR_HANDLE GetSrvGpuHandle();
 	D3D12_CPU_DESCRIPTOR_HANDLE GetSrvCpuHandle();
 	ColorBuffer GetOutputBuffer();

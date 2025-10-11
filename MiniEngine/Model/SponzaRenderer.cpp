@@ -41,7 +41,7 @@ using namespace Graphics;
 
 namespace Sponza
 {
-    void RenderLightShadows(GraphicsContext& gfxContext, const Camera& camera);
+    void RenderLightShadowsPass(GraphicsContext& gfxContext, const Camera& camera);
 
     enum eObjectFilter { kOpaque = 0x1, kCutout = 0x2, kTransparent = 0x4, kAll = 0xF, kNone = 0x0 };
     void RenderObjects( GraphicsContext& Context, const Matrix4& ViewProjMat, const Vector3& viewerPos, eObjectFilter filter = kAll );
@@ -211,7 +211,7 @@ void Sponza::RenderObjects( GraphicsContext& gfxContext, const Matrix4& ViewProj
     }
 }
 
-void Sponza::RenderLightShadows(GraphicsContext& gfxContext, const Camera& camera)
+void Sponza::RenderLightShadowsPass(GraphicsContext& gfxContext, const Camera& camera)
 {
     using namespace Lighting;
 
@@ -296,7 +296,7 @@ void Sponza::RenderScene(
 
     pfnSetupGraphicsState();
 
-    RenderLightShadows(gfxContext, camera);
+    RenderLightShadowsPass(gfxContext, camera);
 
     {
         ScopedTimer _prof(L"Z PrePass", gfxContext);
