@@ -73,74 +73,6 @@ struct SurfelGIRendererContext {
     Camera  lastCamera;
 };
 
-
-
-//namespace TestRenderer
-class SurfelGIRenderer 
-{
-public:
-	//--- DEFINES ---
-
-	enum eObjectFilter { kOpaque = 0x1, kCutout = 0x2, kTransparent = 0x4, kAll = 0xF, kNone = 0x0 };
-
-#define RENDER_SCENE_DEFAULT_PARAMS GraphicsContext& gfxContext, const Math::Camera& camera,const D3D12_VIEWPORT& viewport,const D3D12_RECT& scissor,bool skipDiffusePass = false,bool skipShadowMap = false
-#define RENDER_SCENE_PARAMS GraphicsContext& gfxContext, const Math::Camera& camera,const D3D12_VIEWPORT& viewport,const D3D12_RECT& scissor,bool skipDiffusePass ,bool skipShadowMap
-#define RENDER_OBJECT_INSTANCE_PARAMS GraphicsContext& gfxContext, const Matrix4& ViewProjMat, const Vector3& viewerPos, eObjectFilter Filter
-
-
-	//--- DATA ---
-//#pragma region ExposedProperties
-//	static UINT frameIndex;
-//
-//	static SurfelGI* SurfelIllumination;
-//	static HashGridVisualization* GridVisualization;
-//	static MSMEVisualization* GridMSMEVisualization;
-//	static SurfelSpawnChanceVisualization* SurfelSpawnVisualization;
-//	static SurfelGIOnlyVisualization* SurfelGIVisualization;
-//	static SurfelGIOnlyVisualization* MaterialBindingDebug;
-//	static HBIL* m_HBIL;
-//	static HBILInterleaved* m_HBILInterleaved;
-//	static GBufferDownsample* m_GBufferDownsample;
-//	static GBufferSlice* m_GBufferSlice;
-//
-//	static SphereMesh* m_Sphere;
-//	static DiscMesh* m_Disc;
-//	static Transform m_Transform;
-//
-//	//-- DIRECTIONAL LIGHT PROPERTIES
-//	static Math::Vector3 m_SunDirection;
-//	static ShadowCamera m_SunShadow;
-//	static ExpVar m_AmbientIntensity;
-//	static ExpVar m_SunLightIntensity;
-//#pragma endregion
-//
-//	
-//	 static Math::Camera lastUsedCamera;
-
-	//--- INITTIALIZATOIN ---
-	static void Startup(Math::Camera& camera,std::vector<IParameterBlock*>& parameters, HWND hwnd);
-	static void SetSurfelIlluminationAlgorithm(bool isHbilInformedSBGI);
-
-	static  void SetupScene();
-
-	//--- CLEANUP ---
-	static void Cleanup(void);
-
-	//--- RENDERING ---
-	static void RenderScene(RENDER_SCENE_DEFAULT_PARAMS);
-
-	//-- UI SPECIFIC --
-	static void RenderImGuiUI(GraphicsContext& gfx);
-protected:
-
-	//--- INITTIALIZATOIN ---
-	static void InitTriangleModel();
-	static void InitQuadModel();
-	static void InitSphereModel();
-
-	static UINT FindClosesSurfelToPosition(Math::Vector3 position);
-
-	//Model Rendering VS Constants
 	struct VSConstants
 	{
 		Matrix4 modelToWorld;
@@ -165,6 +97,54 @@ protected:
 		uint32_t pad;
 
 	};
+
+struct RenderArgs {
+    GraphicsContext& gfx;
+    const Camera& camera;
+    const D3D12_VIEWPORT& viewport;
+    const D3D12_RECT& scissor;
+    bool skipDiffuse = false;
+    bool skipShadow  = false;
+};
+
+
+
+//namespace TestRenderer
+class SurfelGIRenderer 
+{
+public:
+	//--- DEFINES ---
+
+	enum eObjectFilter { kOpaque = 0x1, kCutout = 0x2, kTransparent = 0x4, kAll = 0xF, kNone = 0x0 };
+
+//#define RENDER_SCENE_DEFAULT_PARAMS GraphicsContext& gfxContext, const Math::Camera& camera,const D3D12_VIEWPORT& viewport,const D3D12_RECT& scissor,bool skipDiffusePass = false,bool skipShadowMap = false
+//#define RENDER_SCENE_PARAMS GraphicsContext& gfxContext, const Math::Camera& camera,const D3D12_VIEWPORT& viewport,const D3D12_RECT& scissor,bool skipDiffusePass ,bool skipShadowMap
+#define RENDER_OBJECT_INSTANCE_PARAMS GraphicsContext& gfxContext, const Matrix4& ViewProjMat, const Vector3& viewerPos, eObjectFilter Filter
+
+	//--- INITTIALIZATOIN ---
+	static void Startup(Math::Camera& camera,std::vector<IParameterBlock*>& parameters, HWND hwnd);
+	static void SetSurfelIlluminationAlgorithm(bool isHbilInformedSBGI);
+
+	static  void SetupScene();
+
+	//--- CLEANUP ---
+	static void Cleanup(void);
+
+	//--- RENDERING ---
+	static void RenderScene(RenderArgs& renderArgs);
+
+	//-- UI SPECIFIC --
+	static void RenderImGuiUI(GraphicsContext& gfx);
+protected:
+
+	//--- INITTIALIZATOIN ---
+	static void InitTriangleModel();
+	static void InitQuadModel();
+	static void InitSphereModel();
+
+	static UINT FindClosesSurfelToPosition(Math::Vector3 position);
+
+	//Model Rendering VS Constants
 	static PSConstants psConstants;
 
 	//--- RENDERING PASSES ---
@@ -191,8 +171,8 @@ protected:
 	static void RenderRelevantSurfels(RENDER_OBJECT_INSTANCE_PARAMS);
 	static void RenderSurfels(RENDER_OBJECT_INSTANCE_PARAMS);
 
-	static void RenderColor(RENDER_SCENE_PARAMS);
-	static void RenderDebugOverlay(RENDER_SCENE_PARAMS);
+	static void RenderColor(RenderArgs& renderArgs);
+	static void RenderDebugOverlay(RenderArgs& renderArgs);
 
 
 	static VSConstants SetupObjectVSConstants(RENDER_OBJECT_INSTANCE_PARAMS);

@@ -458,7 +458,15 @@ void ModelViewer::RenderScene( void )
 #ifdef LEGACY_RENDERER
         //Sponza::RenderScene(gfxContext, m_Camera, viewport, scissor);
 		//EngineProfiling::BeginBlock(L"TestingBear", &gfxContext);
-        SurfelGIRenderer::RenderScene(gfxContext, m_Camera, viewport, scissor,false,false);
+		RenderArgs args{
+			gfxContext,
+			m_Camera,
+			viewport,
+			scissor,
+			false,
+			false,
+		};
+        SurfelGIRenderer::RenderScene(args);
 		//EngineProfiling::EndBlock( &gfxContext);
 		//EngineProfiling::EndBlockPerfSDK(&gfxContext);
 #endif

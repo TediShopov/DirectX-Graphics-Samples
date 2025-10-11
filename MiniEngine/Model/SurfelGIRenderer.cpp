@@ -177,7 +177,7 @@ namespace {
 
 	ModelOBJ OBJModel;
 
-	SurfelGIRenderer::PSConstants SurfelGIRenderer::psConstants = SurfelGIRenderer::PSConstants{};
+	PSConstants SurfelGIRenderer::psConstants = PSConstants{};
 
 	std::vector<bool> m_pMaterialIsCutout;
 
@@ -458,7 +458,7 @@ namespace {
 		//ExtendedUtility::CopyDescriptorsToHeap(Renderer::m_CommonTextures,)
 
 
-		//CopyColorAndDepthBuffers(gfxContext);
+		//CopyColorAndDepthBuffers(args.gfx);
 
 
 
@@ -664,7 +664,7 @@ namespace {
 		ImGui::DestroyContext(ImGui::GetCurrentContext());
 	}
 
-	SurfelGIRenderer::VSConstants SurfelGIRenderer::SetupObjectVSConstants(RENDER_OBJECT_INSTANCE_PARAMS)
+	VSConstants SurfelGIRenderer::SetupObjectVSConstants(RENDER_OBJECT_INSTANCE_PARAMS)
 	{
 		VSConstants vsConstants;
 		//vsConstants.modelToWorld = Matrix4(SurfelGIRenderer::m_Transform.getTransformMatrix());
@@ -1505,53 +1505,53 @@ XMVECTOR VectorProjection(XMVECTOR u, XMVECTOR v, float* scalarOut)
 
     return XMVectorMultiply(scalar, v);
 }
-	 void SurfelGIRenderer::RenderColor(RENDER_SCENE_PARAMS)
+	 void SurfelGIRenderer::RenderColor(RenderArgs& args)
 	 {
-		 context->lastCamera = camera;
+		 context->lastCamera = args.camera;
 		 {
-			 ScopedTimer _prof2(L"Render Color", gfxContext);
+			 ScopedTimer _prof2(L"Render Color", args.gfx);
 
-			 gfxContext.TransitionResource(g_SSAOFullScreen, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
-			 gfxContext.InsertUAVBarrier(context->SurfelIllumination->m_SurfelGrid.m_GPUBuffer);
-			 gfxContext.InsertUAVBarrier(context->SurfelIllumination->m_SurfelList.m_GPUBuffer);
-			 gfxContext.InsertUAVBarrier(context->SurfelIllumination->m_SurfelData.m_GPUBuffer);
+			 args.gfx.TransitionResource(g_SSAOFullScreen, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+			 args.gfx.InsertUAVBarrier(context->SurfelIllumination->m_SurfelGrid.m_GPUBuffer);
+			 args.gfx.InsertUAVBarrier(context->SurfelIllumination->m_SurfelList.m_GPUBuffer);
+			 args.gfx.InsertUAVBarrier(context->SurfelIllumination->m_SurfelData.m_GPUBuffer);
 
-			 //gfxContext.TransitionResource(TestRaytracing::GetOutputBuffer(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+			 //args.gfx.TransitionResource(TestRaytracing::GetOutputBuffer(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 
-			 gfxContext.SetDescriptorTable(Renderer::kCommonSRVs, Renderer::m_CommonTextures);
-			 gfxContext.SetDynamicConstantBufferView(Renderer::kMaterialConstants, sizeof(psConstants), &psConstants);
+			 args.gfx.SetDescriptorTable(Renderer::kCommonSRVs, Renderer::m_CommonTextures);
+			 args.gfx.SetDynamicConstantBufferView(Renderer::kMaterialConstants, sizeof(psConstants), &psConstants);
 
 			 {
-				 gfxContext.SetPipelineState(m_ModelPSO);
-				 gfxContext.TransitionResource(g_SceneDepthBuffer, D3D12_RESOURCE_STATE_DEPTH_READ);
+				 args.gfx.SetPipelineState(m_ModelPSO);
+				 args.gfx.TransitionResource(g_SceneDepthBuffer, D3D12_RESOURCE_STATE_DEPTH_READ);
 				 D3D12_CPU_DESCRIPTOR_HANDLE rtvs[]{ g_SceneColorBuffer.GetRTV(), g_SceneNormalBuffer.GetRTV() };
-				 gfxContext.SetRenderTargets(ARRAYSIZE(rtvs), rtvs, g_SceneDepthBuffer.GetDSV_DepthReadOnly());
-				 gfxContext.SetViewportAndScissor(viewport, scissor);
+				 args.gfx.SetRenderTargets(ARRAYSIZE(rtvs), rtvs, g_SceneDepthBuffer.GetDSV_DepthReadOnly());
+				 args.gfx.SetViewportAndScissor(args.viewport, args.scissor);
 			 }
-			 RenderObjects(gfxContext, camera.GetViewProjMatrix(), camera.GetPosition(), SurfelGIRenderer::kOpaque);
+			 RenderObjects(args.gfx, args.camera.GetViewProjMatrix(), args.camera.GetPosition(), SurfelGIRenderer::kOpaque);
 			 //Diffuse only from the scene rended pass
-			 //CopyColorAndDepthBuffers(gfxContext);
+			 //CopyColorAndDepthBuffers(args.gfx);
 
-			 gfxContext.TransitionResource(g_SceneColorBuffer, D3D12_RESOURCE_STATE_RENDER_TARGET);
-			 gfxContext.TransitionResource(g_SceneDepthBuffer, D3D12_RESOURCE_STATE_DEPTH_READ);
+			 args.gfx.TransitionResource(g_SceneColorBuffer, D3D12_RESOURCE_STATE_RENDER_TARGET);
+			 args.gfx.TransitionResource(g_SceneDepthBuffer, D3D12_RESOURCE_STATE_DEPTH_READ);
 
 
 			 if (m_drawPhysicalSurfelInstances)
 			 {
-				 ScopedTimer _prof3(L"Render Sphere", gfxContext);
-				 gfxContext.SetPipelineState(m_TestSpherePSO);
-				 gfxContext.SetRootSignature(m_TestSpherePSO.GetRootSignature());
-				 gfxContext.TransitionResource(g_SceneColorBuffer, D3D12_RESOURCE_STATE_RENDER_TARGET);
-				 gfxContext.TransitionResource(g_SceneNormalBuffer, D3D12_RESOURCE_STATE_RENDER_TARGET);
-				 gfxContext.TransitionResource(g_SceneDepthBuffer, D3D12_RESOURCE_STATE_DEPTH_READ);
+				 ScopedTimer _prof3(L"Render Sphere", args.gfx);
+				 args.gfx.SetPipelineState(m_TestSpherePSO);
+				 args.gfx.SetRootSignature(m_TestSpherePSO.GetRootSignature());
+				 args.gfx.TransitionResource(g_SceneColorBuffer, D3D12_RESOURCE_STATE_RENDER_TARGET);
+				 args.gfx.TransitionResource(g_SceneNormalBuffer, D3D12_RESOURCE_STATE_RENDER_TARGET);
+				 args.gfx.TransitionResource(g_SceneDepthBuffer, D3D12_RESOURCE_STATE_DEPTH_READ);
 				 D3D12_CPU_DESCRIPTOR_HANDLE rtvs[]{ g_SceneColorBuffer.GetRTV(), g_SceneNormalBuffer.GetRTV() };
-				 gfxContext.SetRenderTargets(ARRAYSIZE(rtvs), rtvs, g_SceneDepthBuffer.GetDSV_DepthReadOnly());
-				 gfxContext.SetViewportAndScissor(viewport, scissor);
-				 //RenderSphereObject(gfxContext, camera.GetViewProjMatrix(), camera.GetPosition(), TestRenderer::kOpaque);
+				 args.gfx.SetRenderTargets(ARRAYSIZE(rtvs), rtvs, g_SceneDepthBuffer.GetDSV_DepthReadOnly());
+				 args.gfx.SetViewportAndScissor(args.viewport, args.scissor);
+				 //RenderSphereObject(args.gfx, args.camera.GetViewProjMatrix(), args.camera.GetPosition(), TestRenderer::kOpaque);
 				 if (m_renderOnlyCurrentCellSurfels)
-					 RenderRelevantSurfels(gfxContext, camera.GetViewProjMatrix(), camera.GetPosition(), SurfelGIRenderer::kOpaque);
+					 RenderRelevantSurfels(args.gfx, args.camera.GetViewProjMatrix(), args.camera.GetPosition(), SurfelGIRenderer::kOpaque);
 				 else
-					 RenderSurfels(gfxContext, camera.GetViewProjMatrix(), camera.GetPosition(), SurfelGIRenderer::kOpaque);
+					 RenderSurfels(args.gfx, args.camera.GetViewProjMatrix(), args.camera.GetPosition(), SurfelGIRenderer::kOpaque);
 
 				 if(m_hbil_drawDebug && context->m_HBIL->m_DebugHBILActual.size()>0)
 				 {
@@ -1568,23 +1568,23 @@ XMVECTOR VectorProjection(XMVECTOR u, XMVECTOR v, float* scalarOut)
 					 Vector4 white = Vector4(1, 1, 1, 1);
 
 
-					 float HALF_FOV = tan(camera.GetFOV()/2);
+					 float HALF_FOV = tan(args.camera.GetFOV()/2);
 
 
 
-//					 RenderSpheresAlongRay(red,last_camera_data.GetPosition(), last_camera_data.GetUpVec(), samples, offset, gfxContext, camera.GetViewProjMatrix(), camera.GetPosition(), TestRenderer::kOpaque);
-//					 RenderSpheresAlongRay(red,last_camera_data.GetPosition(), last_camera_data.GetRightVec(), samples, offset, gfxContext, camera.GetViewProjMatrix(), camera.GetPosition(), TestRenderer::kOpaque);
-//					 RenderSpheresAlongRay(red,last_camera_data.GetPosition(), last_camera_data.GetForwardVec(), samples, offset, gfxContext, camera.GetViewProjMatrix(), camera.GetPosition(), TestRenderer::kOpaque);
+//					 RenderSpheresAlongRay(red,last_camera_data.GetPosition(), last_camera_data.GetUpVec(), samples, offset, args.gfx, args.camera.GetViewProjMatrix(), args.camera.GetPosition(), TestRenderer::kOpaque);
+//					 RenderSpheresAlongRay(red,last_camera_data.GetPosition(), last_camera_data.GetRightVec(), samples, offset, args.gfx, args.camera.GetViewProjMatrix(), args.camera.GetPosition(), TestRenderer::kOpaque);
+//					 RenderSpheresAlongRay(red,last_camera_data.GetPosition(), last_camera_data.GetForwardVec(), samples, offset, args.gfx, args.camera.GetViewProjMatrix(), args.camera.GetPosition(), TestRenderer::kOpaque);
 
-					 //Render local camera-space vectors
+					 //Render local args.camera-space vectors
 					 Vector3 LocalSpaceAt = Vector3(XMLoadFloat4(&d.reconstructedWorldSpacePosition));
 					 Vector3 LocalCameraUp = Vector3(XMLoadFloat4(&d.localCameraDirectionUp));
 					 Vector3 LocalCameraRight = Vector3(XMLoadFloat4(&d.localCameraDirectionRight));
 					 Vector3 LocalCameraAt = Vector3(XMLoadFloat4(&d.localCameraDirectionAt));
 
-					 RenderSpheresAlongRay(blue,LocalSpaceAt, LocalCameraUp, samples,offset,gfxContext,camera.GetViewProjMatrix(),camera.GetPosition(),SurfelGIRenderer::kOpaque);
-					 RenderSpheresAlongRay(blue,LocalSpaceAt, LocalCameraRight, samples,offset,gfxContext,camera.GetViewProjMatrix(),camera.GetPosition(),SurfelGIRenderer::kOpaque);
-					 RenderSpheresAlongRay(blue,LocalSpaceAt, LocalCameraAt, samples,offset,gfxContext,camera.GetViewProjMatrix(),camera.GetPosition(),SurfelGIRenderer::kOpaque);
+					 RenderSpheresAlongRay(blue,LocalSpaceAt, LocalCameraUp, samples,offset,args.gfx,args.camera.GetViewProjMatrix(),args.camera.GetPosition(),SurfelGIRenderer::kOpaque);
+					 RenderSpheresAlongRay(blue,LocalSpaceAt, LocalCameraRight, samples,offset,args.gfx,args.camera.GetViewProjMatrix(),args.camera.GetPosition(),SurfelGIRenderer::kOpaque);
+					 RenderSpheresAlongRay(blue,LocalSpaceAt, LocalCameraAt, samples,offset,args.gfx,args.camera.GetViewProjMatrix(),args.camera.GetPosition(),SurfelGIRenderer::kOpaque);
 
 					 Vector3 NormalSampledAtW = Vector3(XMVector3Normalize( XMLoadFloat4(&d.normalAtW)));
 					 //NormalSampledAtW.SetZ(-NormalSampledAtW.GetZ());
@@ -1593,34 +1593,34 @@ XMVECTOR VectorProjection(XMVECTOR u, XMVECTOR v, float* scalarOut)
 					 Vector4 BentNormalAtW = Vector4(XMLoadFloat4(&d.bentNormalAtW));
 					 //BentNormalAtW.SetZ(-BentNormalAtW.GetZ());
 
-					 //RenderSpheresAlongRay(green,LocalSpaceAt, NormalSampledAtW, samples+50,offset+150,gfxContext,camera.GetViewProjMatrix(),camera.GetPosition(),TestRenderer::kOpaque);
+					 //RenderSpheresAlongRay(green,LocalSpaceAt, NormalSampledAtW, samples+50,offset+150,gfxContext,args.camera.GetViewProjMatrix(),args.camera.GetPosition(),TestRenderer::kOpaque);
 
-					 //RenderSpheresAlongRay(yellow,LocalSpaceAt, RecomputedNormal, samples+50,offset+150,gfxContext,camera.GetViewProjMatrix(),camera.GetPosition(),TestRenderer::kOpaque);
+					 //RenderSpheresAlongRay(yellow,LocalSpaceAt, RecomputedNormal, samples+50,offset+150,gfxContext,args.camera.GetViewProjMatrix(),args.camera.GetPosition(),TestRenderer::kOpaque);
 
-					 //RenderSpheresAlongRay(magenta,LocalSpaceAt, Vector3(BentNormalAtW), samples,offset,gfxContext,camera.GetViewProjMatrix(),camera.GetPosition(),TestRenderer::kOpaque);
+					 //RenderSpheresAlongRay(magenta,LocalSpaceAt, Vector3(BentNormalAtW), samples,offset,gfxContext,args.camera.GetViewProjMatrix(),args.camera.GetPosition(),TestRenderer::kOpaque);
 
 					 for (size_t i = 0; i < 16; i++)
 					 {
 						 auto currentAngleDebugData = context->m_HBIL->m_DebugHBILActual[i];
 						 Vector4 wsFront = Vector4(XMLoadFloat4(&currentAngleDebugData.wsSampleFront));
 						Vector4 wsBack = Vector4(XMLoadFloat4(&currentAngleDebugData.wsSampleBack));
-						RenderSphereAt(red,1, wsFront, gfxContext,camera.GetViewProjMatrix(),camera.GetPosition(),SurfelGIRenderer::kOpaque);
-						RenderSphereAt(green,1, wsBack, gfxContext, camera.GetViewProjMatrix(),camera.GetPosition(),SurfelGIRenderer::kOpaque);
+						RenderSphereAt(red,1, wsFront, args.gfx,args.camera.GetViewProjMatrix(),args.camera.GetPosition(),SurfelGIRenderer::kOpaque);
+						RenderSphereAt(green,1, wsBack, args.gfx, args.camera.GetViewProjMatrix(),args.camera.GetPosition(),SurfelGIRenderer::kOpaque);
 					 }
 					 
 
 
 //					 XMVECTOR originToAvg =  XMVectorSubtract( XMLoadFloat4(&d.wsSampleAverage),LocalSpaceAt);
-//					 //RenderSphereAt(yellow, 5, Vector4(avg), gfxContext, camera.GetViewProjMatrix(), camera.GetPosition(), TestRenderer::kOpaque);
+//					 //RenderSphereAt(yellow, 5, Vector4(avg), gfxContext, args.camera.GetViewProjMatrix(), args.camera.GetPosition(), TestRenderer::kOpaque);
 //
 //					 //Calculate Height
 //					 float height = 0;
 					 XMVECTOR normalizedNormal = XMVector3Normalize(BentNormalAtW);
 					 //Debug vector  projection by setting upa normal at 45 deg
 					 //XMVECTOR normalizedNormal = XMVector3Normalize(XMVectorSet(0,1,1,0));
-					 RenderSpheresAlongRay(magenta,LocalSpaceAt, Vector3(normalizedNormal), samples,offset,gfxContext,camera.GetViewProjMatrix(),camera.GetPosition(),SurfelGIRenderer::kOpaque);
+					 RenderSpheresAlongRay(magenta,LocalSpaceAt, Vector3(normalizedNormal), samples,offset,args.gfx,args.camera.GetViewProjMatrix(),args.camera.GetPosition(),SurfelGIRenderer::kOpaque);
 
-					 //RenderSpheresAlongRay(red,LocalSpaceAt, Vector3(originToAvg), samples,offset,gfxContext,camera.GetViewProjMatrix(),camera.GetPosition(),TestRenderer::kOpaque);
+					 //RenderSpheresAlongRay(red,LocalSpaceAt, Vector3(originToAvg), samples,offset,gfxContext,args.camera.GetViewProjMatrix(),args.camera.GetPosition(),TestRenderer::kOpaque);
 
 					 //XMVECTOR projection = VectorProjection(originToAvg, normalizedNormal, &height);
 					 //XMVECTOR projection = VectorProjection( BentNormalAtW,originToAvg, &height);
@@ -1639,15 +1639,15 @@ XMVECTOR VectorProjection(XMVECTOR u, XMVECTOR v, float* scalarOut)
 					 radiusOfCone = min(40.0f, radiusOfCone);
 
 
-					 //RenderSphereAt(yellow, 5, Vector4(worldPosition), gfxContext, camera.GetViewProjMatrix(), camera.GetPosition(), TestRenderer::kOpaque);
-					 //RenderSphereAt(yellow, radiusOfCone*2, Vector4(worldPosition), gfxContext, camera.GetViewProjMatrix(), camera.GetPosition(), TestRenderer::kOpaque);
-					 RenderSphereAt(green, 3, Vector4(d.wsSampleAverage), gfxContext, camera.GetViewProjMatrix(), camera.GetPosition(), SurfelGIRenderer::kOpaque);
-					 //RenderSphereAt(yellow, radiusOfCone, Vector4(worldPosition), gfxContext, camera.GetViewProjMatrix(), camera.GetPosition(), TestRenderer::kOpaque);
+					 //RenderSphereAt(yellow, 5, Vector4(worldPosition), gfxContext, args.camera.GetViewProjMatrix(), args.camera.GetPosition(), TestRenderer::kOpaque);
+					 //RenderSphereAt(yellow, radiusOfCone*2, Vector4(worldPosition), gfxContext, args.camera.GetViewProjMatrix(), args.camera.GetPosition(), TestRenderer::kOpaque);
+					 RenderSphereAt(green, 3, Vector4(d.wsSampleAverage), args.gfx, args.camera.GetViewProjMatrix(), args.camera.GetPosition(), SurfelGIRenderer::kOpaque);
+					 //RenderSphereAt(yellow, radiusOfCone, Vector4(worldPosition), gfxContext, args.camera.GetViewProjMatrix(), args.camera.GetPosition(), TestRenderer::kOpaque);
 					 RenderSurfelAt(yellow,
 						 
 						 Vector4(normalizedNormal), radiusOfCone,Vector4(worldPosition), 
-						 gfxContext, 
-						 camera.GetViewProjMatrix(), camera.GetPosition(), SurfelGIRenderer::kOpaque);
+						 args.gfx, 
+						 args.camera.GetViewProjMatrix(), args.camera.GetPosition(), SurfelGIRenderer::kOpaque);
 
 
 
@@ -1668,125 +1668,125 @@ XMVECTOR VectorProjection(XMVECTOR u, XMVECTOR v, float* scalarOut)
 
 			 if (m_drawSSRTest)
 			 {
-				 ScopedTimer _prof3(L"Render SSR", gfxContext);
-				 gfxContext.SetPipelineState(m_ModelSSRPSO);
-				 gfxContext.SetRootSignature(m_ModelSSRPSO.GetRootSignature());
-				 gfxContext.SetDescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, SSRHeap.GetHeapPointer());
+				 ScopedTimer _prof3(L"Render SSR", args.gfx);
+				 args.gfx.SetPipelineState(m_ModelSSRPSO);
+				 args.gfx.SetRootSignature(m_ModelSSRPSO.GetRootSignature());
+				 args.gfx.SetDescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, SSRHeap.GetHeapPointer());
 
-				 //CopyColorAndDepthBuffers(gfxContext);
+				 //CopyColorAndDepthBuffers(args.gfx);
 				 //PIXEL SHADER RESOURCE 
-				 gfxContext.TransitionResource(colorCopyBuffer, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
-				 gfxContext.TransitionResource(depthCopyBuffer, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+				 args.gfx.TransitionResource(colorCopyBuffer, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+				 args.gfx.TransitionResource(depthCopyBuffer, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 
-				 gfxContext.TransitionResource(g_SceneColorBuffer, D3D12_RESOURCE_STATE_RENDER_TARGET);
-				 gfxContext.TransitionResource(g_SceneNormalBuffer, D3D12_RESOURCE_STATE_RENDER_TARGET);
+				 args.gfx.TransitionResource(g_SceneColorBuffer, D3D12_RESOURCE_STATE_RENDER_TARGET);
+				 args.gfx.TransitionResource(g_SceneNormalBuffer, D3D12_RESOURCE_STATE_RENDER_TARGET);
 
-				 gfxContext.TransitionResource(g_SceneDepthBuffer, D3D12_RESOURCE_STATE_DEPTH_READ);
+				 args.gfx.TransitionResource(g_SceneDepthBuffer, D3D12_RESOURCE_STATE_DEPTH_READ);
 				 D3D12_CPU_DESCRIPTOR_HANDLE rtvs[]{ g_SceneColorBuffer.GetRTV(), g_SceneNormalBuffer.GetRTV() };
-				 gfxContext.SetRenderTargets(ARRAYSIZE(rtvs), rtvs, g_SceneDepthBuffer.GetDSV_DepthReadOnly());
-				 gfxContext.SetViewportAndScissor(viewport, scissor);
-				 gfxContext.SetDescriptorTable(Renderer::kCommonSRVs, SSRHeap[0]);
-				 //camera.GetViewMatrix();
-				 //camera.GetProjMatrix();
-				 RenderSSR(gfxContext, camera, 35);
+				 args.gfx.SetRenderTargets(ARRAYSIZE(rtvs), rtvs, g_SceneDepthBuffer.GetDSV_DepthReadOnly());
+				 args.gfx.SetViewportAndScissor(args.viewport, args.scissor);
+				 args.gfx.SetDescriptorTable(Renderer::kCommonSRVs, SSRHeap[0]);
+				 //args.camera.GetViewMatrix();
+				 //args.camera.GetProjMatrix();
+				 RenderSSR(args.gfx, args.camera, 35);
 			 }
 
 			 //			 {
-			 //				 ScopedTimer _prof3(L"Render OBJ", gfxContext);
-			 //				 gfxContext.SetPipelineState(m_ModelSimplifiedPSO);
-			 //				 gfxContext.SetRootSignature(m_ModelSimplifiedPSO.GetRootSignature());
-			 //				 gfxContext.TransitionResource(g_SceneColorBuffer, D3D12_RESOURCE_STATE_RENDER_TARGET);
-			 //				 gfxContext.TransitionResource(g_SceneNormalBuffer, D3D12_RESOURCE_STATE_RENDER_TARGET);
-			 //				 gfxContext.TransitionResource(g_SceneDepthBuffer, D3D12_RESOURCE_STATE_DEPTH_READ);
+			 //				 ScopedTimer _prof3(L"Render OBJ", args.gfx);
+			 //				 args.gfx.SetPipelineState(m_ModelSimplifiedPSO);
+			 //				 args.gfx.SetRootSignature(m_ModelSimplifiedPSO.GetRootSignature());
+			 //				 args.gfx.TransitionResource(g_SceneColorBuffer, D3D12_RESOURCE_STATE_RENDER_TARGET);
+			 //				 args.gfx.TransitionResource(g_SceneNormalBuffer, D3D12_RESOURCE_STATE_RENDER_TARGET);
+			 //				 args.gfx.TransitionResource(g_SceneDepthBuffer, D3D12_RESOURCE_STATE_DEPTH_READ);
 			 //				 D3D12_CPU_DESCRIPTOR_HANDLE rtvs[]{ g_SceneColorBuffer.GetRTV(), g_SceneNormalBuffer.GetRTV() };
-			 //				 gfxContext.SetRenderTargets(ARRAYSIZE(rtvs), rtvs, g_SceneDepthBuffer.GetDSV_DepthReadOnly());
-			 //				 gfxContext.SetViewportAndScissor(viewport, scissor);
-			 //				 //RenderOBJObject(gfxContext, camera.GetViewProjMatrix(), camera.GetPosition(), TestRenderer::kOpaque);
-			 //				 RenderOBJObjectCorrectPipeline(gfxContext, camera.GetViewProjMatrix(), camera.GetPosition(), TestRenderer::kOpaque);
+			 //				 args.gfx.SetRenderTargets(ARRAYSIZE(rtvs), rtvs, g_SceneDepthBuffer.GetDSV_DepthReadOnly());
+			 //				 args.gfx.SetViewportAndScissor(args.viewport, args.scissor);
+			 //				 //RenderOBJObject(args.gfx, args.camera.GetViewProjMatrix(), args.camera.GetPosition(), TestRenderer::kOpaque);
+			 //				 RenderOBJObjectCorrectPipeline(args.gfx, args.camera.GetViewProjMatrix(), args.camera.GetPosition(), TestRenderer::kOpaque);
 			 //			 }
 
 		 }
 
 	 }
 
-	 void SurfelGIRenderer::RenderDebugOverlay(RENDER_SCENE_PARAMS)
+	 void SurfelGIRenderer::RenderDebugOverlay(RenderArgs& args)
 	 {
 		 if (m_debugOverlayMode == 0)
 		 {
-			 ScopedTimer _prof3(L"Surfel Density Debug Overlay", gfxContext);
-			 context->GridVisualization->SetupRenderStage(gfxContext, viewport, scissor,
+			 ScopedTimer _prof3(L"Surfel Density Debug Overlay", args.gfx);
+			 context->GridVisualization->SetupRenderStage(args.gfx, args.viewport, args.scissor,
 				 TestRaytracing::GetOutputBuffer(),
-				 camera);
+				 args.camera);
 
-			 context->SurfelIllumination->UpdateProjection(camera);
-			 context->SurfelIllumination->SendParametersGraphics(gfxContext);
+			 context->SurfelIllumination->UpdateProjection(args.camera);
+			 context->SurfelIllumination->SendParametersGraphics(args.gfx);
 
-			 gfxContext.InsertUAVBarrier(context->SurfelIllumination->m_SurfelGrid.m_GPUBuffer);
-			 gfxContext.InsertUAVBarrier(context->SurfelIllumination->m_SurfelList.m_GPUBuffer);
-			 gfxContext.InsertUAVBarrier(context->SurfelIllumination->m_SurfelStack.m_GPUBuffer);
-			 gfxContext.InsertUAVBarrier(TestRaytracing::GetOutputBuffer());
-			 RenderFullScreenQuad(gfxContext);
+			 args.gfx.InsertUAVBarrier(context->SurfelIllumination->m_SurfelGrid.m_GPUBuffer);
+			 args.gfx.InsertUAVBarrier(context->SurfelIllumination->m_SurfelList.m_GPUBuffer);
+			 args.gfx.InsertUAVBarrier(context->SurfelIllumination->m_SurfelStack.m_GPUBuffer);
+			 args.gfx.InsertUAVBarrier(TestRaytracing::GetOutputBuffer());
+			 RenderFullScreenQuad(args.gfx);
 
 		 }
 		 else if (m_debugOverlayMode == 1)
 		 {
-			 ScopedTimer _prof3(L"Surfel GI Only Debug Overlay", gfxContext);
+			 ScopedTimer _prof3(L"Surfel GI Only Debug Overlay", args.gfx);
 
-			 context->SurfelGIVisualization->SetupRenderStage(gfxContext, viewport, scissor,
+			 context->SurfelGIVisualization->SetupRenderStage(args.gfx, args.viewport, args.scissor,
 				 context->SurfelIllumination->m_OutputTexture,
-				 camera);
+				 args.camera);
 
-			 gfxContext.TransitionResource(context->SurfelIllumination->m_OutputTexture, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,true);
+			 args.gfx.TransitionResource(context->SurfelIllumination->m_OutputTexture, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,true);
 
-			 context->SurfelGIVisualization->SetRootParameters(gfxContext, context->SurfelIllumination->m_OutputTexture);
-			 RenderFullScreenQuad(gfxContext);
+			 context->SurfelGIVisualization->SetRootParameters(args.gfx, context->SurfelIllumination->m_OutputTexture);
+			 RenderFullScreenQuad(args.gfx);
 		 }
 		 else if (m_debugOverlayMode == 2)
 		 {
-			 ScopedTimer _prof3(L"Surfel MSME Debug Overlay", gfxContext);
+			 ScopedTimer _prof3(L"Surfel MSME Debug Overlay", args.gfx);
 
-			 context->GridMSMEVisualization->SetupRenderStage(gfxContext, viewport, scissor,
+			 context->GridMSMEVisualization->SetupRenderStage(args.gfx, args.viewport, args.scissor,
 				 TestRaytracing::GetOutputBuffer(),
-				 camera);
+				 args.camera);
 
-			 gfxContext.InsertUAVBarrier(TestRaytracing::GetOutputBuffer());
+			 args.gfx.InsertUAVBarrier(TestRaytracing::GetOutputBuffer());
 
-			 context->SurfelIllumination->UpdateProjection(camera);
-			 context->SurfelIllumination->SendParametersGraphics(gfxContext);
+			 context->SurfelIllumination->UpdateProjection(args.camera);
+			 context->SurfelIllumination->SendParametersGraphics(args.gfx);
 
-			 RenderFullScreenQuad(gfxContext);
+			 RenderFullScreenQuad(args.gfx);
 
 		 }
 		 else if (m_debugOverlayMode == 3)
 		 {
-			 ScopedTimer _prof3(L"Material Binding Ouptut", gfxContext);
+			 ScopedTimer _prof3(L"Material Binding Ouptut", args.gfx);
 
-			 gfxContext.TransitionResource(TestRaytracing::GetOutputBuffer(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
-			 context->MaterialBindingDebug->SetupRenderStage(gfxContext, viewport, scissor,
+			 args.gfx.TransitionResource(TestRaytracing::GetOutputBuffer(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+			 context->MaterialBindingDebug->SetupRenderStage(args.gfx, args.viewport, args.scissor,
 				 TestRaytracing::GetOutputBuffer(),
-				 camera);
-			 context->MaterialBindingDebug->SetRootParameters(gfxContext, TestRaytracing::GetOutputBuffer());
-			 RenderFullScreenQuad(gfxContext);
+				 args.camera);
+			 context->MaterialBindingDebug->SetRootParameters(args.gfx, TestRaytracing::GetOutputBuffer());
+			 RenderFullScreenQuad(args.gfx);
 		 }
 		 else if (m_debugOverlayMode >= 4)
 		 {
-			 ScopedTimer _prof3(L"Surfel Spawn Chance Debug Overlay", gfxContext);
-			 context->SurfelSpawnVisualization->SetupRenderStage(gfxContext, viewport, scissor,
+			 ScopedTimer _prof3(L"Surfel Spawn Chance Debug Overlay", args.gfx);
+			 context->SurfelSpawnVisualization->SetupRenderStage(args.gfx, args.viewport, args.scissor,
 				 TestRaytracing::GetOutputBuffer(),
-				 camera);
+				 args.camera);
 
 			 UINT localDebugMode = m_debugOverlayMode - 4;
 
 
-			 gfxContext.InsertUAVBarrier(TestRaytracing::GetOutputBuffer());
+			 args.gfx.InsertUAVBarrier(TestRaytracing::GetOutputBuffer());
 
-			 context->SurfelIllumination->UpdateProjection(camera);
+			 context->SurfelIllumination->UpdateProjection(args.camera);
 			 
 			 //SurfelIllumination->SendParametersGraphics(gfxContext);
-			 context->SurfelIllumination->SendParametersInformedGraphics(gfxContext);
-			 context->SurfelSpawnVisualization->SetDebugMode(gfxContext,localDebugMode);
+			 context->SurfelIllumination->SendParametersInformedGraphics(args.gfx);
+			 context->SurfelSpawnVisualization->SetDebugMode(args.gfx,localDebugMode);
 
-			 RenderFullScreenQuad(gfxContext);
+			 RenderFullScreenQuad(args.gfx);
 		 }
 
 
@@ -1797,7 +1797,7 @@ XMVECTOR VectorProjection(XMVECTOR u, XMVECTOR v, float* scalarOut)
 
 
 	 }
-	void SurfelGIRenderer::RenderScene(RENDER_SCENE_PARAMS)
+	void SurfelGIRenderer::RenderScene(RenderArgs& args)
 	{
 		if (m_useSurfelInformedSBGI)
 			m_AdditiveBlendPass.m_blendControlCB.lerpSBGItoInformedSBGI.x = 1;
@@ -1806,11 +1806,11 @@ XMVECTOR VectorProjection(XMVECTOR u, XMVECTOR v, float* scalarOut)
 
 		if (m_resetSurfelNextFrame == true)
 		{
-			context->SurfelIllumination->ResetSurfels(gfxContext);
+			context->SurfelIllumination->ResetSurfels(args.gfx);
 			m_resetSurfelNextFrame = false;
 		}
 
-		ComputeContext& cfx = reinterpret_cast<ComputeContext&>(gfxContext);
+		ComputeContext& cfx = reinterpret_cast<ComputeContext&>(args.gfx);
 
 
 		if (m_stopSurfelUpdate == false || m_stopSurfelUpdate == true && m_stopSurfelUpdate != m_prevStopSurfelUpdate)
@@ -1818,20 +1818,20 @@ XMVECTOR VectorProjection(XMVECTOR u, XMVECTOR v, float* scalarOut)
 			context->SurfelIllumination->FillAccelerationStructuresReduceThenScan(cfx);
 		}
 		//Control GPU Readback
-		//SurfelIllumination->ReadbakcSurfelDebugData(gfxContext);
+		//SurfelIllumination->ReadbakcSurfelDebugData(args.gfx);
 		if (m_stopSurfelUpdate == true && m_stopSurfelUpdate != m_prevStopSurfelUpdate)
 		{
-			context->SurfelIllumination->ReadbackSurfelAccelerationStructure(gfxContext);
-			context->SurfelIllumination->ReadbackSurfelData(gfxContext);
+			context->SurfelIllumination->ReadbackSurfelAccelerationStructure(args.gfx);
+			context->SurfelIllumination->ReadbackSurfelData(args.gfx);
 		}
 
 		if (m_stopSurfelUpdate == false)
 		{
 			cfx.InsertUAVBarrier(context->SurfelIllumination->m_SurfelData.m_GPUBuffer);
-			gfxContext.InsertUAVBarrier(context->SurfelIllumination->m_SurfelData.m_GPUBuffer);
+			args.gfx.InsertUAVBarrier(context->SurfelIllumination->m_SurfelData.m_GPUBuffer);
 			SurfelIrradianceAccumulation::DoRaytracing(
 				cfx,
-				camera,
+				args.camera,
 				context->SurfelIllumination->descriptorHeap,
 				context->SurfelIllumination->m_SurfelGen.UniformGrid,
 				context->SurfelIllumination->m_SurfelData.m_Actual);
@@ -1840,7 +1840,7 @@ XMVECTOR VectorProjection(XMVECTOR u, XMVECTOR v, float* scalarOut)
 
 		Renderer::UpdateGlobalDescriptors();
 
-		Vector3 pos = camera.GetPosition();
+		Vector3 pos = args.camera.GetPosition();
 
 		uint32_t FrameIndex = TemporalEffects::GetFrameIndexMod2();
 
@@ -1888,107 +1888,107 @@ XMVECTOR VectorProjection(XMVECTOR u, XMVECTOR v, float* scalarOut)
 		// Set the default state for command lists
 		auto& pfnSetupGraphicsState = [&](void)
 			{
-				gfxContext.SetRootSignature(Renderer::m_RootSig);
-				gfxContext.SetDescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, Renderer::s_TextureHeap.GetHeapPointer());
-				gfxContext.SetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-				gfxContext.SetIndexBuffer(m_Model->GetIndexBuffer());
-				gfxContext.SetVertexBuffer(0, m_Model->GetVertexBuffer());
+				args.gfx.SetRootSignature(Renderer::m_RootSig);
+				args.gfx.SetDescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, Renderer::s_TextureHeap.GetHeapPointer());
+				args.gfx.SetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+				args.gfx.SetIndexBuffer(m_Model->GetIndexBuffer());
+				args.gfx.SetVertexBuffer(0, m_Model->GetVertexBuffer());
 			};
 
 		pfnSetupGraphicsState();
 
-		RenderLightShadows(gfxContext, camera);
+		RenderLightShadows(args.gfx, args.camera);
 
 		{
-			ScopedTimer _prof(L"Z PrePass", gfxContext);
+			ScopedTimer _prof(L"Z PrePass", args.gfx);
 
-			gfxContext.SetDynamicConstantBufferView(Renderer::kMaterialConstants, sizeof(psConstants), &psConstants);
+			args.gfx.SetDynamicConstantBufferView(Renderer::kMaterialConstants, sizeof(psConstants), &psConstants);
 
 			{
-				ScopedTimer _prof2(L"Opaque", gfxContext);
+				ScopedTimer _prof2(L"Opaque", args.gfx);
 				{
-					gfxContext.TransitionResource(g_SceneDepthBuffer, D3D12_RESOURCE_STATE_DEPTH_WRITE, true);
-					gfxContext.ClearDepth(g_SceneDepthBuffer);
-					gfxContext.SetPipelineState(m_DepthPSO);
-					gfxContext.SetDepthStencilTarget(g_SceneDepthBuffer.GetDSV());
-					gfxContext.SetViewportAndScissor(viewport, scissor);
+					args.gfx.TransitionResource(g_SceneDepthBuffer, D3D12_RESOURCE_STATE_DEPTH_WRITE, true);
+					args.gfx.ClearDepth(g_SceneDepthBuffer);
+					args.gfx.SetPipelineState(m_DepthPSO);
+					args.gfx.SetDepthStencilTarget(g_SceneDepthBuffer.GetDSV());
+					args.gfx.SetViewportAndScissor(args.viewport, args.scissor);
 				}
-				RenderObjects(gfxContext, camera.GetViewProjMatrix(), camera.GetPosition(), kOpaque);
+				RenderObjects(args.gfx, args.camera.GetViewProjMatrix(), args.camera.GetPosition(), kOpaque);
 			}
 
 			//--- CUTOUT RENDERING ---
 			{
-				ScopedTimer _prof2(L"Cutout", gfxContext);
+				ScopedTimer _prof2(L"Cutout", args.gfx);
 				{
-					gfxContext.SetPipelineState(m_CutoutDepthPSO);
+					args.gfx.SetPipelineState(m_CutoutDepthPSO);
 				}
-				RenderObjects(gfxContext, camera.GetViewProjMatrix(), camera.GetPosition(), kCutout);
+				RenderObjects(args.gfx, args.camera.GetViewProjMatrix(), args.camera.GetPosition(), kCutout);
 			}
 		}
 
 
 
-		SSAO::Render(gfxContext, camera);
+		SSAO::Render(args.gfx, args.camera);
 
-		if (!skipDiffusePass)
+		if (!args.skipDiffuse)
 		{
-			Lighting::FillLightGrid(gfxContext, camera);
+			Lighting::FillLightGrid(args.gfx, args.camera);
 
 			if (!SSAO::DebugDraw)
 			{
-				ScopedTimer _prof(L"Main Render", gfxContext);
+				ScopedTimer _prof(L"Main Render", args.gfx);
 				{
-					gfxContext.TransitionResource(g_SceneColorBuffer, D3D12_RESOURCE_STATE_RENDER_TARGET, true);
-					gfxContext.TransitionResource(g_SceneNormalBuffer, D3D12_RESOURCE_STATE_RENDER_TARGET, true);
-					gfxContext.ClearColor(g_SceneColorBuffer);
+					args.gfx.TransitionResource(g_SceneColorBuffer, D3D12_RESOURCE_STATE_RENDER_TARGET, true);
+					args.gfx.TransitionResource(g_SceneNormalBuffer, D3D12_RESOURCE_STATE_RENDER_TARGET, true);
+					args.gfx.ClearColor(g_SceneColorBuffer);
 				}
 			}
 		}
 
-		if (!skipShadowMap)
+		if (!args.skipShadow)
 		{
 			if (!SSAO::DebugDraw)
 			{
 				//--- SHADOWS PASS ---
 				pfnSetupGraphicsState();
 				{
-					ScopedTimer _prof2(L"Render Shadow Map", gfxContext);
+					ScopedTimer _prof2(L"Render Shadow Map", args.gfx);
 
 					context->sunShadow.UpdateMatrix(-context->sunDirection, Vector3(0, -500.0f, 0), Vector3(ShadowDimX, ShadowDimY, ShadowDimZ),
 						(uint32_t)g_ShadowBuffer.GetWidth(), (uint32_t)g_ShadowBuffer.GetHeight(), 16);
 
-					g_ShadowBuffer.BeginRendering(gfxContext);
-					gfxContext.SetPipelineState(m_ShadowPSO);
-					RenderObjects(gfxContext, context->sunShadow.GetViewProjMatrix(), camera.GetPosition(), kOpaque);
-					gfxContext.SetPipelineState(m_CutoutShadowPSO);
-					RenderObjects(gfxContext, context->sunShadow.GetViewProjMatrix(), camera.GetPosition(), kCutout);
-					g_ShadowBuffer.EndRendering(gfxContext);
+					g_ShadowBuffer.BeginRendering(args.gfx);
+					args.gfx.SetPipelineState(m_ShadowPSO);
+					RenderObjects(args.gfx, context->sunShadow.GetViewProjMatrix(), args.camera.GetPosition(), kOpaque);
+					args.gfx.SetPipelineState(m_CutoutShadowPSO);
+					RenderObjects(args.gfx, context->sunShadow.GetViewProjMatrix(), args.camera.GetPosition(), kCutout);
+					g_ShadowBuffer.EndRendering(args.gfx);
 				}
 			}
 		}
 
-		if (!skipDiffusePass)
+		if (!args.skipDiffuse)
 		{
 			if (!SSAO::DebugDraw)
 			{
 				if (SSAO::AsyncCompute)
 				{
-					gfxContext.Flush();
+					args.gfx.Flush();
 					pfnSetupGraphicsState();
 
 					// Make the 3D queue wait for the Compute queue to finish SSAO
 					g_CommandManager.GetGraphicsQueue().StallForProducer(g_CommandManager.GetComputeQueue());
 				}
 
-				RenderColor(gfxContext, camera, viewport, scissor, skipDiffusePass, skipShadowMap);
+				RenderColor(args);
 
 				//                --- SKIP NORMAL CUTOUTS---
-				//gfxContext.SetPipelineState(m_CutoutModelPSO);
-				//RenderObjects( gfxContext, camera.GetViewProjMatrix(), camera.GetPosition(), TestRenderer::kCutout );
+				//args.gfx.SetPipelineState(m_CutoutModelPSO);
+				//RenderObjects( args.gfx, args.camera.GetViewProjMatrix(), args.camera.GetPosition(), TestRenderer::kCutout );
 
 				if (m_enableDebugOverlay)
 				{
-					RenderDebugOverlay(gfxContext, camera, viewport, scissor, skipDiffusePass, skipShadowMap);
+					RenderDebugOverlay(args);
 				}
 
 			}
@@ -1997,22 +1997,22 @@ XMVECTOR VectorProjection(XMVECTOR u, XMVECTOR v, float* scalarOut)
 
 		if (m_useSurfelInformedSBGI)
 		{
-			context->m_GBufferDownsample->Dispatch(cfx, camera);
+			context->m_GBufferDownsample->Dispatch(cfx, args.camera);
 			{
 				if (m_hbil_render)
 				{
-					ScopedTimer _prof(L"Render HBIL", gfxContext);
+					ScopedTimer _prof(L"Render HBIL", args.gfx);
 					ImVec2 mousePos = ImGui::GetMousePos();
-					float verticalFovRad = camera.GetFOV();
+					float verticalFovRad = args.camera.GetFOV();
 					float TAN_HALF_FOV = tan(verticalFovRad * 0.5);
 					context->m_HBIL->SetMousePos(mousePos.x, mousePos.y);
-					context->m_HBIL->RenderHBIL(gfxContext, camera);
-					RenderFullScreenQuad(gfxContext);
-					last_camera_data = camera;
+					context->m_HBIL->RenderHBIL(args.gfx, args.camera);
+					RenderFullScreenQuad(args.gfx);
+					last_camera_data = args.camera;
 				}
 				if (m_hbil_updateDebug)
 				{
-					context->m_HBIL->ReadDebugHBIL(gfxContext, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, true);
+					context->m_HBIL->ReadDebugHBIL(args.gfx, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, true);
 
 				}
 			}
@@ -2026,29 +2026,29 @@ XMVECTOR VectorProjection(XMVECTOR u, XMVECTOR v, float* scalarOut)
 		if (m_stopSurfelUpdate == false)
 		{
 			if(m_useSurfelInformedSBGI)
-				context->SurfelIllumination->SpawnSurfelsInformed(cfx, camera);
+				context->SurfelIllumination->SpawnSurfelsInformed(cfx, args.camera);
 			else
-				context->SurfelIllumination->SpawnSurfels(cfx, camera);
+				context->SurfelIllumination->SpawnSurfels(cfx, args.camera);
 		}
 
 		if (m_drawPhysicalSurfelInstances)
 		{
-			context->SurfelIllumination->ReadbackSurfelData(gfxContext);
+			context->SurfelIllumination->ReadbackSurfelData(args.gfx);
 		}
 
-		context->SurfelIllumination->ApplySurfels(cfx, camera);
+		context->SurfelIllumination->ApplySurfels(cfx, args.camera);
 
 		if (m_stopSurfelUpdate == false)
-			context->SurfelIllumination->RecycleSurfels(cfx, camera);
+			context->SurfelIllumination->RecycleSurfels(cfx, args.camera);
 
 		m_prevStopSurfelUpdate = m_stopSurfelUpdate;
-		CopyColorAndDepthBuffers(gfxContext);
+		CopyColorAndDepthBuffers(args.gfx);
 		//Final pass apply the collected diffuse lighting as an ambient term
 //		if(m_enableBlending)
 //		{
-//			ScopedTimer _prof(L"Apply Diffuse Lighting", gfxContext);
-//			m_AdditiveBlendPass.SetupRenderStage(gfxContext, viewport, scissor, SurfelIllumination->m_OutputTexture, Graphics::g_SceneColorBuffer);
-//			RenderFullScreenQuad(gfxContext);
+//			ScopedTimer _prof(L"Apply Diffuse Lighting", args.gfx);
+//			m_AdditiveBlendPass.SetupRenderStage(args.gfx, viewport, scissor, SurfelIllumination->m_OutputTexture, Graphics::g_SceneColorBuffer);
+//			RenderFullScreenQuad(args.gfx);
 //		}
 
 
